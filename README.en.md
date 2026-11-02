@@ -13,6 +13,19 @@ Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [
 
 ---
 
+## What it looks like
+
+![Gauges and navigation on the car screen](docs/screenshots/car-navigation.jpg)
+*On the car screen: navigation on the left, the gauges in the center (RPM, speed, temperature) with information tiles around them and the title of the playing track.*
+
+![Gauges on the car screen](docs/screenshots/car-parked.jpg)
+*The same screen while parked.*
+
+![Android Auto screenshot](docs/screenshots/android-auto-screenshot.jpg)
+*A screenshot with a different gauge style, taken while connecting to the control unit (the "Соединение с ECU" / "Connecting to ECU" label).*
+
+---
+
 ## What is changed compared to AA Torque
 
 **Data and connection**
@@ -45,13 +58,27 @@ Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [
 
 1. **Adapter.** Plug the ELM327 (Bluetooth Classic) into the diagnostic port, turn on the ignition or start the engine.
 2. **Pairing.** In your phone's Bluetooth settings find the adapter (usually `OBDII`, PIN `1234` or `0000`) and pair it.
-3. **Installation.** Download the APK from [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases) and install it with ADB or AAEnabler (required for the app to appear in the Android Auto app list).
+3. **Installation.** Download the APK from [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases) and install it with Shizuku and AAEnabler (details below). Without this the app will not appear in the Android Auto app list.
 4. **Permissions.** On first launch allow Bluetooth and notifications.
 5. **Connection.** Tap **"Settings"** (the gear) on the main screen toolbar → choose the adapter (or leave "Automatic") → **"Start / connect"**. The "Adapter link" line should show "Connected", and sensor values appear below.
 6. **Gauges.** In the app settings choose the parameters for the gauges (for example "Coolant temperature", "Soot accumulation", "Transmission oil temperature").
 7. **Android Auto.** Enable developer mode once (in the Android Auto settings tap the version number ten times) and allow **"Unknown sources"**. Connect the phone to the car and open AA Mazda Monitor in the app list.
 
 **Important:** the adapter holds one connection. Close any other OBD apps.
+
+### Installing with Shizuku and AAEnabler
+
+Android Auto lists only apps that were installed in a special way, so a regular APK install will not work. You need two apps:
+- **Shizuku** (enables ADB on the phone itself), available on Google Play;
+- **AAEnabler**: <https://github.com/malebuffy/AAEnabler>.
+
+1. Install Shizuku and AAEnabler.
+2. In Shizuku tap **"Pairing"** and follow the in-app instructions. Then tap **"Start"**.
+3. Once Shizuku is running, an item showing the number of apps that request access appears ("X apps available" in the Russian interface). Open it and grant AAEnabler the permission.
+4. Open AAEnabler, choose **"Select local APK"** and pick the downloaded APK. Under the button a card appears with the app name, version, SDK version and the line **"Android Auto metadata detected"**. If everything looks right, tap **"Install app"**.
+5. Check that AA Mazda Monitor appears in the Android Auto app list.
+
+> Shizuku is needed only during installation, not for running the app. Installing a new version via "Check for updates" may reset the install source, and the app will disappear from the Android Auto list. In that case repeat steps 2–5.
 
 ### If it does not connect
 
