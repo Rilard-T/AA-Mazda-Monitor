@@ -54,6 +54,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
         }
         if (r == null) throw IOException("Блок двигателя не отвечает. Включите зажигание.")
         readSupported(r)
+        Timber.i("Режим 01, заявлено блоком: %s", supported.sorted().joinToString(",") { "%02X".format(it) })
         failures = 0
         readId("33")                                       // барометр нужен для расчёта наддува
         bg = Thread(::backgroundLoop, "obd-regen").also { it.isDaemon = true; it.start() }
@@ -105,6 +106,8 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             warnMiss(p, t)
             val g = lastGood[p.id]
             if (g != null && t - g.t < HOLD_SLOW_MS) shown = g.v
+        } else if (p.virtual == null && (p.id == "7c" || p.id == "7a")) {
+            warnMiss(p, t)   // диагностика 7C/7A: сырой ответ блока
         }
         cache[p.id] = Sample(t, shown)
         if (v != null) when (p.id) {
@@ -121,7 +124,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
     private fun warnMiss(p: PidDef, now: Long) {
         if (now - (lastWarn[p.id] ?: 0L) < 10_000L) return
         lastWarn[p.id] = now
-        Timber.w("Нет данных %s (блок %s): %s", p.id, p.header, lastRaw.replace(Regex("\\s+"), " ").take(60))
+        Timber.w("Нет данных %s (блок %s): %s", p.id, p.header, lastRaw.replace(Regex("\\s+"), " ").take(120))
     }
 
     private fun fetch(p: PidDef): Double? {
