@@ -5,18 +5,24 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.HandlerThread
 import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
+import android.view.Choreographer
 import android.view.Surface
 import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/** Три пробных прибора с имитацией данных. Раскладка считается по стабильной области, чтобы приборы не прыгали. */
+/**
+ * Три пробных прибора с имитацией данных.
+ * Рисование идёт в отдельном потоке по сигналу вертикальной синхронизации (Choreographer),
+ * стрелки сглажены, раскладка выбирается по форме стабильной области.
+ */
 class SurfaceRenderer : SurfaceCallback {
     private class Gauge(
         val label: String,
@@ -24,32 +30,47 @@ class SurfaceRenderer : SurfaceCallback {
         val min: Float,
         val max: Float,
         val period: Float,
-        val phase: Float,
-        val step: Float
-    )
+        val phase: Float
+    ) {
+        var shown = min
+        var text = ""
+        var textKey = Int.MIN_VALUE
+    }
 
     private val gauges = listOf(
-        Gauge("Скорость", "км/ч", 0f, 240f, 17f, 0f, 20f),
-        Gauge("Обороты", "x1000", 0f, 6f, 9f, 1.2f, 1f),
-        Gauge("Темп. ОЖ", "°C", 40f, 120f, 31f, 2.4f, 10f)
+        Gauge("Скорость", "км/ч", 0f, 240f, 17f, 0f),
+        Gauge("Обороты", "x1000", 0f, 6f, 9f, 1.2f),
+        Gauge("Темп. ОЖ", "°C", 40f, 120f, 31f, 2.4f)
     )
 
-    private var surface: Surface? = null
-    private var width = 0
-    private var height = 0
-    private var dpi = 0
-    private var visible = Rect()
-    private var stable = Rect()
-    private val handler = Handler(Looper.getMainLooper())
-    private val rectF = RectF()
+    @Volatile private var surface: Surface? = null
+    @Volatile private var width = 0
+    @Volatile private var height = 0
+    @Volatile private var dpi = 0
+    @Volatile private var visible = Rect()
+    @Volatile private var stable = Rect()
+    @Volatile private var debug = ""
 
+    private var thread: HandlerThread? = null
+    private var handler: Handler? = null
+    private var choreographer: Choreographer? = null
+    @Volatile private var running = false
+    private var lastNanos = 0L
+    private var hardware = true
+
+    private val rectF = RectF()
     private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val stroke = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true }
     private val text = Paint().apply { isAntiAlias = true; textAlign = Paint.Align.CENTER }
-    private val ticker = object : Runnable {
-        override fun run() {
-            draw()
-            handler.postDelayed(this, 33)
+
+    private val frame = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!running) return
+            val dt = if (lastNanos == 0L) 0.016f
+            else ((frameTimeNanos - lastNanos) / 1e9f).coerceIn(0.001f, 0.1f)
+            lastNanos = frameTimeNanos
+            draw(frameTimeNanos / 1e9f, dt)
+            choreographer?.postFrameCallback(this)
         }
     }
 
@@ -58,48 +79,98 @@ class SurfaceRenderer : SurfaceCallback {
         width = surfaceContainer.width
         height = surfaceContainer.height
         dpi = surfaceContainer.dpi
-        handler.removeCallbacks(ticker)
-        handler.post(ticker)
+        updateDebug()
+        start()
     }
 
     override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
-        handler.removeCallbacks(ticker)
+        stop()
         surface = null
     }
 
     override fun onVisibleAreaChanged(visibleArea: Rect) {
         visible = Rect(visibleArea)
+        updateDebug()
     }
 
     override fun onStableAreaChanged(stableArea: Rect) {
         stable = Rect(stableArea)
+        updateDebug()
     }
 
-    private fun value(g: Gauge, t: Float): Float {
+    private fun updateDebug() {
+        debug = "${width}x$height $dpi dpi  visible ${visible.toShortString()}  stable ${stable.toShortString()}"
+    }
+
+    private fun start() {
+        if (running) return
+        running = true
+        lastNanos = 0L
+        val th = HandlerThread("navproto-render")
+        th.start()
+        thread = th
+        val h = Handler(th.looper)
+        handler = h
+        h.post {
+            choreographer = Choreographer.getInstance()
+            choreographer?.postFrameCallback(frame)
+        }
+    }
+
+    private fun stop() {
+        running = false
+        handler?.post { choreographer?.removeFrameCallback(frame) }
+        thread?.quitSafely()
+        thread = null
+        handler = null
+    }
+
+    private fun lock(s: Surface): Canvas? {
+        if (hardware) {
+            try {
+                return s.lockHardwareCanvas()
+            } catch (e: Exception) {
+                hardware = false
+            }
+        }
+        return try {
+            s.lockCanvas(null)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun target(g: Gauge, t: Float): Float {
         val k = 0.5f + 0.5f * sin((2.0 * PI * t / g.period + g.phase).toDouble()).toFloat()
         return g.min + (g.max - g.min) * k
     }
 
-    private fun draw() {
+    private fun draw(t: Float, dt: Float) {
         val s = surface ?: return
         if (!s.isValid) return
-        val c: Canvas = try {
-            s.lockCanvas(null)
-        } catch (e: Exception) {
-            null
-        } ?: return
+        val c = lock(s) ?: return
         try {
             c.drawColor(Color.rgb(8, 12, 28))
-            val area = if (stable.width() > 0 && stable.height() > 0) stable else Rect(0, 0, width, height)
-            val t = SystemClock.uptimeMillis() / 1000f
+            val st = stable
+            val area = if (st.width() > 0 && st.height() > 0) st else Rect(0, 0, width, height)
+            val w = area.width().toFloat()
+            val h = area.height().toFloat()
 
-            val cell = area.width() / 3f
-            val base = min(cell / 2f, area.height() / 2f) * 0.9f
-            val cy = area.exactCenterY()
+            // сглаживание показаний: постоянная времени 0,1 с
+            val k = 1f - exp(-dt / 0.10f)
+            for (g in gauges) g.shown += (target(g, t) - g.shown) * k
+
+            // выбор раскладки: ряд или колонка, берём ту, где приборы крупнее
+            val rowBase = min(w / 6f, h / 2f) * 0.9f
+            val colBase = min(w / 2f, h / 6f) * 0.9f
+            val column = colBase > rowBase
+            val base = if (column) colBase else rowBase
+            val cell = if (column) h / 3f else w / 3f
             for (i in gauges.indices) {
-                val cx = area.left + cell * (i + 0.5f)
+                val cx = if (column) area.exactCenterX() else area.left + cell * (i + 0.5f)
+                val cy = if (column) area.top + cell * (i + 0.5f) else area.exactCenterY()
                 val r = if (i == 1) base else base * 0.85f
-                drawGauge(c, cx, cy, r, gauges[i], value(gauges[i], t))
+                drawGauge(c, cx, cy, r, gauges[i])
             }
 
             // отладочные рамки: голубая видимая, жёлтая стабильная
@@ -111,18 +182,28 @@ class SurfaceRenderer : SurfaceCallback {
             text.color = Color.GRAY
             text.textSize = 22f
             text.textAlign = Paint.Align.LEFT
-            c.drawText(
-                "${width}x$height $dpi dpi  visible ${visible.toShortString()}  stable ${stable.toShortString()}",
-                area.left + 12f, area.bottom - 10f, text
-            )
+            c.drawText(debug, area.left + 12f, area.bottom - 10f, text)
             text.textAlign = Paint.Align.CENTER
         } finally {
-            s.unlockCanvasAndPost(c)
+            try {
+                s.unlockCanvasAndPost(c)
+            } catch (e: Exception) {
+            }
         }
     }
 
-    private fun drawGauge(c: Canvas, cx: Float, cy: Float, r: Float, g: Gauge, v: Float) {
-        val frac = ((v - g.min) / (g.max - g.min)).coerceIn(0f, 1f)
+    private fun shownText(g: Gauge): String {
+        val tenths = g.max <= 10f
+        val key = if (tenths) (g.shown * 10f).roundToInt() else g.shown.roundToInt()
+        if (key != g.textKey) {
+            g.textKey = key
+            g.text = if (tenths) "${key / 10},${key % 10}" else key.toString()
+        }
+        return g.text
+    }
+
+    private fun drawGauge(c: Canvas, cx: Float, cy: Float, r: Float, g: Gauge) {
+        val frac = ((g.shown - g.min) / (g.max - g.min)).coerceIn(0f, 1f)
 
         fill.color = Color.rgb(18, 26, 54)
         c.drawCircle(cx, cy, r, fill)
@@ -143,12 +224,9 @@ class SurfaceRenderer : SurfaceCallback {
         val ticks = 10
         for (i in 0..ticks) {
             val a = (135.0 + 270.0 * i / ticks) * PI / 180.0
-            val r1 = r * 0.70f
-            val r2 = r * 0.78f
-            c.drawLine(
-                cx + r1 * cos(a).toFloat(), cy + r1 * sin(a).toFloat(),
-                cx + r2 * cos(a).toFloat(), cy + r2 * sin(a).toFloat(), stroke
-            )
+            val ca = cos(a).toFloat()
+            val sa = sin(a).toFloat()
+            c.drawLine(cx + r * 0.70f * ca, cy + r * 0.70f * sa, cx + r * 0.78f * ca, cy + r * 0.78f * sa, stroke)
         }
 
         // стрелка
@@ -159,16 +237,14 @@ class SurfaceRenderer : SurfaceCallback {
         fill.color = Color.rgb(255, 190, 60)
         c.drawCircle(cx, cy, r * 0.05f, fill)
 
-        // подписи
-        text.color = Color.rgb(170, 185, 220)
-        text.textSize = r * 0.14f
-        c.drawText(g.label, cx, cy - r * 0.30f, text)
+        // подписи: значение под центром, единицы и название в нижней «пустой» части циферблата
         text.color = Color.WHITE
         text.textSize = r * 0.30f
-        val shown = if (g.max <= 10f) String.format("%.1f", v) else v.toInt().toString()
-        c.drawText(shown, cx, cy + r * 0.50f, text)
+        c.drawText(shownText(g), cx, cy + r * 0.45f, text)
         text.color = Color.rgb(170, 185, 220)
         text.textSize = r * 0.13f
-        c.drawText(g.unit, cx, cy + r * 0.68f, text)
+        c.drawText(g.unit, cx, cy + r * 0.62f, text)
+        text.textSize = r * 0.14f
+        c.drawText(g.label, cx, cy + r * 0.86f, text)
     }
 }

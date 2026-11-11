@@ -105,6 +105,8 @@ dependencies {
     // Replaced with updated SDK from "https://github.com/cupral/aauto-sdk.git" (as git-submodule)
     //implementation 'com.github.martoreto:aauto-sdk:v4.7'
     implementation project(path: ':speedviewlib', configuration: 'default')
+    implementation "androidx.car.app:app:1.7.0"
+    implementation "androidx.car.app:app-projected:1.7.0"
     implementation files('../lib/aauto.aar')
 
     implementation 'com.jjoe64:graphview:4.2.2'
