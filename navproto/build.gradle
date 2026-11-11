@@ -1,0 +1,43 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "com.aamazda.navproto"
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.aamazda.monitor.nav"
+        minSdkVersion 28
+        targetSdkVersion 34
+        versionCode 1
+        versionName "0.1.0"
+    }
+    signingConfigs {
+        debug {
+            def ks = System.getenv("KEYSTORE_FILE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_19
+        targetCompatibility JavaVersion.VERSION_19
+    }
+    kotlinOptions {
+        jvmTarget = "19"
+    }
+}
+
+dependencies {
+    implementation "androidx.car.app:app:1.7.0"
+    implementation "androidx.car.app:app-projected:1.7.0"
+}
