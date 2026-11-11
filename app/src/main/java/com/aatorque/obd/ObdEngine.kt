@@ -62,6 +62,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
 
     fun close() {
         closed = true
+        tracker.onLinkClosed()
         bg?.interrupt()
         link.close()
     }
@@ -72,12 +73,32 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             var n = 0
             while (!closed) {
                 // принудительное чтение (мимо кэша): температура и сажа каждые 5 с, счётчик и пробег каждые 10 с
-                readFresh("ff9006"); readFresh("7c"); readFresh("ff9003")
+                readFresh("ff9006"); readFresh("ff9003")
+                readFresh("0c")   // обороты: по ним (и по молчанию блока) журнал прожигов определяет, что двигатель выключен
                 if (n % 2 == 0) { readFresh("ff9001"); readFresh("ff9002") }
+                if (n % 6 == 0) diagLog()   // только журнал: сырые ответы блока на 01 78 / 7A / 8B / 73
                 n++
                 Thread.sleep(5_000)
             }
         } catch (_: InterruptedException) { }
+    }
+
+    /** Сырой ответ блока двигателя на запрос режима 01 (только для журнала). */
+    @Synchronized
+    private fun diagRaw(req: String): String = try {
+        send("7E0", if (useCount) req + "1" else req, 1500)
+    } catch (e: IOException) { failures++; "ошибка связи: " + (e.message ?: "") }
+
+    /** Раз в 30 с пишет в журнал ответы блока на параметры, которые могут пригодиться для сажевого. На экраны не выводится. */
+    private fun diagLog() {
+        for (pid in listOf("78", "7A", "8B", "73")) {
+            val raw = diagRaw("01$pid")
+            Timber.i("Диагностика 01%s: %s", pid, raw.replace(Regex("\\s+"), " ").trim().take(160))
+            if (pid == "78") parse(raw, "4178")?.takeIf { it.size >= 9 }?.let { b ->
+                val t = (0 until 4).joinToString(" ") { i -> "%.1f".format((b[1 + 2 * i] * 256 + b[2 + 2 * i]) / 10.0 - 40.0) }
+                Timber.i("Диагностика 0178: флаги %02X, температуры %s °C", b[0], t)
+            }
+        }
     }
 
     fun listIds(): Array<String> = MazdaPids.all
@@ -110,11 +131,11 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             warnMiss(p, t)   // диагностика 7C/7A: сырой ответ блока
         }
         cache[p.id] = Sample(t, shown)
+        if (p.id == "0c") tracker.onRpm(v)   // v == null: блок не ответил
         if (v != null) when (p.id) {
             "ff9001" -> tracker.onCount(v.toInt())
             "ff9002" -> tracker.onDist(v)
             "ff9003" -> tracker.onSoot(v)
-            "7c" -> tracker.onTemp(v)
             "ff9006" -> tracker.onStatus(v.toInt())
         }
         return shown

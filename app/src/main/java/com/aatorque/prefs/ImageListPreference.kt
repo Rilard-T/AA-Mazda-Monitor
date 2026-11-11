@@ -87,7 +87,7 @@ class ImageListPreference(
                 value == entryValues[index],
                 index
             )
-        }.sortedBy { it.title }
+        }.sortedBy { if (it.title.startsWith("Mazda")) "" else it.title }   // «Mazda gen4» первой, остальные по алфавиту
 
         val lv = ListView(context)
         val adapter = CustomListAdapter(context, R.layout.icon_list_row, items, tint)

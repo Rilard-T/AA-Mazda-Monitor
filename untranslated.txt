@@ -1,9 +1,0 @@
-Нет перевода в values-ru:
-
-В values-ru по-английски:
-activity_main_title = AA Mazda Monitor
-activity_settings_title = AA Mazda Monitor
-app_car_service_name = AA Mazda Monitor
-app_name = AA Mazda Monitor
-element_VIN = VIN
-pid = PID
