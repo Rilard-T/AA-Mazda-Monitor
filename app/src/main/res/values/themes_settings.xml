@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Тема экранов настроек (0.8.0). Приборная панель использует AppTheme и AppTheme.*, их не трогаем. -->
+    <style name="Theme.App.Settings" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/ms_primary</item>
+        <item name="colorOnPrimary">@color/ms_on_primary</item>
+        <item name="colorPrimaryContainer">@color/ms_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/ms_on_primary_container</item>
+        <item name="colorSecondary">@color/ms_secondary</item>
+        <item name="colorOnSecondary">@color/ms_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/ms_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/ms_on_secondary_container</item>
+        <item name="colorTertiary">@color/ms_tertiary</item>
+        <item name="colorOnTertiary">@color/ms_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/ms_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/ms_on_tertiary_container</item>
+        <item name="colorError">@color/ms_error</item>
+        <item name="colorOnError">@color/ms_on_error</item>
+        <item name="colorErrorContainer">@color/ms_error_container</item>
+        <item name="colorOnErrorContainer">@color/ms_on_error_container</item>
+        <item name="android:colorBackground">@color/ms_background</item>
+        <item name="colorOnBackground">@color/ms_on_background</item>
+        <item name="colorSurface">@color/ms_surface</item>
+        <item name="colorOnSurface">@color/ms_on_surface</item>
+        <item name="colorSurfaceVariant">@color/ms_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/ms_on_surface_variant</item>
+        <item name="colorOutline">@color/ms_outline</item>
+        <item name="colorOutlineVariant">@color/ms_outline_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/ms_sc_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/ms_sc_low</item>
+        <item name="colorSurfaceContainer">@color/ms_sc</item>
+        <item name="colorSurfaceContainerHigh">@color/ms_sc_high</item>
+        <item name="colorSurfaceContainerHighest">@color/ms_sc_highest</item>
+    </style>
+</resources>

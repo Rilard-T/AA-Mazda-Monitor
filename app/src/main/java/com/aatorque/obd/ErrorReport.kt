@@ -1,7 +1,7 @@
 package com.aatorque.obd
 
 import android.app.Activity
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -30,9 +30,11 @@ object ErrorReport {
                 "Полный журнал будет скопирован в буфер обмена. Откроется страница GitHub с готовым обращением: " +
                     "версия приложения, модель телефона, статус подключения и последние строки журнала. " +
                     "Адреса устройств скрыты. Проверьте текст и нажмите «Submit new issue», при необходимости " +
-                    "вставьте полный журнал в комментарий."
+                    "вставьте полный журнал в комментарий. " +
+                    "Кнопка «Файл .txt» сохраняет весь журнал в файл и открывает меню «Поделиться»."
             )
             .setPositiveButton("Продолжить") { _, _ -> send(activity, lines) }
+            .setNeutralButton("Файл .txt") { _, _ -> sendFile(activity) }
             .setNegativeButton("Отмена", null)
             .show()
     }
@@ -45,6 +47,15 @@ object ErrorReport {
             activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(buildUrl(lines))))
         } catch (e: Exception) {
             Toast.makeText(activity, "Не удалось открыть браузер", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun sendFile(activity: Activity) {
+        try {
+            val tree = (activity.application as com.aatorque.stats.App).logTree
+            com.aatorque.stats.LogExport.share(activity, tree, "Подключение: ${ObdBridgeService.status}")
+        } catch (e: Exception) {
+            Toast.makeText(activity, "Не удалось создать файл журнала", Toast.LENGTH_LONG).show()
         }
     }
 

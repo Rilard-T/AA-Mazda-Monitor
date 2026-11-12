@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ms_primary">#0058CB</color>
+    <color name="ms_on_primary">#FFFFFF</color>
+    <color name="ms_primary_container">#D8E2FF</color>
+    <color name="ms_on_primary_container">#001A41</color>
+    <color name="ms_secondary">#575E71</color>
+    <color name="ms_on_secondary">#FFFFFF</color>
+    <color name="ms_secondary_container">#DBE2F9</color>
+    <color name="ms_on_secondary_container">#141B2C</color>
+    <color name="ms_tertiary">#715573</color>
+    <color name="ms_on_tertiary">#FFFFFF</color>
+    <color name="ms_tertiary_container">#FBD7FC</color>
+    <color name="ms_on_tertiary_container">#29132D</color>
+    <color name="ms_error">#BA1A1A</color>
+    <color name="ms_on_error">#FFFFFF</color>
+    <color name="ms_error_container">#FFDAD6</color>
+    <color name="ms_on_error_container">#410002</color>
+    <color name="ms_background">#FAF9FD</color>
+    <color name="ms_on_background">#1A1B20</color>
+    <color name="ms_surface">#FAF9FD</color>
+    <color name="ms_on_surface">#1A1B20</color>
+    <color name="ms_surface_variant">#E1E2EC</color>
+    <color name="ms_on_surface_variant">#44474F</color>
+    <color name="ms_outline">#74777F</color>
+    <color name="ms_outline_variant">#C4C6D0</color>
+    <color name="ms_sc_lowest">#FFFFFF</color>
+    <color name="ms_sc_low">#F4F3F7</color>
+    <color name="ms_sc">#EEEDF1</color>
+    <color name="ms_sc_high">#E8E7EB</color>
+    <color name="ms_sc_highest">#E3E2E6</color>
+</resources>

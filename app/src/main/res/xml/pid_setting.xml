@@ -21,7 +21,7 @@
             android:title="@string/pid"
             app:dialogTitle="@string/pid" />
     </PreferenceCategory>
-    <CheckBoxPreference
+    <SwitchPreferenceCompat
         android:key="showLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -67,7 +67,7 @@
         android:persistent="false"
         android:fragment="com.aatorque.prefs.AlarmFragment"
         />
-    <CheckBoxPreference
+    <SwitchPreferenceCompat
         android:key="wholeNumbers"
         android:title="@string/whole_numbers"
         android:summary="@string/whole_numbers_desc"
@@ -75,7 +75,7 @@
         />
     <PreferenceCategory
         android:title="@string/custom_script">
-     <CheckBoxPreference
+     <SwitchPreferenceCompat
         android:key="runcustomScript"
         android:title="@string/enable_script"
         android:summary="@string/enable_script_desc"
@@ -99,7 +99,7 @@
             android:summary="@string/pref_chart_summary"
             android:persistent="false"
         />
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="highVisActive"
             android:summaryOff="@string/pref_highvis_off"
@@ -119,7 +119,7 @@
             android:dependency="pidList"
             android:persistent="false"
             />
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:defaultValue="true"
             android:key="ticksActive"
             android:summaryOff="@string/pref_ticks_off"

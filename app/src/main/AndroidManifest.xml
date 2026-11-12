@@ -47,6 +47,7 @@
 
         <activity
             android:name="com.aatorque.prefs.SettingsActivity"
+            android:theme="@style/Theme.App.Settings"
             android:exported="true"
             android:label="@string/activity_settings_title"
             android:icon="@mipmap/ic_launcher"
@@ -99,12 +100,23 @@
             android:foregroundServiceType="connectedDevice"/>
         <activity
             android:name="com.aatorque.obd.ObdSettingsActivity"
+            android:theme="@style/Theme.App.Settings"
             android:label="OBD подключение"
             android:exported="false"/>
         <activity
                 android:name="com.aatorque.obd.ObdExperimentalActivity"
+                android:theme="@style/Theme.App.Settings"
                 android:label="Экспериментальные функции"
                 android:exported="false"/>
+        <provider
+            android:name="com.aatorque.stats.LogFileProvider"
+            android:authorities="${applicationId}.logfileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/log_file_paths" />
+        </provider>
     </application>
 
 </manifest>

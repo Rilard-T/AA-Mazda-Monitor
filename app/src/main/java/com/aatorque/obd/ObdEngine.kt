@@ -86,7 +86,8 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
     /** Сырой ответ блока двигателя на запрос режима 01 (только для журнала). */
     @Synchronized
     private fun diagRaw(req: String): String = try {
-        send("7E0", if (useCount) req + "1" else req, 1500)
+        // без цифры-счётчика: иначе адаптер отдаёт только первый кадр многокадрового ответа
+        send("7E0", req, 2500)
     } catch (e: IOException) { failures++; "ошибка связи: " + (e.message ?: "") }
 
     /** Раз в 30 с пишет в журнал ответы блока на параметры, которые могут пригодиться для сажевого. На экраны не выводится. */

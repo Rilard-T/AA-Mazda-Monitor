@@ -46,6 +46,15 @@ class DashboardPreviewFragment: Fragment() {
         }
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // предпросмотр ставит Activity тему прибора; после выхода возвращаем тему настроек
+        activity?.let {
+            it.setTheme(R.style.Theme_App_Settings)
+            com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(it)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         forceRotate(true)
