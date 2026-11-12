@@ -12,7 +12,7 @@
         android:layout_height="48dp"
         android:layout_marginEnd="16dp"
         android:scaleType="centerCrop"
-        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.Material3.Corner.Medium" />
+        app:shapeAppearance="@style/ShapeAppearance.Material3.Corner.Medium" />
 
     <TextView
         android:id="@+id/title"

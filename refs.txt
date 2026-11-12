@@ -1,5 +1,0 @@
-app/src/main/java/com/aatorque/stats/App.kt:14:    val logTree = CacheLogTree()
-app/src/main/java/com/aatorque/stats/App.kt:19:        Timber.plant(logTree)
-app/src/main/java/com/aatorque/stats/CacheLogTree.kt:40:    fun logToString(): Array<String> {
-app/src/main/java/com/aatorque/obd/ErrorReport.kt:35:            .setPositiveButton("Продолжить") { _, _ -> send(activity, lines) }
-app/src/main/java/com/aatorque/prefs/SettingsActivity.kt:468:        val logs = (application as App).logTree.logToString()
