@@ -1,6 +1,6 @@
 package com.aatorque.prefs
 
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.content.Context
 import android.util.AttributeSet
 import androidx.appcompat.content.res.AppCompatResources

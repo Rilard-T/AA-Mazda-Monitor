@@ -21,7 +21,8 @@ import java.util.Locale
 /** «Экспериментальные функции»: сбор данных о саже перед прожигом, пока не выяснен реальный порог. */
 class ObdExperimentalActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        setTheme(R.style.AppTheme)
+        setTheme(R.style.Theme_App_Settings)
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         title = "Экспериментальные функции"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

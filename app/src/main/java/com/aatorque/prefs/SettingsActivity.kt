@@ -3,7 +3,7 @@ package com.aatorque.prefs
 import android.Manifest
 import com.aatorque.obd.ObdBridgeService
 import android.app.Activity
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.ClipData
@@ -89,6 +89,7 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     public override fun onCreate(savedInstanceState: Bundle?) {
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         startObd()
         com.aatorque.obd.AppExit.installBackConfirm(this)

@@ -31,7 +31,7 @@
             android:persistent="false"
             android:title="@string/pref_background" />
 
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:defaultValue="false"
@@ -42,7 +42,7 @@
             android:title="@string/pref_shrink_gauge"
              />
 
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="minMaxBelow"
             android:summary="@string/minmax_below_desc"
@@ -89,7 +89,7 @@
             android:title="@string/pref_sz_label"
             app:min="50"
             app:showSeekBarValue="true" />
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:defaultValue="false"
             android:key="hideHeader"
             android:persistent="false"
@@ -98,12 +98,12 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/media">
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:key="showMusic"
             android:persistent="false"
             android:summary="@string/pref_music_summary"
             android:title="@string/pref_music_title" />
-        <CheckBoxPreference
+        <SwitchPreferenceCompat
             android:key="mediaBg"
             android:persistent="false"
             android:summary="@string/media_background_summary"

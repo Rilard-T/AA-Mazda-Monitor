@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.os.IBinder
 import android.text.InputType
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.CheckBoxPreference
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -40,20 +39,20 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
     lateinit var display: Display
     lateinit var enabledPref: SwitchPreferenceCompat
     lateinit var pidPref: ListPreference
-    lateinit var showLabelPref: CheckBoxPreference
+    lateinit var showLabelPref: SwitchPreferenceCompat
     lateinit var labelPref: EditTextPreference
     lateinit var imagePref: ImageListPreference
     lateinit var minValuePref: EditTextPreference
     lateinit var maxValuePref: EditTextPreference
     lateinit var unitPref: EditTextPreference
-    lateinit var runcustomScriptPref: CheckBoxPreference
+    lateinit var runcustomScriptPref: SwitchPreferenceCompat
     lateinit var jsPref: FormulaPreference
-    lateinit var wholeNumberPref: CheckBoxPreference
+    lateinit var wholeNumberPref: SwitchPreferenceCompat
     lateinit var gaugeSettings: PreferenceCategory
-    lateinit var ticksActivePref: CheckBoxPreference
+    lateinit var ticksActivePref: SwitchPreferenceCompat
     lateinit var maxValuesActivePref: ListPreference
     lateinit var maxMarksActivePref: ListPreference
-    lateinit var highVisActivePref: CheckBoxPreference
+    lateinit var highVisActivePref: SwitchPreferenceCompat
     lateinit var colorPref: ColorPreference
 
     var torqueService: TorqueServiceWrapper? = null

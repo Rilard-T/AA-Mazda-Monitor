@@ -26,7 +26,8 @@ import java.util.concurrent.Executors
 /** Экран «Подключение к OBD» в стиле остальных настроек приложения (тема AppTheme, список настроек). */
 class ObdSettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        setTheme(R.style.AppTheme)              // та же тема, что у главного экрана
+        setTheme(R.style.Theme_App_Settings)
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         title = "Подключение к OBD"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

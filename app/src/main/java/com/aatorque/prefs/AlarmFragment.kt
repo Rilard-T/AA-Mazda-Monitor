@@ -170,7 +170,7 @@ fun NewItemDialog(
                     onConfirmation(state.value)
                 }
             ) {
-                Text("Confirm")
+                Text(stringResource(android.R.string.ok))
             }
         },
         dismissButton = {
@@ -179,7 +179,7 @@ fun NewItemDialog(
                     onDismissRequest()
                 }
             ) {
-                Text("Dismiss")
+                Text(stringResource(android.R.string.cancel))
             }
         }
     )

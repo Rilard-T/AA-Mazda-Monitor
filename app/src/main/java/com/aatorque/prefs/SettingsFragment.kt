@@ -6,7 +6,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.CheckBoxPreference
+import androidx.preference.SwitchPreferenceCompat
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -30,17 +30,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
     lateinit var backgroundPref: ImageListPreference
     lateinit var themePref: ImageListPreference
     lateinit var fontPref: ImageListPreference
-    lateinit var centerGaugeLargePref: CheckBoxPreference
-    lateinit var minMaxBelowPref: CheckBoxPreference
-    lateinit var mediaBgPref: CheckBoxPreference
+    lateinit var centerGaugeLargePref: SwitchPreferenceCompat
+    lateinit var minMaxBelowPref: SwitchPreferenceCompat
+    lateinit var mediaBgPref: SwitchPreferenceCompat
     lateinit var opacityPref: SeekBarPreference
     lateinit var darkenArtPref: SeekBarPreference
     lateinit var blurArtPref: SeekBarPreference
-    lateinit var showMusicPref: CheckBoxPreference
+    lateinit var showMusicPref: SwitchPreferenceCompat
     lateinit var gaugeScalePref: SeekBarPreference
     lateinit var valueScalePref: SeekBarPreference
     lateinit var labelScalePref: SeekBarPreference
-    lateinit var hideHeaderPref: CheckBoxPreference
+    lateinit var hideHeaderPref: SwitchPreferenceCompat
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

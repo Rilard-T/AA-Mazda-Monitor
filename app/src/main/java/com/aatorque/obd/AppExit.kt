@@ -1,7 +1,7 @@
 package com.aatorque.obd
 
 import android.app.Activity
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
