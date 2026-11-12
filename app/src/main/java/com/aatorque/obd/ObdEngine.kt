@@ -2,6 +2,7 @@ package com.aatorque.obd
 
 import android.content.SharedPreferences
 import java.io.IOException
+import timber.log.Timber
 
 /** Опрос блоков через ELM327: инициализация, смена заголовков, кэш, разбор ответов. */
 class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences) {
@@ -9,6 +10,11 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
 
     private class Sample(val t: Long, val v: Double?)
     private val cache = HashMap<String, Sample>()
+    /** Последнее удачное значение медленных датчиков: при единичном промахе показываем его, а не 0. */
+    private val lastGood = HashMap<String, Sample>()
+    private val lastWarn = HashMap<String, Long>()
+    @Volatile private var lastRaw = ""
+    private val HOLD_SLOW_MS = 30_000L
     private val supported = HashSet<Int>()      // PID режима 01, о которых заявил блок двигателя
     private var curHdr = ""
     /** Просьба адаптеру вернуть ответ сразу после первого сообщения (последняя hex-цифра «1» в запросе). */
@@ -48,6 +54,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
         }
         if (r == null) throw IOException("Блок двигателя не отвечает. Включите зажигание.")
         readSupported(r)
+        Timber.i("Режим 01, заявлено блоком: %s", supported.sorted().joinToString(",") { "%02X".format(it) })
         failures = 0
         readId("33")                                       // барометр нужен для расчёта наддува
         bg = Thread(::backgroundLoop, "obd-regen").also { it.isDaemon = true; it.start() }
@@ -55,6 +62,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
 
     fun close() {
         closed = true
+        tracker.onLinkClosed()
         bg?.interrupt()
         link.close()
     }
@@ -65,12 +73,32 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             var n = 0
             while (!closed) {
                 // принудительное чтение (мимо кэша): температура и сажа каждые 5 с, счётчик и пробег каждые 10 с
-                readFresh("ff9006"); readFresh("7c"); readFresh("ff9003")
+                readFresh("ff9006"); readFresh("ff9003")
+                readFresh("0c")   // обороты: по ним (и по молчанию блока) журнал прожигов определяет, что двигатель выключен
                 if (n % 2 == 0) { readFresh("ff9001"); readFresh("ff9002") }
+                if (n % 6 == 0) diagLog()   // только журнал: сырые ответы блока на 01 78 / 7A / 8B / 73
                 n++
                 Thread.sleep(5_000)
             }
         } catch (_: InterruptedException) { }
+    }
+
+    /** Сырой ответ блока двигателя на запрос режима 01 (только для журнала). */
+    @Synchronized
+    private fun diagRaw(req: String): String = try {
+        send("7E0", if (useCount) req + "1" else req, 1500)
+    } catch (e: IOException) { failures++; "ошибка связи: " + (e.message ?: "") }
+
+    /** Раз в 30 с пишет в журнал ответы блока на параметры, которые могут пригодиться для сажевого. На экраны не выводится. */
+    private fun diagLog() {
+        for (pid in listOf("78", "7A", "8B", "73")) {
+            val raw = diagRaw("01$pid")
+            Timber.i("Диагностика 01%s: %s", pid, raw.replace(Regex("\\s+"), " ").trim().take(160))
+            if (pid == "78") parse(raw, "4178")?.takeIf { it.size >= 9 }?.let { b ->
+                val t = (0 until 4).joinToString(" ") { i -> "%.1f".format((b[1 + 2 * i] * 256 + b[2 + 2 * i]) / 10.0 - 40.0) }
+                Timber.i("Диагностика 0178: флаги %02X, температуры %s °C", b[0], t)
+            }
+        }
     }
 
     fun listIds(): Array<String> = MazdaPids.all
@@ -86,16 +114,38 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
         val now = System.currentTimeMillis()
         val ttl = if (p.slow) slowMs() else fastMs()
         if (!force) cache[p.id]?.let { if (now - it.t < ttl) return it.v }
-        val v = try { fetch(p) } catch (e: IOException) { failures++; null }
-        cache[p.id] = Sample(System.currentTimeMillis(), v)
+        var failed = false
+        var v = try { fetch(p) } catch (e: IOException) { failures++; failed = true; lastRaw = e.message ?: "ошибка связи"; null }
+        if (v == null && !failed && p.virtual == null && p.header != "7E0") {   // блок АКПП иногда молчит: один быстрый повтор
+            v = try { fetch(p) } catch (e: IOException) { failures++; failed = true; lastRaw = e.message ?: "ошибка связи"; null }
+        }
+        val t = System.currentTimeMillis()
+        var shown: Double? = v
+        if (v != null) {
+            if (p.slow) lastGood[p.id] = Sample(t, v)
+        } else if (p.slow && p.virtual == null) {
+            warnMiss(p, t)
+            val g = lastGood[p.id]
+            if (g != null && t - g.t < HOLD_SLOW_MS) shown = g.v
+        } else if (p.virtual == null && (p.id == "7c" || p.id == "7a")) {
+            warnMiss(p, t)   // диагностика 7C/7A: сырой ответ блока
+        }
+        cache[p.id] = Sample(t, shown)
+        if (p.id == "0c") tracker.onRpm(v)   // v == null: блок не ответил
         if (v != null) when (p.id) {
             "ff9001" -> tracker.onCount(v.toInt())
             "ff9002" -> tracker.onDist(v)
             "ff9003" -> tracker.onSoot(v)
-            "7c" -> tracker.onTemp(v)
             "ff9006" -> tracker.onStatus(v.toInt())
         }
-        return v
+        return shown
+    }
+
+    /** Пишет в журнал причину промаха (ответ адаптера), не чаще раза в 10 с на датчик. */
+    private fun warnMiss(p: PidDef, now: Long) {
+        if (now - (lastWarn[p.id] ?: 0L) < 10_000L) return
+        lastWarn[p.id] = now
+        Timber.w("Нет данных %s (блок %s): %s", p.id, p.header, lastRaw.replace(Regex("\\s+"), " ").take(120))
     }
 
     private fun fetch(p: PidDef): Double? {
@@ -107,6 +157,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             useCount = false
             text = send(p.header, req, 1500)
         }
+        lastRaw = text
         failures = 0
         val b = parse(text, prefix) ?: return null
         return p.decode?.invoke(b)
