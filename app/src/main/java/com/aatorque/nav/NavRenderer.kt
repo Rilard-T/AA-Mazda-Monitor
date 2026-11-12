@@ -21,7 +21,7 @@ import kotlin.math.sin
 
 /**
  * Приборы на реальных данных. Рисование идёт в своём потоке по сигналу вертикальной синхронизации,
- * показания сглажены, раскладка выбирается по форме стабильной области.
+ * показания сглажены, раскладка выбирается по форме видимой области.
  */
 class NavRenderer : SurfaceCallback {
     private class Gauge(
@@ -52,7 +52,7 @@ class NavRenderer : SurfaceCallback {
         Info("Интервал", "ff9011", "км", 0)
     )
 
-    private val debugOverlay = false
+    private val debugOverlay = true
 
     @Volatile private var surface: Surface? = null
     @Volatile private var width = 0
@@ -70,6 +70,12 @@ class NavRenderer : SurfaceCallback {
     private var hardware = true
 
     private val rectF = RectF()
+    private val areaF = RectF()
+    private var areaInit = false
+    private var al = 0f
+    private var at = 0f
+    private var ar = 0f
+    private var ab = 0f
     private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val stroke = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true }
     private val text = Paint().apply { isAntiAlias = true; textAlign = Paint.Align.CENTER }
@@ -117,6 +123,7 @@ class NavRenderer : SurfaceCallback {
         if (running) return
         running = true
         lastNanos = 0L
+        areaInit = false
         val th = HandlerThread("nav-render")
         th.start()
         thread = th
@@ -157,10 +164,32 @@ class NavRenderer : SurfaceCallback {
         val c = lock(s) ?: return
         try {
             c.drawColor(Color.rgb(8, 12, 28))
+            // раскладка по видимой области; при её изменении границы плавно перетекают
+            val vs = visible
             val st = stable
-            val area = if (st.width() > 0 && st.height() > 0) st else Rect(0, 0, width, height)
-            val w = area.width().toFloat()
-            val h = area.height().toFloat()
+            val target = when {
+                vs.width() > 0 && vs.height() > 0 -> vs
+                st.width() > 0 && st.height() > 0 -> st
+                else -> Rect(0, 0, width, height)
+            }
+            val tl = target.left.toFloat().coerceIn(0f, width.toFloat())
+            val tt = target.top.toFloat().coerceIn(0f, height.toFloat())
+            val tr = target.right.toFloat().coerceIn(tl + 1f, max(width.toFloat(), tl + 1f))
+            val tb = target.bottom.toFloat().coerceIn(tt + 1f, max(height.toFloat(), tt + 1f))
+            if (!areaInit) {
+                areaInit = true
+                al = tl; at = tt; ar = tr; ab = tb
+            } else {
+                val ka = 1f - exp(-dt / 0.25f)
+                al += (tl - al) * ka
+                at += (tt - at) * ka
+                ar += (tr - ar) * ka
+                ab += (tb - ab) * ka
+            }
+            areaF.set(al, at, ar, ab)
+            val area = areaF
+            val w = area.width()
+            val h = area.height()
 
             // нижняя полоса с дополнительными значениями
             val footerH = min(max(h * 0.16f, 56f), h * 0.3f)
@@ -182,7 +211,7 @@ class NavRenderer : SurfaceCallback {
             val base = if (column) colBase else rowBase
             val cell = if (column) gh / 3f else w / 3f
             for (i in gauges.indices) {
-                val cx = if (column) area.exactCenterX() else area.left + cell * (i + 0.5f)
+                val cx = if (column) area.centerX() else area.left + cell * (i + 0.5f)
                 val cy = if (column) area.top + cell * (i + 0.5f) else area.top + gh / 2f
                 val r = if (i == 1) base else base * 0.85f
                 drawGauge(c, cx, cy, r, gauges[i])
