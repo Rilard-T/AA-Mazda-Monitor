@@ -31,5 +31,13 @@
         <item name="colorSurfaceContainer">@color/ms_sc</item>
         <item name="colorSurfaceContainerHigh">@color/ms_sc_high</item>
         <item name="colorSurfaceContainerHighest">@color/ms_sc_highest</item>
+        <!-- верхняя панель и строка состояния одного цвета; значки строки состояния по режиму -->
+        <item name="actionBarStyle">@style/Widget.App.ActionBar</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainer</item>
+        <item name="android:windowLightStatusBar">@bool/ms_light_bars</item>
+    </style>
+
+    <style name="Widget.App.ActionBar" parent="Widget.Material3.ActionBar.Solid">
+        <item name="background">?attr/colorSurfaceContainer</item>
     </style>
 </resources>
