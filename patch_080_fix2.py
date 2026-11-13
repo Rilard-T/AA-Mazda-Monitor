@@ -72,7 +72,7 @@ PREF = HEAD + f'''<LinearLayout {NS}
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/widget_frame"
+        android:id="@android:id/widget_frame"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:gravity="end|center_vertical"

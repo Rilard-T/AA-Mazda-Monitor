@@ -4,7 +4,8 @@
  - ObdEngine: раз в 30 с строка «Состояние ЧЧ:ММ:СС: сажа .. г/л (макс ..), DPF ..% (порог ..), статус, счётчик,
    пробег после прожига, обороты, скорость, ОЖ, АКПП, масло». Значения берутся из кэша, новых запросов к блоку нет
    (скорость, ОЖ, АКПП и масло есть, пока открыт экран приборов, иначе «—»);
- - CacheLogTree: перед каждой строкой журнала (буфер обмена, обращение на GitHub) метка «ММ-ДД ЧЧ:ММ:СС»;
+ - CacheLogTree: в фильтр шума добавлены строки метаданных медиа («Sending new metadata», «Got new metadata»);
+   перед каждой строкой журнала (буфер обмена, обращение на GitHub) метка «ММ-ДД ЧЧ:ММ:СС»;
    метод stamp(time) открыт, чтобы экспорт в файл мог им пользоваться.
 Версию не меняет. Запускать из корня репозитория:  python3 patch_log_state.py"""
 import pathlib, sys
@@ -56,6 +57,13 @@ STAMP = '''    private val stampFormat = java.text.SimpleDateFormat("MM-dd HH:mm
 
 '''
 tt = tt.replace(LINE_OLD, LINE_NEW).replace(LEVEL, STAMP + LEVEL)
+
+# дополнительный шум: метаданные медиа (по ~20 строк в минуту, 77% журнала 13.11.2026)
+NOISE_OLD = 'private val NOISE = listOf("Got valid")'
+NOISE_NEW = 'private val NOISE = listOf("Got valid", "Sending new metadata", "Got new metadata")'
+if tt.count(NOISE_OLD) != 1:
+    sys.exit("СТОП: список NOISE в CacheLogTree.kt не в ожидаемом виде. Файлы не тронуты.")
+tt = tt.replace(NOISE_OLD, NOISE_NEW)
 
 eng.write_text(te, encoding="utf-8"); print("изменён", eng)
 tree.write_text(tt, encoding="utf-8"); print("изменён", tree)
