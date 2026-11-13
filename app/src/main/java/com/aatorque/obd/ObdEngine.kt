@@ -76,7 +76,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
                 readFresh("ff9006"); readFresh("ff9003")
                 readFresh("0c")   // обороты: по ним (и по молчанию блока) журнал прожигов определяет, что двигатель выключен
                 if (n % 2 == 0) { readFresh("ff9001"); readFresh("ff9002") }
-                if (n % 6 == 0) diagLog()   // только журнал: сырые ответы блока на 01 78 / 7A / 8B / 73
+                if (n % 6 == 0) { stateLog(); diagLog() }   // только журнал: сырые ответы блока на 01 78 / 7A / 8B / 73
                 n++
                 Thread.sleep(5_000)
             }
@@ -89,6 +89,22 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
         // без цифры-счётчика: иначе адаптер отдаёт только первый кадр многокадрового ответа
         send("7E0", req, 2500)
     } catch (e: IOException) { failures++; "ошибка связи: " + (e.message ?: "") }
+
+    /** Раз в 30 с пишет в журнал строку состояния (значения берутся из кэша, запросов к блоку нет). */
+    private fun stateLog() {
+        val now = System.currentTimeMillis()
+        fun v(id: String): Double? = synchronized(this) { cache[id]?.takeIf { now - it.t < 20_000L }?.v }
+        fun f(x: Double?, d: Int = 0): String = x?.let { "%.${d}f".format(java.util.Locale.US, it) } ?: "—"
+        val soot = tracker.currentSoot()
+        val full = dpfFullGl()
+        val dpf = if (soot != null && full > 0) soot / full * 100.0 else null
+        Timber.i(
+            "Состояние %s: сажа %s г/л (макс %s), DPF %s%% (порог %s), статус %s, счётчик %s, пробег %s км, обороты %s, скорость %s, ОЖ %s, АКПП %s, масло %s",
+            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date(now)),
+            f(soot, 2), f(tracker.currentSootPeak(), 2), f(dpf, 1), f(full, 2),
+            f(v("ff9006")), f(v("ff9001")), f(v("ff9002")), f(v("0c")), f(v("0d")), f(v("05")), f(v("ff9005")), f(v("5c")),
+        )
+    }
 
     /** Раз в 30 с пишет в журнал ответы блока на параметры, которые могут пригодиться для сажевого. На экраны не выводится. */
     private fun diagLog() {
