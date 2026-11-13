@@ -1,4 +1,4 @@
-]633;E;git ls-tree -r --name-only $R;5b01603c-e1fb-4d26-88b9-5070da290247]633;C== .github/workflows/build.yml
+== .github/workflows/build.yml
 {"name":"build","on":["workflow_dispatch","push"],"jobs":{"apk":{"runs-on":"ubuntu-latest","steps":[{"uses":"actions/checkout@v4","with":{"submodules":"recursive"}},{"uses":"actions/setup-java@v4","with":{"distribution":"zulu","java-version":19}},{"uses":"gradle/actions/setup-gradle@v4"},{"run":"touch local.properties && chmod +x gradlew && ./gradlew assembleDebug"},{"uses":"actions/upload-artifact@v4","with":{"name":"apk","path":"app/build/outputs/apk/debug/*.apk"}}]}}}
 == .github/workflows/ci.yml
 name: ci
@@ -1365,7 +1365,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
                 readFresh("ff9006"); readFresh("ff9003")
                 readFresh("0c")   // обороты: по ним (и по молчанию блока) журнал прожигов определяет, что двигатель выключен
                 if (n % 2 == 0) { readFresh("ff9001"); readFresh("ff9002") }
-                if (n % 6 == 0) diagLog()   // только журнал: сырые ответы блока на 01 78 / 7A / 8B / 73
+                if (n % 6 == 0) { stateLog(); diagLog() }   // только журнал: сырые ответы блока на 01 78 / 7A / 8B / 73
                 n++
                 Thread.sleep(5_000)
             }
@@ -1378,6 +1378,22 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
         // без цифры-счётчика: иначе адаптер отдаёт только первый кадр многокадрового ответа
         send("7E0", req, 2500)
     } catch (e: IOException) { failures++; "ошибка связи: " + (e.message ?: "") }
+
+    /** Раз в 30 с пишет в журнал строку состояния (значения берутся из кэша, запросов к блоку нет). */
+    private fun stateLog() {
+        val now = System.currentTimeMillis()
+        fun v(id: String): Double? = synchronized(this) { cache[id]?.takeIf { now - it.t < 20_000L }?.v }
+        fun f(x: Double?, d: Int = 0): String = x?.let { "%.${d}f".format(java.util.Locale.US, it) } ?: "—"
+        val soot = tracker.currentSoot()
+        val full = dpfFullGl()
+        val dpf = if (soot != null && full > 0) soot / full * 100.0 else null
+        Timber.i(
+            "Состояние %s: сажа %s г/л (макс %s), DPF %s%% (порог %s), статус %s, счётчик %s, пробег %s км, обороты %s, скорость %s, ОЖ %s, АКПП %s, масло %s",
+            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date(now)),
+            f(soot, 2), f(tracker.currentSootPeak(), 2), f(dpf, 1), f(full, 2),
+            f(v("ff9006")), f(v("ff9001")), f(v("ff9002")), f(v("0c")), f(v("0d")), f(v("05")), f(v("ff9005")), f(v("5c")),
+        )
+    }
 
     /** Раз в 30 с пишет в журнал ответы блока на параметры, которые могут пригодиться для сажевого. На экраны не выводится. */
     private fun diagLog() {
@@ -4991,12 +5007,17 @@ class CacheLogTree: Timber.DebugTree() {
     fun logToString(): Array<String> {
         return snapshot().map {
             return@map try {
-                "${it.tag ?: ""}: ${levelName(it.priority)} ${it.message} ${it.throwable?.stackTraceToString() ?: ""}"
+                "${stamp(it.time)} ${it.tag ?: ""}: ${levelName(it.priority)} ${it.message} ${it.throwable?.stackTraceToString() ?: ""}"
             } catch (e: NullPointerException) {
                 ""
             }
         }.toTypedArray()
     }
+
+    private val stampFormat = java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US)
+
+    /** Метка времени строки журнала. */
+    fun stamp(time: Long): String = synchronized(stampFormat) { stampFormat.format(java.util.Date(time)) }
 
     fun levelName(priority: Int): String = when (priority) {
         Log.ERROR -> "Error"
@@ -5514,6 +5535,67 @@ open class DashboardFragment : AlbumArt() {
 
 
 }
+
+== app/src/main/java/com/aatorque/stats/LogExport.kt
+package com.aatorque.stats
+
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.content.FileProvider
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+object LogExport {
+    private fun mask(s: String) = com.aatorque.obd.ErrorReport.redact(s)
+
+    fun buildText(tree: CacheLogTree, extra: String = ""): String {
+        val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+        val sb = StringBuilder()
+        sb.append("AA Mazda Monitor ").append(BuildConfig.VERSION_NAME).append('\n')
+        sb.append("Android ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n")
+        sb.append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
+        sb.append("Создан: ").append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())).append('\n')
+        if (extra.isNotBlank()) sb.append(mask(extra)).append('\n')
+        sb.append("----\n")
+        for (d in tree.snapshot()) {
+            sb.append(ts.format(Date(d.time))).append(' ')
+                .append(tree.levelName(d.priority)).append(' ')
+                .append(d.tag ?: "").append(": ")
+                .append(mask(d.message)).append('\n')
+            d.throwable?.let { sb.append(mask(it.stackTraceToString())).append('\n') }
+        }
+        return sb.toString()
+    }
+
+    fun share(context: Context, tree: CacheLogTree, extra: String = "") {
+        val dir = File(context.cacheDir, "logs").apply { mkdirs() }
+        dir.listFiles()?.forEach { it.delete() }
+        val name = "aamazda-log-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".txt"
+        val file = File(dir, name)
+        file.writeText(buildText(tree, extra))
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".logfileprovider", file)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, name)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        val chooser = Intent.createChooser(send, "Журнал")
+        if (context !is Activity) chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
+    }
+}
+
+== app/src/main/java/com/aatorque/stats/LogFileProvider.kt
+package com.aatorque.stats
+
+import androidx.core.content.FileProvider
+
+class LogFileProvider : FileProvider()
 
 == app/src/main/java/com/aatorque/stats/TorqueDisplay.kt
 package com.aatorque.stats
@@ -6558,6 +6640,12 @@ message UserPreference {
         android:title="@string/action_exit"
         app:showAsAction="never"/>
 </menu>
+== app/src/main/res/values-night/bools_ms.xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="ms_light_bars">false</bool>
+</resources>
+
 == app/src/main/res/values-night/colors.xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -7247,6 +7335,12 @@ message UserPreference {
 == app/src/main/res/values/bools.xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources></resources>
+== app/src/main/res/values/bools_ms.xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="ms_light_bars">true</bool>
+</resources>
+
 == app/src/main/res/values/colors.xml
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -8142,6 +8236,14 @@ message UserPreference {
         <item name="colorSurfaceContainer">@color/ms_sc</item>
         <item name="colorSurfaceContainerHigh">@color/ms_sc_high</item>
         <item name="colorSurfaceContainerHighest">@color/ms_sc_highest</item>
+        <!-- верхняя панель и строка состояния одного цвета; значки строки состояния по режиму -->
+        <item name="actionBarStyle">@style/Widget.App.ActionBar</item>
+        <item name="android:statusBarColor">?attr/colorSurfaceContainer</item>
+        <item name="android:windowLightStatusBar">@bool/ms_light_bars</item>
+    </style>
+
+    <style name="Widget.App.ActionBar" parent="Widget.Material3.ActionBar.Solid">
+        <item name="background">?attr/colorSurfaceContainer</item>
     </style>
 </resources>
 
@@ -8517,72 +8619,14 @@ message UserPreference {
 == version.properties
 majorVersion=0
 minorVersion=8
-patchVersion=0
+patchVersion=2
 buildNumber=
-== app/src/main/res/drawable/baseline_content_copy_24.xml
-<vector android:height="24dp" android:tint="#FFFFFF"
-    android:viewportHeight="24" android:viewportWidth="24"
-    android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">
-    <path android:fillColor="@android:color/white" android:pathData="M16,1L4,1c-1.1,0 -2,0.9 -2,2v14h2L4,3h12L16,1zM19,5L8,5c-1.1,0 -2,0.9 -2,2v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2L21,7c0,-1.1 -0.9,-2 -2,-2zM19,21L8,21L8,7h11v14z"/>
-</vector>
-
-== app/src/main/res/drawable/baseline_export.xml
-<vector android:height="24dp" android:tint="#FFFFFF"
-    android:viewportHeight="24" android:viewportWidth="24"
-    android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">
-    <path android:fillColor="@android:color/white" android:pathData="M9,16h6v-6h4l-7,-7 -7,7h4zM5,18h14v2L5,20z"/>
-</vector>
-
-== app/src/main/res/drawable/baseline_file_download_24.xml
-<vector android:height="24dp" android:tint="#FFFFFF"
-    android:viewportHeight="24" android:viewportWidth="24"
-    android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">
-    <path android:fillColor="@android:color/white" android:pathData="M19,9h-4V3H9v6H5l7,7 7,-7zM5,18v2h14v-2H5z"/>
-</vector>
-
-== app/src/main/res/drawable/baseline_info_24.xml
-<vector android:height="24dp" android:tint="#FFFFFF"
-    android:viewportHeight="24" android:viewportWidth="24"
-    android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">
-    <path android:fillColor="@android:color/white" android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM13,17h-2v-6h2v6zM13,9h-2L11,7h2v2z"/>
-</vector>
-
-== app/src/main/res/drawable/baseline_preview_24.xml
-<vector android:height="24dp" android:tint="#FFF"
-    android:viewportHeight="24" android:viewportWidth="24"
-    android:width="24dp" xmlns:android="http://schemas.android.com/apk/res/android">
-    <path android:fillColor="@android:color/white" android:pathData="M19,3H5C3.89,3 3,3.9 3,5v14c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2V5C21,3.9 20.11,3 19,3zM19,19H5V7h14V19zM13.5,13c0,0.83 -0.67,1.5 -1.5,1.5s-1.5,-0.67 -1.5,-1.5c0,-0.83 0.67,-1.5 1.5,-1.5S13.5,12.17 13.5,13zM12,9c-2.73,0 -5.06,1.66 -6,4c0.94,2.34 3.27,4 6,4s5.06,-1.66 6,-4C17.06,10.66 14.73,9 12,9zM12,15.5c-1.38,0 -2.5,-1.12 -2.5,-2.5c0,-1.38 1.12,-2.5 2.5,-2.5c1.38,0 2.5,1.12 2.5,2.5C14.5,14.38 13.38,15.5 12,15.5z"/>
-</vector>
-
-== app/src/main/res/drawable/baseline_settings_24.xml
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="24dp"
-    android:height="24dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
-    android:tint="?attr/colorControlNormal">
-  <path
-      android:fillColor="@android:color/white"
-      android:pathData="M19.14,12.94c0.04,-0.3 0.06,-0.61 0.06,-0.94c0,-0.32 -0.02,-0.64 -0.07,-0.94l2.03,-1.58c0.18,-0.14 0.23,-0.41 0.12,-0.61l-1.92,-3.32c-0.12,-0.22 -0.37,-0.29 -0.59,-0.22l-2.39,0.96c-0.5,-0.38 -1.03,-0.7 -1.62,-0.94L14.4,2.81c-0.04,-0.24 -0.24,-0.41 -0.48,-0.41h-3.84c-0.24,0 -0.43,0.17 -0.47,0.41L9.25,5.35C8.66,5.59 8.12,5.92 7.63,6.29L5.24,5.33c-0.22,-0.08 -0.47,0 -0.59,0.22L2.74,8.87C2.62,9.08 2.66,9.34 2.86,9.48l2.03,1.58C4.84,11.36 4.8,11.69 4.8,12s0.02,0.64 0.07,0.94l-2.03,1.58c-0.18,0.14 -0.23,0.41 -0.12,0.61l1.92,3.32c0.12,0.22 0.37,0.29 0.59,0.22l2.39,-0.96c0.5,0.38 1.03,0.7 1.62,0.94l0.36,2.54c0.05,0.24 0.24,0.41 0.48,0.41h3.84c0.24,0 0.44,-0.17 0.47,-0.41l0.36,-2.54c0.59,-0.24 1.13,-0.56 1.62,-0.94l2.39,0.96c0.22,0.08 0.47,0 0.59,-0.22l1.92,-3.32c0.12,-0.22 0.07,-0.47 -0.12,-0.61L19.14,12.94zM12,15.6c-1.98,0 -3.6,-1.62 -3.6,-3.6s1.62,-3.6 3.6,-3.6s3.6,1.62 3.6,3.6S13.98,15.6 12,15.6z" />
-</vector>
-
-== grep
-origin/master:app/src/main/java/com/aatorque/obd/ObdExperimental.kt:24:        setTheme(R.style.Theme_App_Settings)
-origin/master:app/src/main/java/com/aatorque/obd/ObdExperimental.kt:25:        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
-origin/master:app/src/main/java/com/aatorque/obd/ObdSettingsActivity.kt:29:        setTheme(R.style.Theme_App_Settings)
-origin/master:app/src/main/java/com/aatorque/obd/ObdSettingsActivity.kt:30:        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
-origin/master:app/src/main/java/com/aatorque/prefs/DashboardPreviewFragment.kt:36:        inflater.context.setTheme(mapTheme(requireContext(), data.selectedTheme))
-origin/master:app/src/main/java/com/aatorque/prefs/DashboardPreviewFragment.kt:53:            it.setTheme(R.style.Theme_App_Settings)
-origin/master:app/src/main/java/com/aatorque/prefs/DashboardPreviewFragment.kt:54:            com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(it)
-origin/master:app/src/main/java/com/aatorque/prefs/SettingsActivity.kt:92:        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
-origin/master:app/src/main/java/com/aatorque/stats/MainCarActivity.kt:136:            setTheme(mapTheme(this, theme))
-origin/master:app/src/main/res/values/styles.xml:14:        <item name="android:statusBarColor">@color/primaryColor</item>
 == log
+44b7210 fix ui bugs
+6849321 fix log event
+f3e4a9b fix ui bug
 28bbf8d fix shape
 00e5a89 0.8.0 - Material 3 redesign, log export to file, DPF diagnostics fixes
 5081507 0.7.5: regeneration log fixes, Mazda gen4 theme first, DPF diagnostics in log
 845f3ab remove dfp temp, regen list fix etc
 8b507e3 dpf diagnostic
-2b62ad4 change t° logic
-20ee30b add Shizuku/AAEnabler install guide and screenshots
-2336f09 The Mazda gen4 topic is first on the list
