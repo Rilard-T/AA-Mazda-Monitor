@@ -54,6 +54,9 @@ class NavRenderer : SurfaceCallback {
 
     private val debugOverlay = true
 
+    // область уже, чем высота * narrowAspect, считается узкой колонкой
+    private val narrowAspect = 1.15f
+
     @Volatile private var surface: Surface? = null
     @Volatile private var width = 0
     @Volatile private var height = 0
@@ -191,8 +194,10 @@ class NavRenderer : SurfaceCallback {
             val w = area.width()
             val h = area.height()
 
-            // нижняя полоса с дополнительными значениями
-            val footerH = min(max(h * 0.16f, 56f), h * 0.3f)
+            // форма области: узкая колонка (столбик) или широкая (ряд)
+            val column = (tr - tl) < (tb - tt) * narrowAspect
+            // нижняя полоса с дополнительными значениями (только в широкой раскладке)
+            val footerH = if (column) 0f else min(max(h * 0.16f, 56f), h * 0.3f)
             val gh = h - footerH
 
             // сглаживание показаний: постоянная времени 0,12 с
@@ -204,20 +209,30 @@ class NavRenderer : SurfaceCallback {
                 g.shown += (target - g.shown) * k
             }
 
-            // раскладка: ряд или колонка, берём ту, где приборы крупнее
-            val rowBase = min(w / 6f, gh / 2f) * 0.9f
-            val colBase = min(w / 2f, gh / 6f) * 0.9f
-            val column = colBase > rowBase
-            val base = if (column) colBase else rowBase
-            val cell = if (column) gh / 3f else w / 3f
-            for (i in gauges.indices) {
-                val cx = if (column) area.centerX() else area.left + cell * (i + 0.5f)
-                val cy = if (column) area.top + cell * (i + 0.5f) else area.top + gh / 2f
-                val r = if (i == 1) base else base * 0.85f
-                drawGauge(c, cx, cy, r, gauges[i])
+            // раскладка: широкая область - ряд приборов и нижняя полоса значений;
+            // узкая колонка - приборы столбиком слева, значения списком справа
+            if (column) {
+                val cellH = h / 3f
+                val colW = min(cellH, w * 0.58f)
+                val base = colW / 2f * 0.9f
+                val cx = area.left + colW / 2f
+                for (i in gauges.indices) {
+                    val cy = area.top + cellH * (i + 0.5f)
+                    val r = if (i == 1) base else base * 0.85f
+                    drawGauge(c, cx, cy, r, gauges[i])
+                }
+                drawInfoColumn(c, area.left + colW, area.top, w - colW, h)
+            } else {
+                val base = min(w / 6f, gh / 2f) * 0.9f
+                val cell = w / 3f
+                for (i in gauges.indices) {
+                    val cx = area.left + cell * (i + 0.5f)
+                    val cy = area.top + gh / 2f
+                    val r = if (i == 1) base else base * 0.85f
+                    drawGauge(c, cx, cy, r, gauges[i])
+                }
+                drawFooter(c, area.left, area.bottom - footerH, w, footerH)
             }
-
-            drawFooter(c, area.left.toFloat(), area.bottom - footerH, w, footerH)
 
             if (debugOverlay) {
                 stroke.strokeWidth = 2f
@@ -268,6 +283,22 @@ class NavRenderer : SurfaceCallback {
             text.color = Color.WHITE
             text.textSize = h * 0.40f
             c.drawText(if (v == null) "--" else format(v, inf.decimals) + " " + inf.unit, cx, top + h * 0.86f, text)
+        }
+    }
+
+    private fun drawInfoColumn(c: Canvas, left: Float, top: Float, w: Float, h: Float) {
+        val rowH = h / infos.size
+        val cx = left + w / 2f
+        for (j in infos.indices) {
+            val inf = infos[j]
+            val y = top + rowH * j
+            text.color = Color.rgb(170, 185, 220)
+            text.textSize = min(rowH * 0.20f, w / 12f)
+            c.drawText(inf.label, cx, y + rowH * 0.40f, text)
+            val v = NavData.get(inf.id)
+            text.color = Color.WHITE
+            text.textSize = min(rowH * 0.32f, w / 9f)
+            c.drawText(if (v == null) "--" else format(v, inf.decimals) + " " + inf.unit, cx, y + rowH * 0.80f, text)
         }
     }
 
