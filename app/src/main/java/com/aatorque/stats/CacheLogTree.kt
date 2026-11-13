@@ -40,12 +40,17 @@ class CacheLogTree: Timber.DebugTree() {
     fun logToString(): Array<String> {
         return snapshot().map {
             return@map try {
-                "${it.tag ?: ""}: ${levelName(it.priority)} ${it.message} ${it.throwable?.stackTraceToString() ?: ""}"
+                "${stamp(it.time)} ${it.tag ?: ""}: ${levelName(it.priority)} ${it.message} ${it.throwable?.stackTraceToString() ?: ""}"
             } catch (e: NullPointerException) {
                 ""
             }
         }.toTypedArray()
     }
+
+    private val stampFormat = java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.US)
+
+    /** Метка времени строки журнала. */
+    fun stamp(time: Long): String = synchronized(stampFormat) { stampFormat.format(java.util.Date(time)) }
 
     fun levelName(priority: Int): String = when (priority) {
         Log.ERROR -> "Error"
