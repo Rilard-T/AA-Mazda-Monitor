@@ -10,6 +10,7 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 import android.view.ViewOutlineProvider
+import androidx.preference.PreferenceViewHolder
 import androidx.recyclerview.widget.RecyclerView
 import com.aatorque.stats.R
 import com.google.android.material.color.MaterialColors
@@ -38,20 +39,34 @@ class CardRecyclerView @JvmOverloads constructor(
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         private val rect = RectF()
         private val path = Path()
-        // типы строк, которые являются заголовками разделов (узнаём по метке ms_category_root в раскладке)
+        // типы строк, которые оказались заголовками разделов (запоминаем, чтобы узнавать и невидимые строки)
         private val categoryTypes = HashSet<Int>()
 
-        private fun isCategory(adapter: RecyclerView.Adapter<*>, pos: Int): Boolean =
-            categoryTypes.contains(adapter.getItemViewType(pos))
+        /** Заголовок раздела: метка в раскладке или признак библиотеки «над строкой допустима линия». */
+        private fun isCategory(h: RecyclerView.ViewHolder): Boolean =
+            h.itemView.findViewById<View>(R.id.ms_category_root) != null ||
+                (h is PreferenceViewHolder && h.isDividerAllowedAbove)
+
+        private fun learn(h: RecyclerView.ViewHolder) {
+            if (isCategory(h)) categoryTypes.add(h.itemViewType)
+        }
+
+        private fun isCategoryAt(parent: RecyclerView, adapter: RecyclerView.Adapter<*>, pos: Int): Boolean {
+            val h = parent.findViewHolderForAdapterPosition(pos)
+            if (h != null) return isCategory(h)
+            return categoryTypes.contains(adapter.getItemViewType(pos))
+        }
 
         /** 0: не карточка; иначе CARD, плюс TOP для первой и BOTTOM для последней строки группы. */
-        private fun flags(parent: RecyclerView, pos: Int): Int {
+        private fun flags(parent: RecyclerView, view: View): Int {
             val adapter = parent.adapter ?: return 0
+            val holder = parent.getChildViewHolder(view)
+            val pos = parent.getChildAdapterPosition(view)
             val count = adapter.itemCount
-            if (pos < 0 || pos >= count || isCategory(adapter, pos)) return 0
+            if (pos < 0 || pos >= count || isCategory(holder)) return 0
             var f = CARD
-            if (pos == 0 || isCategory(adapter, pos - 1)) f = f or TOP
-            if (pos == count - 1 || isCategory(adapter, pos + 1)) f = f or BOTTOM
+            if (pos == 0 || isCategoryAt(parent, adapter, pos - 1)) f = f or TOP
+            if (pos == count - 1 || isCategoryAt(parent, adapter, pos + 1)) f = f or BOTTOM
             return f
         }
 
@@ -62,11 +77,10 @@ class CardRecyclerView @JvmOverloads constructor(
         }
 
         override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
-            val holder = parent.getChildViewHolder(view)
-            if (view.findViewById<View>(R.id.ms_category_root) != null) categoryTypes.add(holder.itemViewType)
+            learn(parent.getChildViewHolder(view))
             outRect.left = side
             outRect.right = side
-            val f = flags(parent, parent.getChildAdapterPosition(view))
+            val f = flags(parent, view)
             if ((f and CARD) != 0) {
                 outRect.top = if ((f and TOP) != 0) 0 else gap
                 outRect.bottom = if ((f and BOTTOM) != 0) 0 else gap
@@ -77,9 +91,10 @@ class CardRecyclerView @JvmOverloads constructor(
             paint.color = MaterialColors.getColor(
                 parent.context, com.google.android.material.R.attr.colorSurfaceContainerHigh, 0xFFEEEEEE.toInt()
             )
+            for (i in 0 until parent.childCount) learn(parent.getChildViewHolder(parent.getChildAt(i)))
             for (i in 0 until parent.childCount) {
                 val v = parent.getChildAt(i)
-                val f = flags(parent, parent.getChildAdapterPosition(v))
+                val f = flags(parent, v)
                 applyOutline(v, f)
                 if ((f and CARD) == 0) continue
                 rect.set(
