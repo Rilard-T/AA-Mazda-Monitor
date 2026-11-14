@@ -1,5 +1,6 @@
 package com.aatorque.nav
 
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -21,41 +22,22 @@ import kotlin.math.sin
 
 /**
  * Приборы на реальных данных. Рисование идёт в своём потоке по сигналу вертикальной синхронизации,
- * показания сглажены, раскладка выбирается по форме видимой области.
+ * показания сглажены. Что и где рисовать, берётся из раскладки (NavLayoutStore) в долях видимой области;
+ * форма области (широкая или узкая колонка) выбирается по её пропорциям.
  */
-class NavRenderer : SurfaceCallback {
-    private class Gauge(
-        val label: String,
-        val unit: String,
-        val id: String,
-        val scale: Double,
-        val min: Float,
-        val max: Float
-    ) {
-        var shown = min
+class NavRenderer(context: Context) : SurfaceCallback {
+    private val appContext: Context = context.applicationContext
+
+    /** Сглаженное показание прибора (по id элемента раскладки). */
+    private class GaugeState(var shown: Float) {
         var has = false
         var text = "--"
         var textKey = Int.MIN_VALUE
     }
 
-    private class Info(val label: String, val id: String, val unit: String, val decimals: Int)
+    private val states = HashMap<String, GaugeState>()
 
-    private val gauges = listOf(
-        Gauge("Скорость", "км/ч", "0d", 1.0, 0f, 240f),
-        Gauge("Обороты", "x1000", "0c", 0.001, 0f, 6f),
-        Gauge("Темп. ОЖ", "°C", "05", 1.0, 40f, 120f)
-    )
-    private val infos = listOf(
-        Info("DPF", "ff9010", "%", 0),
-        Info("Сажа", "ff9003", "г/л", 2),
-        Info("АКПП", "ff9005", "°C", 0),
-        Info("Интервал", "ff9011", "км", 0)
-    )
-
-    private val debugOverlay = true
-
-    // область уже, чем высота * narrowAspect, считается узкой колонкой
-    private val narrowAspect = 1.15f
+    private val debugOverlay = false
 
     @Volatile private var surface: Surface? = null
     @Volatile private var width = 0
@@ -100,6 +82,7 @@ class NavRenderer : SurfaceCallback {
         height = surfaceContainer.height
         dpi = surfaceContainer.dpi
         updateDebug()
+        NavLayoutStore.load(appContext)
         start()
     }
 
@@ -191,47 +174,25 @@ class NavRenderer : SurfaceCallback {
             }
             areaF.set(al, at, ar, ab)
             val area = areaF
-            val w = area.width()
-            val h = area.height()
 
-            // форма области: узкая колонка (столбик) или широкая (ряд)
-            val column = (tr - tl) < (tb - tt) * narrowAspect
-            // нижняя полоса с дополнительными значениями (только в широкой раскладке)
-            val footerH = if (column) 0f else min(max(h * 0.16f, 56f), h * 0.3f)
-            val gh = h - footerH
+            // форма области: узкая колонка или широкая, по пропорциям целевой области
+            val layout = NavLayoutStore.layout
+            val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect
+            val form = layout.form(if (narrow) NavLayoutStore.NARROW else NavLayoutStore.WIDE)
 
             // сглаживание показаний: постоянная времени 0,12 с
             val k = 1f - exp(-dt / 0.12f)
-            for (g in gauges) {
-                val raw = NavData.get(g.id)
-                g.has = raw != null
-                val target = if (raw != null) (raw * g.scale).toFloat() else g.min
-                g.shown += (target - g.shown) * k
-            }
-
-            // раскладка: широкая область - ряд приборов и нижняя полоса значений;
-            // узкая колонка - приборы столбиком слева, значения списком справа
-            if (column) {
-                val cellH = h / 3f
-                val colW = min(cellH, w * 0.58f)
-                val base = colW / 2f * 0.9f
-                val cx = area.left + colW / 2f
-                for (i in gauges.indices) {
-                    val cy = area.top + cellH * (i + 0.5f)
-                    val r = if (i == 1) base else base * 0.85f
-                    drawGauge(c, cx, cy, r, gauges[i])
+            for (item in form.items) {
+                if (item.kind == NavItem.GAUGE) {
+                    val gs = states.getOrPut(item.id) { GaugeState(item.min) }
+                    val raw = NavData.get(item.pid)
+                    gs.has = raw != null
+                    val goal = if (raw != null) (raw * item.scale).toFloat() else item.min
+                    gs.shown += (goal - gs.shown) * k
+                    drawGauge(c, area, item, gs)
+                } else {
+                    drawInfo(c, area, item)
                 }
-                drawInfoColumn(c, area.left + colW, area.top, w - colW, h)
-            } else {
-                val base = min(w / 6f, gh / 2f) * 0.9f
-                val cell = w / 3f
-                for (i in gauges.indices) {
-                    val cx = area.left + cell * (i + 0.5f)
-                    val cy = area.top + gh / 2f
-                    val r = if (i == 1) base else base * 0.85f
-                    drawGauge(c, cx, cy, r, gauges[i])
-                }
-                drawFooter(c, area.left, area.bottom - footerH, w, footerH)
             }
 
             if (debugOverlay) {
@@ -254,15 +215,15 @@ class NavRenderer : SurfaceCallback {
         }
     }
 
-    private fun shownText(g: Gauge): String {
-        if (!g.has) return "--"
-        val tenths = g.max <= 10f
-        val key = if (tenths) (g.shown * 10f).roundToInt() else g.shown.roundToInt()
-        if (key != g.textKey) {
-            g.textKey = key
-            g.text = if (tenths) "${key / 10},${key % 10}" else key.toString()
+    private fun shownText(item: NavItem, gs: GaugeState): String {
+        if (!gs.has) return "--"
+        val tenths = item.max <= 10f
+        val key = if (tenths) (gs.shown * 10f).roundToInt() else gs.shown.roundToInt()
+        if (key != gs.textKey) {
+            gs.textKey = key
+            gs.text = if (tenths) "${key / 10},${key % 10}" else key.toString()
         }
-        return g.text
+        return gs.text
     }
 
     private fun format(v: Double?, decimals: Int): String {
@@ -272,38 +233,30 @@ class NavRenderer : SurfaceCallback {
         return "${k / 100},${(k % 100).toString().padStart(2, '0')}"
     }
 
-    private fun drawFooter(c: Canvas, left: Float, top: Float, w: Float, h: Float) {
-        for (j in infos.indices) {
-            val inf = infos[j]
-            val cx = left + w * (j + 0.5f) / infos.size
-            text.color = Color.rgb(170, 185, 220)
-            text.textSize = h * 0.26f
-            c.drawText(inf.label, cx, top + h * 0.40f, text)
-            val v = NavData.get(inf.id)
-            text.color = Color.WHITE
-            text.textSize = h * 0.40f
-            c.drawText(if (v == null) "--" else format(v, inf.decimals) + " " + inf.unit, cx, top + h * 0.86f, text)
-        }
-    }
-
-    private fun drawInfoColumn(c: Canvas, left: Float, top: Float, w: Float, h: Float) {
-        val rowH = h / infos.size
+    /** Текстовое значение: подпись сверху, число и единица снизу, в своей ячейке. */
+    private fun drawInfo(c: Canvas, area: RectF, item: NavItem) {
+        val left = area.left + item.x * area.width()
+        val top = area.top + item.y * area.height()
+        val w = item.w * area.width()
+        val h = item.h * area.height()
+        if (w <= 1f || h <= 1f) return
         val cx = left + w / 2f
-        for (j in infos.indices) {
-            val inf = infos[j]
-            val y = top + rowH * j
-            text.color = Color.rgb(170, 185, 220)
-            text.textSize = min(rowH * 0.20f, w / 12f)
-            c.drawText(inf.label, cx, y + rowH * 0.40f, text)
-            val v = NavData.get(inf.id)
-            text.color = Color.WHITE
-            text.textSize = min(rowH * 0.32f, w / 9f)
-            c.drawText(if (v == null) "--" else format(v, inf.decimals) + " " + inf.unit, cx, y + rowH * 0.80f, text)
-        }
+        text.color = Color.rgb(170, 185, 220)
+        text.textSize = min(h * 0.26f, w / 7f)
+        c.drawText(item.label, cx, top + h * 0.40f, text)
+        val v = NavData.get(item.pid)
+        text.color = Color.WHITE
+        text.textSize = min(h * 0.40f, w / 5f)
+        c.drawText(if (v == null) "--" else format(v * item.scale, item.decimals) + " " + item.unit, cx, top + h * 0.86f, text)
     }
 
-    private fun drawGauge(c: Canvas, cx: Float, cy: Float, r: Float, g: Gauge) {
-        val frac = ((g.shown - g.min) / (g.max - g.min)).coerceIn(0f, 1f)
+    /** Прибор: круг вписан в свою ячейку, размер круга задаёт item.size. */
+    private fun drawGauge(c: Canvas, area: RectF, item: NavItem, gs: GaugeState) {
+        val cx = area.left + (item.x + item.w / 2f) * area.width()
+        val cy = area.top + (item.y + item.h / 2f) * area.height()
+        val r = min(item.w * area.width(), item.h * area.height()) / 2f * item.size
+        if (r <= 1f) return
+        val frac = ((gs.shown - item.min) / (item.max - item.min)).coerceIn(0f, 1f)
 
         fill.color = Color.rgb(18, 26, 54)
         c.drawCircle(cx, cy, r, fill)
@@ -340,11 +293,11 @@ class NavRenderer : SurfaceCallback {
         // подписи
         text.color = Color.WHITE
         text.textSize = r * 0.30f
-        c.drawText(shownText(g), cx, cy + r * 0.45f, text)
+        c.drawText(shownText(item, gs), cx, cy + r * 0.45f, text)
         text.color = Color.rgb(170, 185, 220)
         text.textSize = r * 0.13f
-        c.drawText(g.unit, cx, cy + r * 0.62f, text)
+        c.drawText(item.unit, cx, cy + r * 0.62f, text)
         text.textSize = r * 0.14f
-        c.drawText(g.label, cx, cy + r * 0.86f, text)
+        c.drawText(item.label, cx, cy + r * 0.86f, text)
     }
 }

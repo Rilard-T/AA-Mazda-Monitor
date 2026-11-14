@@ -44,7 +44,7 @@ class NavSession : Session() {
         }
         NavData.start()
 
-        carContext.getCarService(AppManager::class.java).setSurfaceCallback(NavRenderer())
+        carContext.getCarService(AppManager::class.java).setSurfaceCallback(NavRenderer(carContext))
 
         lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onDestroy(owner: LifecycleOwner) {

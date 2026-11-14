@@ -4,11 +4,11 @@ import android.os.SystemClock
 import com.aatorque.obd.ObdBridgeService
 import java.util.concurrent.ConcurrentHashMap
 
-/** Фоновый опрос значений из ObdBridgeService. Рисование читает только готовые значения и не ждёт адаптер. */
+/**
+ * Фоновый опрос значений из ObdBridgeService. Рисование читает только готовые значения и не ждёт адаптер.
+ * Какие параметры опрашивать, берётся из раскладки: приборы часто (каждые ~30 мс), значения раз в секунду.
+ */
 object NavData {
-    private val FAST = arrayOf("0d", "0c", "05")
-    private val SLOW = arrayOf("ff9010", "ff9003", "ff9005", "ff9011")
-
     private val values = ConcurrentHashMap<String, Double>()
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -40,10 +40,10 @@ object NavData {
         var lastSlow = 0L
         while (running) {
             try {
-                for (id in FAST) put(id, ObdBridgeService.peek(id))
+                for (id in NavLayoutStore.fastPids) put(id, ObdBridgeService.peek(id))
                 val now = SystemClock.uptimeMillis()
                 if (now - lastSlow > 1000L) {
-                    for (id in SLOW) put(id, ObdBridgeService.peek(id))
+                    for (id in NavLayoutStore.slowPids) put(id, ObdBridgeService.peek(id))
                     lastSlow = now
                 }
                 Thread.sleep(30)
