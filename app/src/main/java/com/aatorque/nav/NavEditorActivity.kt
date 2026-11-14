@@ -83,6 +83,11 @@ class NavEditorActivity : AppCompatActivity() {
         row2.addView(makeButton("Сохранить") { save() })
         row2.addView(makeButton("Сбросить") { reset() })
         root.addView(row2)
+
+        val row3 = LinearLayout(this)
+        row3.orientation = LinearLayout.HORIZONTAL
+        row3.addView(makeButton("Датчики во все формы") { confirmCopySensors() })
+        root.addView(row3)
         return root
     }
 
@@ -138,6 +143,36 @@ class NavEditorActivity : AppCompatActivity() {
             .setItems(names) { _, which -> editor.replaceSelected(itemFromPid(sel, pids[which])) }
             .setNegativeButton("Отмена", null)
             .show()
+    }
+
+    private fun confirmCopySensors() {
+        AlertDialog.Builder(this)
+            .setTitle("Датчики во все формы")
+            .setMessage("Скопировать датчики текущей формы во все остальные формы? Положение и размер элементов не изменятся. Не забудьте нажать «Сохранить».")
+            .setPositiveButton("Копировать") { _, _ -> copySensorsToAll() }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    /** Датчик, подпись, единицы, диапазон и формат берутся из текущей формы для элементов с тем же id в других формах. */
+    private fun copySensorsToAll() {
+        val src = forms[formKey] ?: return
+        var changed = 0
+        for ((key, list) in forms) {
+            if (key == formKey) continue
+            for (i in list.indices) {
+                val target = list[i]
+                val s = src.firstOrNull { it.id == target.id } ?: continue
+                if (s.kind != target.kind) continue
+                list[i] = target.copy(
+                    pid = s.pid, label = s.label, unit = s.unit,
+                    min = s.min, max = s.max, scale = s.scale, decimals = s.decimals
+                )
+                changed++
+            }
+        }
+        editor.invalidate()
+        Toast.makeText(this, "Датчики скопированы: " + changed, Toast.LENGTH_SHORT).show()
     }
 
     private fun save() {

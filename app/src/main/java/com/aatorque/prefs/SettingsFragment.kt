@@ -46,6 +46,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
         super.onCreate(savedInstanceState)
         preferenceManager.sharedPreferencesName = null
         dashboardsCat = findPreference("dashboardsCat")!!
+        findPreference<Preference>("navEditor")?.setOnPreferenceClickListener {
+            startActivity(Intent(requireContext(), com.aatorque.nav.NavEditorActivity::class.java))
+            true
+        }
         numScreensPref = findPreference("dashboardCount")!!
         backgroundPref = findPreference("selectedBackground")!!
         themePref = findPreference("selectedTheme")!!
