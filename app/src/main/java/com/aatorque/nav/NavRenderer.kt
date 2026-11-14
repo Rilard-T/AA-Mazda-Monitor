@@ -34,6 +34,8 @@ class NavRenderer(context: Context) : SurfaceCallback {
 
     private val states = HashMap<String, GaugeState>()
     private val painter = NavPainter()
+    private val fullF = RectF()
+    private var loadedTheme: String? = null
 
     private val debugOverlay = false
 
@@ -145,7 +147,10 @@ class NavRenderer(context: Context) : SurfaceCallback {
         if (!s.isValid) return
         val c = lock(s) ?: return
         try {
-            c.drawColor(Color.rgb(8, 12, 28))
+            val layout = NavLayoutStore.layout
+            syncTheme(layout)
+            fullF.set(0f, 0f, width.toFloat(), height.toFloat())
+            painter.background(c, fullF)
             // раскладка по видимой области; при её изменении границы плавно перетекают
             val vs = visible
             val st = stable
@@ -172,7 +177,6 @@ class NavRenderer(context: Context) : SurfaceCallback {
             val area = areaF
 
             // форма области: узкая колонка или широкая, по пропорциям целевой области
-            val layout = NavLayoutStore.layout
             val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect
             val form = layout.form(if (narrow) NavLayoutStore.NARROW else NavLayoutStore.WIDE)
 
@@ -209,6 +213,15 @@ class NavRenderer(context: Context) : SurfaceCallback {
             } catch (e: Exception) {
             }
         }
+    }
+
+    /** Тема из раскладки: при смене названия загрузить картинки темы (пустое название - плоский вид). */
+    private fun syncTheme(layout: NavLayout) {
+        if (loadedTheme != layout.theme) {
+            loadedTheme = layout.theme
+            painter.theme = NavThemes.load(appContext, layout.theme)
+        }
+        painter.ticksOn = layout.ticks
     }
 
     private fun shownText(item: NavItem, gs: GaugeState): String {

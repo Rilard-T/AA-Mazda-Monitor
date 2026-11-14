@@ -36,7 +36,12 @@ data class NavItem(
 data class NavForm(val items: List<NavItem>)
 
 /** Раскладка: формы области ("wide" - широкая, "narrow" - узкая колонка) и порог узкой формы (ширина < высота * narrowAspect). */
-data class NavLayout(val narrowAspect: Float, val forms: Map<String, NavForm>) {
+data class NavLayout(
+    val narrowAspect: Float,
+    val forms: Map<String, NavForm>,
+    val theme: String = "",
+    val ticks: Boolean = true
+) {
     fun form(key: String): NavForm =
         forms[key] ?: forms[NavLayoutStore.WIDE] ?: NavLayoutStore.defaultLayout().forms.getValue(NavLayoutStore.WIDE)
 }
@@ -134,7 +139,8 @@ object NavLayoutStore {
             }
             forms.put(key, JSONObject().put("items", arr))
         }
-        return JSONObject().put("v", 1).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms).toString()
+        return JSONObject().put("v", 1).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
+            .put("theme", l.theme).put("ticks", l.ticks).toString()
     }
 
     fun parse(text: String): NavLayout? {
@@ -172,7 +178,10 @@ object NavLayoutStore {
             }
             val wide = forms[WIDE]
             if (wide == null || wide.items.isEmpty()) return null
-            return NavLayout(root.optDouble("narrowAspect", 1.15).toFloat(), forms)
+            return NavLayout(
+                root.optDouble("narrowAspect", 1.15).toFloat(), forms,
+                root.optString("theme", ""), root.optBoolean("ticks", true)
+            )
         } catch (e: Exception) {
             return null
         }

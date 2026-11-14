@@ -37,6 +37,13 @@ class NavEditorView(context: Context) : View(context) {
     private var lastX = 0f
     private var lastY = 0f
 
+    /** Тема предпросмотра (null - плоский вид) и деления. */
+    fun setThemeRes(res: NavThemeRes?, ticks: Boolean) {
+        painter.theme = res
+        painter.ticksOn = ticks
+        invalidate()
+    }
+
     fun selectedItem(): NavItem? {
         val id = selectedId ?: return null
         return forms[formKey]?.firstOrNull { it.id == id }
@@ -89,8 +96,7 @@ class NavEditorView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         computeArea()
         canvas.drawColor(Color.rgb(32, 32, 36))
-        fillPaint.color = Color.rgb(8, 12, 28)
-        canvas.drawRect(area, fillPaint)
+        painter.background(canvas, area)
         val items = forms[formKey] ?: return
         for (item in items) {
             if (item.kind == NavItem.GAUGE) {

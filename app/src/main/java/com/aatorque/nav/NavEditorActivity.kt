@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -23,6 +24,8 @@ class NavEditorActivity : AppCompatActivity() {
     private var formKey = NavLayoutStore.WIDE
     private var presetIdx = 0
     private var baseline = ""
+    private var themeName = ""
+    private var ticksOn = true
 
     private val wideAspects = floatArrayOf(2.59f, 2.27f, 2.13f)
     private val wideNames = arrayOf("Mazda, весь экран", "Mazda, с виджетом", "эмулятор")
@@ -31,6 +34,8 @@ class NavEditorActivity : AppCompatActivity() {
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
+    private lateinit var sizeBar: SeekBar
+    private var updatingSeek = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +45,7 @@ class NavEditorActivity : AppCompatActivity() {
         loadFromStore()
         setContentView(buildUi())
         applyForm()
+        applyTheme()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 exitEditor()
@@ -57,7 +63,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
-        return NavLayout(narrowAspect, map)
+        return NavLayout(narrowAspect, map, themeName, ticksOn)
     }
 
     private fun currentJson(): String = NavLayoutStore.toJson(currentLayout())
@@ -67,6 +73,8 @@ class NavEditorActivity : AppCompatActivity() {
         val layout = NavLayoutStore.layout
         for ((key, form) in layout.forms) forms[key] = ArrayList(form.items)
         narrowAspect = layout.narrowAspect
+        themeName = layout.theme
+        ticksOn = layout.ticks
         baseline = currentJson()
     }
 
@@ -100,6 +108,25 @@ class NavEditorActivity : AppCompatActivity() {
         info.setPadding(dp(4), dp(6), dp(4), dp(6))
         root.addView(info)
 
+        // размер круга выбранного прибора: 0,30 .. 1,00 от ячейки
+        sizeBar = SeekBar(this)
+        sizeBar.max = 70
+        sizeBar.progress = 60
+        sizeBar.isEnabled = false
+        sizeBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser || updatingSeek) return
+                val sel = editor.selectedItem() ?: return
+                if (sel.kind != NavItem.GAUGE) return
+                editor.replaceSelected(sel.copy(size = 0.3f + progress / 100f))
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+        root.addView(sizeBar)
+
         val row2 = LinearLayout(this)
         row2.orientation = LinearLayout.HORIZONTAL
         row2.addView(makeButton("Датчик…") { chooseSensor() })
@@ -118,6 +145,12 @@ class NavEditorActivity : AppCompatActivity() {
         row4.addView(makeButton("Назад") { exitEditor() })
         row4.addView(makeButton("Сохранить") { save() })
         root.addView(row4)
+
+        val row5 = LinearLayout(this)
+        row5.orientation = LinearLayout.HORIZONTAL
+        row5.addView(makeButton("Тема…") { chooseTheme() })
+        row5.addView(makeButton("Деления вкл/выкл") { toggleTicks() })
+        root.addView(row5)
         return root
     }
 
@@ -139,10 +172,17 @@ class NavEditorActivity : AppCompatActivity() {
         val selText = if (sel == null) {
             "Коснитесь элемента: тяните, чтобы переместить; кружок в углу меняет размер."
         } else {
-            "Выбран: " + sel.label + " (" + sel.pid + ")"
+            "Выбран: " + sel.label + " (" + sel.pid + ")" +
+                (if (sel.kind == NavItem.GAUGE) ", круг " + (sel.size * 100f).toInt() + "%" else "")
         }
+        updatingSeek = true
+        sizeBar.isEnabled = sel != null && sel.kind == NavItem.GAUGE
+        if (sel != null && sel.kind == NavItem.GAUGE) {
+            sizeBar.progress = ((sel.size - 0.3f) * 100f).toInt().coerceIn(0, 70)
+        }
+        updatingSeek = false
         info.text = "Форма: " + (if (narrow) "узкая" else "широкая") + ", " + names[presetIdx] +
-            ", элементов: " + count + "\n" + selText
+            ", элементов: " + count + "\n" + themeLine() + "\n" + selText
     }
 
     /** Новый элемент на месте старого: те же положение и размер, параметры от выбранного датчика. */
@@ -258,6 +298,35 @@ class NavEditorActivity : AppCompatActivity() {
         Toast.makeText(this, "Датчики скопированы: " + changed, Toast.LENGTH_SHORT).show()
     }
 
+    private fun themeLine(): String {
+        val t = if (themeName.isEmpty()) "плоская" else themeName
+        return "Тема: " + t + ", деления: " + (if (ticksOn) "да" else "нет")
+    }
+
+    /** Применить выбранную тему и деления к предпросмотру. */
+    private fun applyTheme() {
+        editor.setThemeRes(NavThemes.load(this, themeName), ticksOn)
+        updateInfo()
+    }
+
+    private fun chooseTheme() {
+        val names = NavThemes.names(this)
+        val items = Array(names.size + 1) { i -> if (i == 0) "Плоская (по умолчанию)" else names[i - 1] }
+        AlertDialog.Builder(this)
+            .setTitle("Тема приборов AA NAV")
+            .setItems(items) { _, which ->
+                themeName = if (which == 0) "" else names[which - 1]
+                applyTheme()
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    private fun toggleTicks() {
+        ticksOn = !ticksOn
+        applyTheme()
+    }
+
     private fun save(): Boolean {
         val wide = forms[NavLayoutStore.WIDE]
         if (wide == null || wide.isEmpty()) {
@@ -274,6 +343,7 @@ class NavEditorActivity : AppCompatActivity() {
         NavLayoutStore.reset(this)
         loadFromStore()
         applyForm()
+        applyTheme()
         Toast.makeText(this, "Сброшено к стандартной", Toast.LENGTH_SHORT).show()
     }
 
