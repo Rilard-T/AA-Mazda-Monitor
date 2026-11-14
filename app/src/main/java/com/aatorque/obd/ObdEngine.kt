@@ -112,7 +112,8 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             val raw = diagRaw("01$pid")
             Timber.i("Диагностика 01%s: %s", pid, raw.replace(Regex("\\s+"), " ").trim().take(160))
             if (pid == "78") parse(raw, "4178")?.takeIf { it.size >= 9 }?.let { b ->
-                val t = (0 until 4).joinToString(" ") { i -> "%.1f".format((b[1 + 2 * i] * 256 + b[2 + 2 * i]) / 10.0 - 40.0) }
+                val t = (0 until 4).filter { i -> b[1 + 2 * i] != 0 || b[2 + 2 * i] != 0 }   // нулевой датчик отсутствует
+                    .joinToString(" ") { i -> "%.1f".format((b[1 + 2 * i] * 256 + b[2 + 2 * i]) / 10.0 - 40.0) }
                 Timber.i("Диагностика 0178: флаги %02X, температуры %s °C", b[0], t)
             }
         }

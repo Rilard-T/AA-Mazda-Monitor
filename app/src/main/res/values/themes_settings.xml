@@ -2,6 +2,7 @@
 <resources>
     <!-- Тема экранов настроек (0.8.0). Приборная панель использует AppTheme и AppTheme.*, их не трогаем. -->
     <style name="Theme.App.Settings" parent="Theme.Material3.DayNight">
+        <item name="android:listDivider">@drawable/ms_no_divider</item>
         <item name="colorPrimary">@color/ms_primary</item>
         <item name="colorOnPrimary">@color/ms_on_primary</item>
         <item name="colorPrimaryContainer">@color/ms_primary_container</item>

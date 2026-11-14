@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 0.8.3: список настроек с карточками вместо библиотечного (одноимённый файл подменяет библиотечный) -->
+<com.aatorque.prefs.CardRecyclerView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/recycler_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:clipToPadding="false"
+    android:paddingBottom="16dp"
+    android:scrollbars="vertical" />
