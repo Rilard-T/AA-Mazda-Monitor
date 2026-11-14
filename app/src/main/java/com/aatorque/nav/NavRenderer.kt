@@ -12,13 +12,10 @@ import android.view.Choreographer
 import android.view.Surface
 import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
-import kotlin.math.PI
-import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * Приборы на реальных данных. Рисование идёт в своём потоке по сигналу вертикальной синхронизации,
@@ -36,6 +33,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
     }
 
     private val states = HashMap<String, GaugeState>()
+    private val painter = NavPainter()
 
     private val debugOverlay = false
 
@@ -54,14 +52,12 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private var lastNanos = 0L
     private var hardware = true
 
-    private val rectF = RectF()
     private val areaF = RectF()
     private var areaInit = false
     private var al = 0f
     private var at = 0f
     private var ar = 0f
     private var ab = 0f
-    private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val stroke = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true }
     private val text = Paint().apply { isAntiAlias = true; textAlign = Paint.Align.CENTER }
 
@@ -189,9 +185,9 @@ class NavRenderer(context: Context) : SurfaceCallback {
                     gs.has = raw != null
                     val goal = if (raw != null) (raw * item.scale).toFloat() else item.min
                     gs.shown += (goal - gs.shown) * k
-                    drawGauge(c, area, item, gs)
+                    painter.gauge(c, area, item, gs.shown, shownText(item, gs))
                 } else {
-                    drawInfo(c, area, item)
+                    painter.info(c, area, item, infoText(item))
                 }
             }
 
@@ -226,78 +222,8 @@ class NavRenderer(context: Context) : SurfaceCallback {
         return gs.text
     }
 
-    private fun format(v: Double?, decimals: Int): String {
-        if (v == null) return "--"
-        if (decimals == 0) return v.roundToInt().toString()
-        val k = (v * 100.0).roundToInt()
-        return "${k / 100},${(k % 100).toString().padStart(2, '0')}"
-    }
-
-    /** Текстовое значение: подпись сверху, число и единица снизу, в своей ячейке. */
-    private fun drawInfo(c: Canvas, area: RectF, item: NavItem) {
-        val left = area.left + item.x * area.width()
-        val top = area.top + item.y * area.height()
-        val w = item.w * area.width()
-        val h = item.h * area.height()
-        if (w <= 1f || h <= 1f) return
-        val cx = left + w / 2f
-        text.color = Color.rgb(170, 185, 220)
-        text.textSize = min(h * 0.26f, w / 7f)
-        c.drawText(item.label, cx, top + h * 0.40f, text)
-        val v = NavData.get(item.pid)
-        text.color = Color.WHITE
-        text.textSize = min(h * 0.40f, w / 5f)
-        c.drawText(if (v == null) "--" else format(v * item.scale, item.decimals) + " " + item.unit, cx, top + h * 0.86f, text)
-    }
-
-    /** Прибор: круг вписан в свою ячейку, размер круга задаёт item.size. */
-    private fun drawGauge(c: Canvas, area: RectF, item: NavItem, gs: GaugeState) {
-        val cx = area.left + (item.x + item.w / 2f) * area.width()
-        val cy = area.top + (item.y + item.h / 2f) * area.height()
-        val r = min(item.w * area.width(), item.h * area.height()) / 2f * item.size
-        if (r <= 1f) return
-        val frac = ((gs.shown - item.min) / (item.max - item.min)).coerceIn(0f, 1f)
-
-        fill.color = Color.rgb(18, 26, 54)
-        c.drawCircle(cx, cy, r, fill)
-
-        val ring = r * 0.86f
-        rectF.set(cx - ring, cy - ring, cx + ring, cy + ring)
-        stroke.strokeWidth = r * 0.07f
-        stroke.strokeCap = Paint.Cap.ROUND
-        stroke.color = Color.rgb(40, 52, 90)
-        c.drawArc(rectF, 135f, 270f, false, stroke)
-        stroke.color = if (frac > 0.85f) Color.rgb(255, 80, 60) else Color.rgb(60, 170, 255)
-        c.drawArc(rectF, 135f, 270f * frac, false, stroke)
-        stroke.strokeCap = Paint.Cap.BUTT
-
-        // деления
-        stroke.strokeWidth = r * 0.02f
-        stroke.color = Color.rgb(170, 185, 220)
-        val ticks = 10
-        for (i in 0..ticks) {
-            val a = (135.0 + 270.0 * i / ticks) * PI / 180.0
-            val ca = cos(a).toFloat()
-            val sa = sin(a).toFloat()
-            c.drawLine(cx + r * 0.70f * ca, cy + r * 0.70f * sa, cx + r * 0.78f * ca, cy + r * 0.78f * sa, stroke)
-        }
-
-        // стрелка
-        val na = (135.0 + 270.0 * frac) * PI / 180.0
-        stroke.strokeWidth = r * 0.035f
-        stroke.color = Color.rgb(255, 190, 60)
-        c.drawLine(cx, cy, cx + r * 0.66f * cos(na).toFloat(), cy + r * 0.66f * sin(na).toFloat(), stroke)
-        fill.color = Color.rgb(255, 190, 60)
-        c.drawCircle(cx, cy, r * 0.05f, fill)
-
-        // подписи
-        text.color = Color.WHITE
-        text.textSize = r * 0.30f
-        c.drawText(shownText(item, gs), cx, cy + r * 0.45f, text)
-        text.color = Color.rgb(170, 185, 220)
-        text.textSize = r * 0.13f
-        c.drawText(item.unit, cx, cy + r * 0.62f, text)
-        text.textSize = r * 0.14f
-        c.drawText(item.label, cx, cy + r * 0.86f, text)
+    private fun infoText(item: NavItem): String {
+        val v = NavData.get(item.pid) ?: return "--"
+        return painter.formatValue(v * item.scale, item.decimals) + " " + item.unit
     }
 }
