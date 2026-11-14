@@ -9,7 +9,7 @@ A gauge dashboard on your car's screen via **Android Auto**. Unlike the original
 
 Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases)
 
-> The app interface is available in Russian and English (it follows the phone's language).
+> The app interface is available in Russian and English (it follows the phone's language): settings, the gauges, the OBD connection screen, the experimental features, link statuses, the notification and the sensor names.
 
 ---
 
