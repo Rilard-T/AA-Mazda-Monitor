@@ -18,8 +18,9 @@ import android.os.Build
 import android.os.IBinder
 import android.os.IInterface
 import android.util.Log
+import com.aatorque.stats.R
 import org.prowl.torque.remote.ITorqueService
-import java.lang.reflect.Proxy
+import timber.log.Timber
 
 /**
  * Локальная замена Torque Pro. Отдаёт тот же интерфейс ITorqueService, но данные берёт
@@ -36,48 +37,55 @@ class ObdBridgeService : Service() {
     private val prefs by lazy { getSharedPreferences("obd_bridge", MODE_PRIVATE) }
 
     /**
-     * Binder, у которого queryLocalInterface отдаёт наш объект. ITorqueService.Stub.asInterface()
-     * в форке вернёт именно его. Прокси реализует интерфейс при любом наборе методов в AIDL:
-     * неизвестные методы получают безопасные значения по умолчанию.
+     * Binder, у которого queryLocalInterface отдаёт наш объект: ITorqueService.Stub.asInterface()
+     * в форке вернёт именно его.
      */
     private val binder: IBinder = object : Binder() {
         override fun queryLocalInterface(descriptor: String): IInterface? =
-            if (descriptor == DESCRIPTOR) api else null
+            if (descriptor == DESCRIPTOR) bridge else null
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private val api: ITorqueService by lazy {
-        Proxy.newProxyInstance(
-            ITorqueService::class.java.classLoader,
-            arrayOf(ITorqueService::class.java)
-        ) { _, m, args ->
-            when (m.name) {
-                "asBinder" -> binder
-                "listAllPIDs" -> engine?.listIds() ?: MazdaPids.all.map { it.id }.toTypedArray()
-                "getPIDInformation" -> {
-                    val p = args!![0] as Array<String>
-                    Array(p.size) { MazdaPids.byId(p[it])?.info() ?: "" }
-                }
-                "getPIDValuesAsDouble" -> {
-                    val p = args!![0] as Array<String>
-                    val e = engine
-                    DoubleArray(p.size) { e?.value(p[it]) ?: 0.0 }
-                }
-                "isConnectedToECU" -> engine != null
-                else -> defaultFor(m.returnType)
-            }
-        } as ITorqueService
+    /**
+     * Мост к ITorqueService без рефлексии и без сверки имён методов: наследуем сгенерированный
+     * AIDL-класс Default и переопределяем только то, что отдаём сами, а остальные методы
+     * получают безопасные значения из Default. Переименование методов обфускатором такому
+     * мосту не мешает: вызовы разрешаются компилятором, а не строками.
+     */
+    private val bridge: ITorqueService = object : ITorqueService.Default() {
+        override fun asBinder(): IBinder = binder
+
+        override fun listAllPIDs(): Array<String> = guarded(
+            "listAllPIDs",
+            { MazdaPids.all.map { it.id }.toTypedArray() }
+        ) {
+            engine?.listIds() ?: MazdaPids.all.map { it.id }.toTypedArray()
+        }
+
+        override fun getPIDInformation(pidIDs: Array<String>): Array<String> = guarded(
+            "getPIDInformation",
+            { Array(pidIDs.size) { "" } }
+        ) {
+            Array(pidIDs.size) { MazdaPids.byId(pidIDs[it])?.info(this@ObdBridgeService) ?: "" }
+        }
+
+        override fun getPIDValuesAsDouble(pidsToRetrieve: Array<String>): DoubleArray = guarded(
+            "getPIDValuesAsDouble",
+            { DoubleArray(pidsToRetrieve.size) }
+        ) {
+            val e = engine
+            DoubleArray(pidsToRetrieve.size) { e?.value(pidsToRetrieve[it]) ?: 0.0 }
+        }
+
+        override fun isConnectedToECU(): Boolean =
+            guarded("isConnectedToECU", { false }) { engine != null }
     }
 
-    private fun defaultFor(t: Class<*>): Any? = when {
-        t == Void.TYPE -> null
-        t == Boolean::class.javaPrimitiveType -> false
-        t == Int::class.javaPrimitiveType -> 0
-        t == Long::class.javaPrimitiveType -> 0L
-        t == Float::class.javaPrimitiveType -> 0f
-        t == Double::class.javaPrimitiveType -> 0.0
-        t.isArray -> java.lang.reflect.Array.newInstance(t.componentType, 0)
-        else -> null
+    /** Вызов моста: сбой пишется в журнал, вызывающий получает безопасное значение вместо исключения. */
+    private inline fun <T> guarded(what: String, fallback: () -> T, block: () -> T): T = try {
+        block()
+    } catch (t: Throwable) {
+        Timber.e(t, "Мост ITorqueService: сбой в %s", what)
+        fallback()
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -85,7 +93,7 @@ class ObdBridgeService : Service() {
     override fun onCreate() {
         super.onCreate()
         running = true
-        goForeground(status)    // для сервиса, запущенного только привязкой, может быть запрещено — это нормально
+        goForeground(statusText(this))    // для сервиса, запущенного только привязкой, может быть запрещено — это нормально
         worker = Thread(::connectLoop, "obd-connect").also { it.isDaemon = true; it.start() }
     }
 
@@ -96,7 +104,7 @@ class ObdBridgeService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        if (!isForeground && !goForeground(status)) {
+        if (!isForeground && !goForeground(statusText(this))) {
             // startForegroundService() обязывает вызвать startForeground(); если не вышло — не держим сервис
             stopSelf()
             return START_NOT_STICKY
@@ -108,7 +116,7 @@ class ObdBridgeService : Service() {
         running = false
         worker?.interrupt()
         engine?.close(); engine = null
-        status = "Остановлено"
+        status = getString(R.string.obd_status_stopped)
         super.onDestroy()
     }
 
@@ -134,7 +142,7 @@ class ObdBridgeService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         if (nm.getNotificationChannel(CHANNEL) == null) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Связь с адаптером OBD", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(CHANNEL, getString(R.string.obd_notif_channel_name), NotificationManager.IMPORTANCE_LOW)
             )
         }
         val open = PendingIntent.getActivity(
@@ -146,10 +154,10 @@ class ObdBridgeService : Service() {
         )
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
-            .setContentTitle("Mazda: диагностика")
+            .setContentTitle(getString(R.string.obd_notif_title))
             .setContentText(text)
             .setContentIntent(open)
-            .addAction(0, "Остановить", stop)
+            .addAction(0, getString(R.string.obd_notif_stop), stop)
             .setOngoing(true)
             .build()
     }
@@ -176,38 +184,37 @@ class ObdBridgeService : Service() {
                 val port = prefs.getString("wifi_port", null)?.trim()?.toIntOrNull() ?: 35000
                 return Target(
                     WifiLink(applicationContext, host, port), "Wi-Fi $host:$port",
-                    "Не удалось подключиться по Wi-Fi. Подключите телефон к сети адаптера (WiFi_OBDII, V-LINK…), " +
-                        "проверьте адрес и порт, включите зажигание."
+                    getString(R.string.obd_hint_wifi)
                 )
             }
             "ble" -> {
                 if (Build.VERSION.SDK_INT >= 31 &&
                     checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                    post("Нет разрешения BLUETOOTH_CONNECT")
+                    post(getString(R.string.obd_err_no_bt_permission))
                     return null
                 }
                 val mac = prefs.getString("ble_mac", null)?.takeIf { it.isNotBlank() }
                 if (mac == null) {
-                    post("Выберите BLE-адаптер: «Найти BLE-адаптеры»")
+                    post(getString(R.string.obd_err_choose_ble))
                     return null
                 }
                 val dev = BluetoothAdapter.getDefaultAdapter()?.getRemoteDevice(mac) ?: return null
                 return Target(
                     BleLink(applicationContext, dev), "BLE ${dev.name ?: mac}",
-                    "Не удалось подключиться по BLE. Включите зажигание, подойдите ближе к адаптеру, " +
-                        "закройте другие программы с OBD."
+                    getString(R.string.obd_hint_ble)
                 )
             }
             else -> {
                 val dev = findDevice()
                 if (dev == null) {
-                    post(status.takeIf { it.startsWith("Нет разрешения") } ?: "Адаптер не найден: сопрягите его в Bluetooth")
+                    // не затираем сообщение о недостающем разрешении
+                    val noPermission = getString(R.string.obd_err_no_bt_permission)
+                    post(if (status == noPermission) noPermission else getString(R.string.obd_err_adapter_not_found))
                     return null
                 }
                 return Target(
-                    Elm327Link(dev), dev.name ?: dev.address,
-                    "Не удалось открыть канал Bluetooth. Включите зажигание, закройте другие программы " +
-                        "с OBD (CarScanner, Torque, старую версию приложения)."
+                    Elm327Link(applicationContext, dev), dev.name ?: dev.address,
+                    getString(R.string.obd_hint_classic)
                 )
             }
         }
@@ -222,20 +229,20 @@ class ObdBridgeService : Service() {
                 if (t == null) {
                     Thread.sleep(5000); continue
                 }
-                post("Подключение: ${t.label}…")
+                post(getString(R.string.obd_status_connecting, t.label))
                 link = t.link
                 try {
                     t.link.open()
                 } catch (ex: java.io.IOException) {
                     throw java.io.IOException(t.hint + " " + ex.message)
                 }
-                post("Инициализация адаптера…")
-                val e = ObdEngine(t.link, prefs)
+                post(getString(R.string.obd_status_initializing))
+                val e = ObdEngine(t.link, prefs, applicationContext)
                 e.init()
                 engine = e
-                post("Подключено")
+                post(getString(R.string.obd_status_connected))
                 while (running && e.failures < 5 && !reconnectFlag) Thread.sleep(1000)
-                post(if (reconnectFlag) "Переподключение…" else "Связь потеряна")
+                post(if (reconnectFlag) getString(R.string.obd_status_reconnecting) else getString(R.string.obd_status_lost))
                 reconnectFlag = false
                 engine = null
                 e.close()
@@ -245,7 +252,7 @@ class ObdBridgeService : Service() {
             } catch (ex: Exception) {
                 engine?.close(); engine = null
                 link?.close()
-                post(ex.message ?: "Ошибка подключения")
+                post(ex.message ?: getString(R.string.obd_err_generic))
                 try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
             }
         }
@@ -255,7 +262,7 @@ class ObdBridgeService : Service() {
     private fun findDevice(): BluetoothDevice? {
         if (Build.VERSION.SDK_INT >= 31 &&
             checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-            status = "Нет разрешения BLUETOOTH_CONNECT"
+            status = getString(R.string.obd_err_no_bt_permission)
             return null
         }
         val bonded = BluetoothAdapter.getDefaultAdapter()?.bondedDevices ?: return null
@@ -272,11 +279,15 @@ class ObdBridgeService : Service() {
         private const val NOTIF_ID = 4711
         private const val ACTION_STOP = "com.aatorque.obd.STOP"
 
-        /** Текст состояния для экрана настроек. */
-        @Volatile var status: String = "Не запущено"
+        /** Текст состояния для экрана настроек; null — служба ещё не сообщала состояние. */
+        @Volatile var status: String? = null
 
         @Volatile private var current: ObdEngine? = null
         @Volatile private var reconnectFlag = false
+
+        /** Текст состояния с учётом языка телефона. */
+        fun statusText(context: Context): String =
+            status ?: context.getString(R.string.obd_status_not_started)
 
         /** Текущее значение параметра для экрана проверки. Вызывать только не из главного потока. */
         fun peek(id: String): Double? = current?.value(id)

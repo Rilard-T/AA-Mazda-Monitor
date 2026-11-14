@@ -57,3 +57,6 @@
 }
 
 -keep,allowoptimization class com.aatorque.** { *; }
+
+# CardRecyclerView отличает разделители библиотеки настроек по имени класса.
+-keep class androidx.preference.PreferenceFragmentCompat$DividerDecoration { *; }

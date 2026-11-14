@@ -30,9 +30,12 @@ class CardRecyclerView @JvmOverloads constructor(
         addItemDecoration(CardDecoration(context))
     }
 
-    /** Библиотека настроек добавляет свои линии-разделители; карточкам они не нужны, поэтому не принимаем их. */
+    /**
+     * Библиотека настроек добавляет свои линии-разделители; карточкам они не нужны, поэтому не принимаем их.
+     * Класс разделителя сохранён от переименования правилом в proguard-rules.pro: сравнение идёт по имени.
+     */
     override fun addItemDecoration(decor: RecyclerView.ItemDecoration, index: Int) {
-        if (decor.javaClass.name.contains("DividerDecoration")) return
+        if (decor.javaClass.name.contains("Divider")) return
         super.addItemDecoration(decor, index)
     }
 

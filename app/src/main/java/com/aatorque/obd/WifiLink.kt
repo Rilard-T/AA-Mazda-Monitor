@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import com.aatorque.stats.R
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -16,7 +17,8 @@ import java.util.concurrent.TimeUnit
 
 /** Wi-Fi ELM327 (TCP). Сокет привязан именно к сети Wi-Fi, поэтому мобильный интернет продолжает работать. */
 class WifiLink(context: Context, private val host: String, private val port: Int) : ObdLink {
-    private val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val appContext = context.applicationContext
+    private val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private var socket: Socket? = null
     private var input: InputStream? = null
     private var output: OutputStream? = null
@@ -59,7 +61,7 @@ class WifiLink(context: Context, private val host: String, private val port: Int
         val n = found
         if (!ok || n == null) {
             release()
-            throw IOException("Нет подключения к Wi-Fi: подключите телефон к сети адаптера (WiFi_OBDII, V-LINK…).")
+            throw IOException(appContext.getString(R.string.obd_wifi_no_network))
         }
         return n
     }
@@ -77,8 +79,8 @@ class WifiLink(context: Context, private val host: String, private val port: Int
 
     @Synchronized
     override fun command(cmd: String, timeoutMs: Long): String {
-        val out = output ?: throw IOException("Нет соединения")
-        val inp = input ?: throw IOException("Нет соединения")
+        val out = output ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
+        val inp = input ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
         while (inp.available() > 0) inp.read()
         out.write((cmd + "\r").toByteArray(Charsets.US_ASCII))
         out.flush()
@@ -89,14 +91,15 @@ class WifiLink(context: Context, private val host: String, private val port: Int
             val n = inp.available()
             if (n > 0) {
                 val r = inp.read(buf, 0, minOf(n, buf.size))
-                if (r < 0) throw IOException("Соединение закрыто")
+                if (r < 0) throw IOException(appContext.getString(R.string.obd_err_closed))
                 for (i in 0 until r) {
                     val ch = (buf[i].toInt() and 0xFF).toChar()
                     if (ch == '>') break@done
                     sb.append(ch)
                 }
             } else {
-                if (System.currentTimeMillis() > deadline) throw SocketTimeoutException("Таймаут: $cmd")
+                if (System.currentTimeMillis() > deadline)
+                    throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
                 Thread.sleep(1)
             }
         }

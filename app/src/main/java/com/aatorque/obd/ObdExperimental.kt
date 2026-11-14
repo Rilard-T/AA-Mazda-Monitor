@@ -24,7 +24,7 @@ class ObdExperimentalActivity : AppCompatActivity() {
         setTheme(R.style.Theme_App_Settings)
         com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
-        title = "Экспериментальные функции"
+        title = getString(R.string.obd_exp_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()
@@ -80,56 +80,69 @@ class ObdExperimentalFragment : PreferenceFragmentCompat() {
         }
 
         // --- описание ---
-        val about = category("О разделе")
+        val about = category(getString(R.string.obd_exp_cat_about))
         action(
-            about, "Зачем это нужно",
-            "Сбор данных о саже в момент включения прожига для подбора порога «DPF %». Нажмите, чтобы прочитать подробнее."
+            about,
+            getString(R.string.obd_exp_about_action),
+            getString(R.string.obd_exp_about_action_summary)
         ) { showAbout() }
 
         // --- сбор данных ---
-        val collect = category("Сбор данных")
+        val collect = category(getString(R.string.obd_exp_cat_collect))
         val log = SwitchPreferenceCompat(ctx)
         log.key = "exp_soot_log"
-        log.title = "Записывать сажу перед прожигом"
-        log.summary = "Работает в фоне, пока запущена служба подключения"
+        log.title = getString(R.string.obd_exp_log_soot)
+        log.summary = getString(R.string.obd_exp_log_soot_summary)
         log.setDefaultValue(true)
         collect.addPreference(log)
         val auto = SwitchPreferenceCompat(ctx)
         auto.key = "exp_auto_threshold"
-        auto.title = "Порог «DPF %» по наблюдениям"
-        auto.summary = "Использовать среднее по 3 последним прожигам вместо ручного порога"
+        auto.title = getString(R.string.obd_exp_auto_threshold)
+        auto.summary = getString(R.string.obd_exp_auto_threshold_summary)
         auto.setDefaultValue(false)
         collect.addPreference(auto)
 
         // --- данные ---
-        val data = category("Данные")
-        statePref = info(data, "Прожиг", "—")
-        nowPref = info(data, "Сажа сейчас", "—")
-        peakPref = info(data, "Максимум с прошлого прожига", "—")
-        lastPref = info(data, "Сажа перед последним прожигом", "—")
-        avgPref = info(data, "Среднее по 3 последним прожигам", "—")
+        val data = category(getString(R.string.obd_exp_cat_data))
+        statePref = info(data, getString(R.string.obd_exp_data_regen), "—")
+        nowPref = info(data, getString(R.string.obd_exp_data_soot_now), "—")
+        peakPref = info(data, getString(R.string.obd_exp_data_peak), "—")
+        lastPref = info(data, getString(R.string.obd_exp_data_last), "—")
+        avgPref = info(data, getString(R.string.obd_exp_data_avg), "—")
         val journal = Preference(ctx)
-        journal.title = "Журнал прожигов"
+        journal.title = getString(R.string.obd_exp_journal)
         journal.summary = "—"
         journal.setOnPreferenceClickListener { showJournal(); true }
         data.addPreference(journal)
         journalPref = journal
 
         // --- действия ---
-        val actions = category("Действия")
-        action(actions, "Применить как ручной порог", "Записать среднее по последним прожигам в «Порог сажи»") {
+        val actions = category(getString(R.string.obd_exp_cat_actions))
+        action(
+            actions,
+            getString(R.string.obd_exp_apply_threshold),
+            getString(R.string.obd_exp_apply_threshold_summary)
+        ) {
             val v = tracker.avgSootPeak(3)
             if (v == null) {
-                Toast.makeText(ctx, "Пока нет записей о прожигах", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, getString(R.string.obd_exp_no_regenerations), Toast.LENGTH_SHORT).show()
             } else {
                 prefs.edit().putFloat("dpf_full_gl", v.toFloat()).apply()
-                Toast.makeText(ctx, String.format(Locale.US, "Порог: %.2f г/л", v), Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    ctx,
+                    getString(R.string.obd_exp_threshold_applied, String.format(Locale.US, "%.2f", v)),
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
-        action(actions, "Очистить журнал", "Удалить записи о саже перед прожигом") {
+        action(
+            actions,
+            getString(R.string.obd_exp_clear),
+            getString(R.string.obd_exp_clear_summary)
+        ) {
             AlertDialog.Builder(requireActivity())
-                .setTitle("Очистить журнал?")
-                .setMessage("Записи о саже перед прожигом будут удалены.")
+                .setTitle(R.string.obd_exp_clear_title)
+                .setMessage(R.string.obd_exp_clear_message)
                 .setPositiveButton(android.R.string.yes) { _, _ -> tracker.clearSootLog(); refresh() }
                 .setNegativeButton(android.R.string.no, null)
                 .show()
@@ -139,20 +152,22 @@ class ObdExperimentalFragment : PreferenceFragmentCompat() {
     }
 
     private fun stateText(s: Int): String = when (s) {
-        RegenState.RUNNING -> if (tracker.regenActive()) "идёт сейчас" else "ждём счётчик"
-        RegenState.COMPLETE -> "завершён"
-        RegenState.INTERRUPTED -> "прерван"
-        else -> "по счётчику"
+        RegenState.RUNNING -> if (tracker.regenActive()) getString(R.string.obd_exp_state_running)
+        else getString(R.string.obd_exp_state_waiting)
+        RegenState.COMPLETE -> getString(R.string.obd_exp_state_complete)
+        RegenState.INTERRUPTED -> getString(R.string.obd_exp_state_interrupted)
+        else -> getString(R.string.obd_exp_state_by_counter)
     }
 
     private fun g(v: Double?): String =
-        if (v == null) "нет данных" else String.format(Locale.US, "%.2f г/л", v)
+        if (v == null) getString(R.string.obd_exp_no_data)
+        else getString(R.string.obd_exp_value_gl, String.format(Locale.US, "%.2f", v))
 
     private fun refresh() {
         statePref?.summary = when (val s = tracker.liveStatus()) {
-            null -> "нет данных (статус блока недоступен)"
-            0 -> "не идёт"
-            else -> "идёт (статус блока: $s)"
+            null -> getString(R.string.obd_exp_status_no_data)
+            0 -> getString(R.string.obd_exp_status_none)
+            else -> getString(R.string.obd_exp_status_running, s)
         }
         nowPref?.summary = g(tracker.currentSoot())
         peakPref?.summary = g(tracker.currentSootPeak())
@@ -160,44 +175,36 @@ class ObdExperimentalFragment : PreferenceFragmentCompat() {
         avgPref?.summary = g(tracker.avgSootPeak(3))
         val lines = journalLines()
         journalPref?.summary =
-            if (lines.isEmpty()) "Пока нет записей. Они появятся при включении прожига, когда приложение работает."
+            if (lines.isEmpty()) getString(R.string.obd_exp_journal_empty)
             else lines.take(4).joinToString("\n") +
-                (if (lines.size > 4) "\n… ещё ${lines.size - 4}. Нажмите, чтобы открыть весь журнал." else "")
+                (if (lines.size > 4) getString(R.string.obd_exp_journal_more, lines.size - 4) else "")
     }
 
     private fun journalLines(): List<String> {
         val df = SimpleDateFormat("dd.MM HH:mm", Locale.getDefault())
         return tracker.history().asReversed().map {
-            df.format(Date(it.time)) + " — " + String.format(Locale.US, "%.2f г/л", it.soot) +
-                (it.km?.let { k -> ", после прошлого ${k.toInt()} км" } ?: "") + ", " + stateText(it.state)
+            val date = df.format(Date(it.time))
+            val soot = String.format(Locale.US, "%.2f", it.soot)
+            val state = stateText(it.state)
+            it.km?.let { k -> getString(R.string.obd_exp_journal_line_km, date, soot, k.toInt(), state) }
+                ?: getString(R.string.obd_exp_journal_line, date, soot, state)
         }
     }
 
     private fun showJournal() {
         val lines = journalLines()
         AlertDialog.Builder(requireActivity())
-            .setTitle("Журнал прожигов")
-            .setMessage(if (lines.isEmpty()) "Пока нет записей." else lines.joinToString("\n\n"))
-            .setPositiveButton("Закрыть", null)
+            .setTitle(R.string.obd_exp_journal)
+            .setMessage(if (lines.isEmpty()) getString(R.string.obd_exp_journal_none) else lines.joinToString("\n\n"))
+            .setPositiveButton(R.string.obd_exp_close, null)
             .show()
     }
 
     private fun showAbout() {
         AlertDialog.Builder(requireActivity())
-            .setTitle("Зачем это нужно")
-            .setMessage(
-                "Блок двигателя не отдаёт процент заполнения сажевого фильтра: его считают из накопленной сажи " +
-                    "и порога прожига.\n\n" +
-                    "Реальный порог на вашем моторе пока неизвестен (по данным других владельцев около 6–7,6 г/л).\n\n" +
-                    "Запись делается в момент включения прожига, когда блок сообщает ненулевой статус прожига. " +
-                    "В журнал попадает максимум сажи до этого момента. Прожиг заканчивается, когда статус 0 держится " +
-                    "10 минут.\n\n" +
-                    "Прожиг помечается «завершён» (счётчик вырос или двигатель выключили в пределах 10 минут после " +
-                    "окончания) или «прерван» (двигатель выключили во время прожига или счётчик не вырос за 3 минуты). " +
-                    "В среднем участвуют все завершённые прожиги.\n\n" +
-                    "Если приложение подключилось посреди прожига, запись не ведётся. Данные ориентировочные."
-            )
-            .setPositiveButton("Закрыть", null)
+            .setTitle(R.string.obd_exp_about_title)
+            .setMessage(R.string.obd_exp_about_message)
+            .setPositiveButton(R.string.obd_exp_close, null)
             .show()
     }
 
