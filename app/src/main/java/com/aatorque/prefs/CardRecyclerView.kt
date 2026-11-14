@@ -30,6 +30,12 @@ class CardRecyclerView @JvmOverloads constructor(
         addItemDecoration(CardDecoration(context))
     }
 
+    /** Библиотека настроек добавляет свои линии-разделители; карточкам они не нужны, поэтому не принимаем их. */
+    override fun addItemDecoration(decor: RecyclerView.ItemDecoration, index: Int) {
+        if (decor.javaClass.name.contains("DividerDecoration")) return
+        super.addItemDecoration(decor, index)
+    }
+
     private class CardDecoration(context: Context) : RecyclerView.ItemDecoration() {
         private val density = context.resources.displayMetrics.density
         private val side = (16 * density).toInt()
