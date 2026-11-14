@@ -9,7 +9,7 @@ A gauge dashboard on your car's screen via **Android Auto**. Unlike the original
 
 Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases)
 
-> The app interface is available in Russian and English (it follows the phone's language).
+> The app interface is available in Russian and English (it follows the phone's language): settings, the gauges, the OBD connection screen, the experimental features, link statuses, the notification and the sensor names.
 
 ---
 
@@ -37,18 +37,19 @@ Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [
 - A background service with a status notification and a "Stop" button, so the system does not unload it.
 
 **Interface**
+- **New settings look:** the items of each section are grouped into one rounded card (the press ripple follows the card, the lines between sections are gone), switches instead of checkboxes, Material 3 dialogs, text on the left and icons on the right. On Android 12+ colours come from the wallpaper; light and dark themes are supported. The gauges on the car screen are unchanged.
 - The **"Settings"** button (a gear on the main screen toolbar, next to the info icon) opens the **"OBD connection"** screen: link status, adapter selection, start/stop, polling settings, soot threshold, sensor values for checking without the car.
 - Polling settings: update rate for main and slow sensors, "faster adapter responses".
 - An **"Exit"** button ("⋮" menu and the connection screen) and an exit confirmation on "Back" on the main screen.
 - The information tiles **"View 1–4"** on the Android Auto screen are placed around the gauges: "View 1" above the left gauge, "View 2" above the right one, "View 3" below the left one, "View 4" below the right one. Labels are no longer cut off: they wrap onto a second line, and the values are larger. When an icon (rather than a text label) is chosen for an element, the icon and the value are shown on one line, centered under the gauge.
 - The **"Element sizes"** settings: size of the gauges, tile values and tile labels (50–150%) and a "Hide top row" switch. Sizes change how elements look, not where they sit on the screen, so heavily enlarged gauges may overlap the tiles.
 - The **"Now playing"** option (Settings → Media, off by default): shows the artist and the title of the playing track under the center gauge. It works with players that publish a system media session (Spotify, Yandex Music, Poweramp, the system player) and needs notification access.
-- The **"⋮ → Report a problem"** button: opens a new issue page in this repository with the app version, phone model and the last lines of the log (Bluetooth addresses and VIN are hidden); the full log is copied to the clipboard. There is no automatic sending, nothing leaves the phone without your action.
-- The interface is translated into Russian (settings, panels, elements, themes).
+- The **"⋮ → Report a problem"** button: opens a new issue page in this repository with the app version, phone model and the last lines of the log (Bluetooth addresses and VIN are hidden). The dialog also has a **".txt file"** button: the whole log is saved to a file and passed on through the Share menu, with timestamps, the app version, the Android version, the phone model and the link status. The full log is still copied to the clipboard. There is no automatic sending, nothing leaves the phone without your action.
+- The interface is fully translated into **Russian and English**: the "OBD connection" screen, the experimental features, link statuses, the service notification, dialogs and buttons, menu items, the names and units of all sensors, error messages and the log export. The language follows the phone's system settings (Russian for a Russian system language, English otherwise). Technical messages in the app log stay in Russian.
 - The app is renamed to **AA Mazda Monitor**, package `com.aamazda.monitor`. The "About" window is updated: the author of the modification and a change notice are added, the donation button is removed, and the sources and icon authors are kept.
 
 **Updates**
-- Over-the-air updates come from the **Releases of this repository** ("⋮ → Check for updates"). The version is compared with the tag of the latest release (like `0.7.2`), pre-releases are ignored.
+- Over-the-air updates come from the **Releases of this repository** ("⋮ → Check for updates"). The version is compared with the tag of the latest release (like `0.8.4`), pre-releases are ignored.
 - All releases are signed with the same key and the version code (`versionCode`) only grows, so a new version installs **over** the old one without uninstalling and without losing settings.
 - Versions before 0.6.0 computed the version code with a different formula; since 0.6.0 it is `major × 100000 + minor × 1000 + patch`.
 
@@ -126,7 +127,8 @@ Found a bug or have a suggestion? Use "⋮ → Report a problem" in the app or c
 - ELM327 over **Bluetooth Classic**, **BLE** and **Wi-Fi** (BLE and Wi-Fi have not been tested on every adapter model).
 - Reading and clearing trouble codes (DTC) is not supported.
 - The parameters were checked on a 2020 Mazda 3 (S8DPTS 1.8L engine); they should work across the SkyActiv-D range, and the main PIDs should work on the vast majority of cars.
-- The temperature before the particulate filter is not read: the 1.8 engine unit does not have this parameter (the 1.5 does).
+- The temperature before the particulate filter (`01 7C`) is not read: the 1.8 engine unit refuses the request (`7F 01 12`) and does not have this parameter (the 1.5 does); the row was removed from the parameters in 0.7.5. Exhaust gas temperatures (`01 78`, three sensors), however, are reported by the unit: they are written to the diagnostic log but not shown on the gauges.
+- Some observations (soot going down, exhaust temperatures, the `01 8B` burn-off state byte) were made on a car with a modified firmware (EGR disabled) and may differ on a stock one.
 - The difference between values 1 and 2 of the regeneration status (`22 0380`) is not confirmed on a car: a non-zero status accompanied a regeneration that started by itself at about 6.5 g/L of soot (one observation). On the "OBD connection" screen check the "Regeneration status (0/1/2)" line, it should show 0 outside a regeneration.
 - The default soot threshold of 6.5 g/L is an average; the real threshold for the 1.8 is not determined yet. The unit may also start a regeneration by mileage regardless of soot; such regenerations lower the observed threshold.
 - The "Now playing" line has not been tested with every player; after a pause the last track stays until the player is closed or the track changes.

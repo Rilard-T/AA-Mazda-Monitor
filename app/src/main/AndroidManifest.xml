@@ -103,12 +103,12 @@
         <activity
             android:name="com.aatorque.obd.ObdSettingsActivity"
             android:theme="@style/Theme.App.Settings"
-            android:label="OBD подключение"
+            android:label="@string/obd_connection_title"
             android:exported="false"/>
         <activity
                 android:name="com.aatorque.obd.ObdExperimentalActivity"
                 android:theme="@style/Theme.App.Settings"
-                android:label="Экспериментальные функции"
+                android:label="@string/obd_exp_title"
                 android:exported="false"/>
         <provider
             android:name="com.aatorque.stats.LogFileProvider"
