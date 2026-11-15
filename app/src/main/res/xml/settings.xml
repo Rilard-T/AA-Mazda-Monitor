@@ -151,12 +151,12 @@
 
     <PreferenceCategory
         android:singleLineTitle="false"
-        android:title="Дашборды AA NAV"
+        android:title="@string/nav_settings_cat"
         android:key="navCat">
         <Preference
             android:key="navEditor"
             android:persistent="false"
-            android:title="Раскладка приборов"
+            android:title="@string/nav_editor_title"
             android:summary="Редактор экрана Android Auto (навигационный интерфейс)" />
     </PreferenceCategory>
 
