@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.aatorque.obd.MazdaPids
 import com.aatorque.obd.PidDef
+import com.aatorque.stats.R
 
 /**
  * Редактор раскладки бета-экрана Android Auto на телефоне: предпросмотр, перемещение и размер касанием,
@@ -33,16 +34,25 @@ class NavEditorActivity : AppCompatActivity() {
     private var debugOn = false
 
     private val wideAspects = floatArrayOf(2.59f, 2.27f, 2.13f)
-    private val wideNames = arrayOf("Mazda, весь экран", "Mazda, с виджетом", "эмулятор")
     private val narrowAspects = floatArrayOf(0.92f, 0.73f)
-    private val narrowNames = arrayOf("Mazda, колонка", "эмулятор, колонка")
+
+    private fun wideNames() = arrayOf(
+        getString(R.string.nav_preset_wide_1),
+        getString(R.string.nav_preset_wide_2),
+        getString(R.string.nav_preset_wide_3)
+    )
+
+    private fun narrowNames() = arrayOf(
+        getString(R.string.nav_preset_narrow_1),
+        getString(R.string.nav_preset_narrow_2)
+    )
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Раскладка приборов"
+        title = getString(R.string.nav_editor_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         NavLayoutStore.load(this)
         loadFromStore()
@@ -116,16 +126,16 @@ class NavEditorActivity : AppCompatActivity() {
 
     /** Общие действия: «Сохранить» всегда на виду, остальное в меню «⋯». */
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(Menu.NONE, M_SAVE, 0, "Сохранить").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        menu.add(Menu.NONE, M_WIDE, 1, "Форма: широкая").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_NARROW, 2, "Форма: узкая").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_PRESET, 3, "Пропорции предпросмотра").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_ADD, 4, "Добавить…").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_THEME, 5, "Тема…").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_TICKS, 6, "Деления вкл/выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_DEBUG, 9, "Отладка вкл/выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_COPY, 7, "Датчики во все формы").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_RESET, 8, "Сбросить").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_SAVE, 0, getString(R.string.nav_save)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        menu.add(Menu.NONE, M_WIDE, 1, getString(R.string.nav_form_wide)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_NARROW, 2, getString(R.string.nav_form_narrow)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_PRESET, 3, getString(R.string.nav_preset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_ADD, 4, getString(R.string.nav_add)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_THEME, 5, getString(R.string.nav_theme)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_TICKS, 6, getString(R.string.nav_ticks)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_DEBUG, 9, getString(R.string.nav_debug)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_COPY, 7, getString(R.string.nav_copy)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_RESET, 8, getString(R.string.nav_reset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         return true
     }
 
@@ -162,20 +172,20 @@ class NavEditorActivity : AppCompatActivity() {
         val gauge = item.kind == NavItem.GAUGE
         val names = ArrayList<String>()
         val actions = ArrayList<() -> Unit>()
-        names.add("Датчик…")
+        names.add(getString(R.string.nav_item_sensor))
         actions.add { chooseSensor() }
         if (gauge) {
-            names.add("Размер круга…")
+            names.add(getString(R.string.nav_item_size))
             actions.add { chooseCircleSize() }
-            names.add("Максимум шкалы…")
+            names.add(getString(R.string.nav_item_max))
             actions.add { chooseGaugeMax() }
         }
-        names.add("Удалить")
+        names.add(getString(R.string.nav_delete))
         actions.add { deleteSelected() }
         AlertDialog.Builder(this)
             .setTitle(item.label + " (" + item.pid + ")")
             .setItems(names.toTypedArray()) { _, which -> actions[which]() }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
@@ -184,7 +194,7 @@ class NavEditorActivity : AppCompatActivity() {
         val sel = editor.selectedItem() ?: return
         if (sel.kind != NavItem.GAUGE) return
         val hint = TextView(this)
-        hint.text = "Максимум шкалы (единицы как у подписей):"
+        hint.text = getString(R.string.nav_max_hint)
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
         input.setText(if (sel.max == sel.max.toInt().toFloat()) sel.max.toInt().toString() else sel.max.toString())
@@ -196,18 +206,18 @@ class NavEditorActivity : AppCompatActivity() {
         box.addView(input, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val dialog = AlertDialog.Builder(this)
             .setView(box)
-            .setPositiveButton("Применить") { _, _ ->
+            .setPositiveButton(getString(R.string.nav_apply)) { _, _ ->
                 val cur = editor.selectedItem() ?: return@setPositiveButton
                 val value = input.text.toString().replace(',', '.').toFloatOrNull()
                 if (value == null || value <= cur.min) {
-                    Toast.makeText(this, "Максимум должен быть больше минимума", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(R.string.nav_max_invalid), Toast.LENGTH_LONG).show()
                     return@setPositiveButton
                 }
                 editor.replaceSelected(cur.copy(max = value))
                 editor.invalidate()
                 updateInfo()
             }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .create()
         dialog.show()
     }
@@ -220,14 +230,14 @@ class NavEditorActivity : AppCompatActivity() {
         val bar = SeekBar(this)
         bar.max = 70
         bar.progress = ((sel.size - 0.3f) * 100f).toInt().coerceIn(0, 70)
-        label.text = "Размер круга: " + (sel.size * 100f).toInt() + "%"
+        label.text = getString(R.string.nav_circle_size) + (sel.size * 100f).toInt() + "%"
         bar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
                 val cur = editor.selectedItem() ?: return
                 val next = cur.copy(size = 0.3f + progress / 100f)
                 editor.replaceSelected(next)
-                label.text = "Размер круга: " + (next.size * 100f).toInt() + "%"
+                label.text = getString(R.string.nav_circle_size) + (next.size * 100f).toInt() + "%"
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -241,7 +251,7 @@ class NavEditorActivity : AppCompatActivity() {
         box.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val dialog = AlertDialog.Builder(this)
             .setView(box)
-            .setPositiveButton("Готово", null)
+            .setPositiveButton(getString(R.string.nav_done), null)
             .create()
         dialog.window?.setGravity(Gravity.BOTTOM)
         dialog.window?.setDimAmount(0f)
@@ -260,17 +270,17 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun updateInfo() {
         val narrow = formKey == NavLayoutStore.NARROW
-        val names = if (narrow) narrowNames else wideNames
+        val names = if (narrow) narrowNames() else wideNames()
         val count = forms[formKey]?.size ?: 0
         val sel = editor.selectedItem()
         val selText = if (sel == null) {
-            "Удержание на приборе или значении открывает меню; тяните, чтобы переместить; кружок в углу меняет размер."
+            getString(R.string.nav_help)
         } else {
-            "Выбран: " + sel.label + " (" + sel.pid + ")" +
-                (if (sel.kind == NavItem.GAUGE) ", круг " + (sel.size * 100f).toInt() + "%" else "")
+            getString(R.string.nav_selected) + sel.label + " (" + sel.pid + ")" +
+                (if (sel.kind == NavItem.GAUGE) getString(R.string.nav_circle) + (sel.size * 100f).toInt() + "%" else "")
         }
-        info.text = "Форма: " + (if (narrow) "узкая" else "широкая") + ", " + names[presetIdx] +
-            ", элементов: " + count + "\n" + themeLine() + "\n" + selText
+        info.text = getString(R.string.nav_form) + (if (narrow) getString(R.string.nav_narrow) else getString(R.string.nav_wide)) + ", " + names[presetIdx] +
+            getString(R.string.nav_items) + count + "\n" + themeLine() + "\n" + selText
     }
 
     /** Новый элемент на месте старого: те же положение и размер, параметры от выбранного датчика. */
@@ -300,33 +310,33 @@ class NavEditorActivity : AppCompatActivity() {
     private fun chooseSensor() {
         val sel = editor.selectedItem()
         if (sel == null) {
-            Toast.makeText(this, "Сначала коснитесь элемента", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.nav_touch_first), Toast.LENGTH_SHORT).show()
             return
         }
         val pids = MazdaPids.all
         AlertDialog.Builder(this)
-            .setTitle("Датчик для «" + sel.label + "»")
+            .setTitle(getString(R.string.nav_sensor_for) + sel.label + "»")
             .setItems(sensorNames(pids)) { _, which -> editor.replaceSelected(itemFromPid(sel, pids[which])) }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
     private fun addElement() {
         AlertDialog.Builder(this)
-            .setTitle("Добавить в текущую форму")
-            .setItems(arrayOf("Прибор", "Значение")) { _, which ->
+            .setTitle(getString(R.string.nav_add_current))
+            .setItems(arrayOf(getString(R.string.nav_kind_gauge), getString(R.string.nav_kind_info))) { _, which ->
                 pickSensorForNew(if (which == 0) NavItem.GAUGE else NavItem.INFO)
             }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
     private fun pickSensorForNew(kind: String) {
         val pids = MazdaPids.all
         AlertDialog.Builder(this)
-            .setTitle("Датчик")
+            .setTitle(getString(R.string.nav_sensor))
             .setItems(sensorNames(pids)) { _, which -> createItem(kind, pids[which]) }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
@@ -354,7 +364,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun deleteSelected() {
         val sel = editor.selectedItem()
         if (sel == null) {
-            Toast.makeText(this, "Сначала коснитесь элемента", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.nav_touch_first), Toast.LENGTH_SHORT).show()
             return
         }
         forms[formKey]?.removeAll { it.id == sel.id }
@@ -365,10 +375,10 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun confirmCopySensors() {
         AlertDialog.Builder(this)
-            .setTitle("Датчики во все формы")
-            .setMessage("Скопировать датчики текущей формы во все остальные формы? Положение и размер элементов не изменятся. Не забудьте нажать «Сохранить».")
-            .setPositiveButton("Копировать") { _, _ -> copySensorsToAll() }
-            .setNegativeButton("Отмена", null)
+            .setTitle(getString(R.string.nav_copy))
+            .setMessage(getString(R.string.nav_copy_message))
+            .setPositiveButton(getString(R.string.nav_copy_action)) { _, _ -> copySensorsToAll() }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
@@ -394,8 +404,8 @@ class NavEditorActivity : AppCompatActivity() {
     }
 
     private fun themeLine(): String {
-        val t = if (themeName.isEmpty()) "плоская" else themeName
-        return "Тема: " + t + ", деления: " + (if (ticksOn) "да" else "нет") + ", отладка: " + (if (debugOn) "вкл" else "выкл")
+        val t = if (themeName.isEmpty()) getString(R.string.nav_flat) else themeName
+        return getString(R.string.nav_theme_prefix) + t + getString(R.string.nav_ticks_prefix) + (if (ticksOn) getString(R.string.nav_yes) else getString(R.string.nav_no)) + getString(R.string.nav_debug_prefix) + (if (debugOn) getString(R.string.nav_on) else getString(R.string.nav_off))
     }
 
     /** Применить выбранную тему и деления к предпросмотру. */
@@ -406,14 +416,14 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun chooseTheme() {
         val names = NavThemes.names(this)
-        val items = Array(names.size + 1) { i -> if (i == 0) "Плоская (по умолчанию)" else names[i - 1] }
+        val items = Array(names.size + 1) { i -> if (i == 0) getString(R.string.nav_theme_default) else names[i - 1] }
         AlertDialog.Builder(this)
-            .setTitle("Тема приборов AA NAV")
+            .setTitle(getString(R.string.nav_theme_dialog))
             .setItems(items) { _, which ->
                 themeName = if (which == 0) "" else names[which - 1]
                 applyTheme()
             }
-            .setNegativeButton("Отмена", null)
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
@@ -430,12 +440,12 @@ class NavEditorActivity : AppCompatActivity() {
     private fun save(): Boolean {
         val wide = forms[NavLayoutStore.WIDE]
         if (wide == null || wide.isEmpty()) {
-            Toast.makeText(this, "В широкой форме нет ни одного элемента, сохранить нельзя", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.nav_nothing_wide), Toast.LENGTH_LONG).show()
             return false
         }
         NavLayoutStore.save(this, currentLayout())
         baseline = currentJson()
-        Toast.makeText(this, "Сохранено", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.nav_saved), Toast.LENGTH_SHORT).show()
         return true
     }
 
@@ -444,7 +454,7 @@ class NavEditorActivity : AppCompatActivity() {
         loadFromStore()
         applyForm()
         applyTheme()
-        Toast.makeText(this, "Сброшено к стандартной", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.nav_reset_done), Toast.LENGTH_SHORT).show()
     }
 
     /** Назад: если есть несохранённые изменения, спросить. */
@@ -454,10 +464,10 @@ class NavEditorActivity : AppCompatActivity() {
             return
         }
         AlertDialog.Builder(this)
-            .setTitle("Есть несохранённые изменения")
-            .setPositiveButton("Сохранить и выйти") { _, _ -> if (save()) finish() }
-            .setNegativeButton("Выйти без сохранения") { _, _ -> finish() }
-            .setNeutralButton("Остаться", null)
+            .setTitle(getString(R.string.nav_unsaved))
+            .setPositiveButton(getString(R.string.nav_save_exit)) { _, _ -> if (save()) finish() }
+            .setNegativeButton(getString(R.string.nav_exit_no_save)) { _, _ -> finish() }
+            .setNeutralButton(getString(R.string.nav_stay), null)
             .show()
     }
 }

@@ -177,6 +177,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
             val area = areaF
 
             // форма области: узкая колонка или широкая, по пропорциям целевой области
+            painter.pxScale = (minOf(tr - tl, tb - tt) / 800f).coerceIn(0.6f, 3f)
             val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect
             val form = layout.form(if (narrow) NavLayoutStore.NARROW else NavLayoutStore.WIDE)
 
@@ -196,13 +197,13 @@ class NavRenderer(context: Context) : SurfaceCallback {
             }
 
             if (debugOverlay) {
-                stroke.strokeWidth = 2f
+                stroke.strokeWidth = 2f * painter.pxScale
                 stroke.color = Color.CYAN
                 c.drawRect(visible, stroke)
                 stroke.color = Color.YELLOW
                 c.drawRect(stable, stroke)
                 text.color = Color.GRAY
-                text.textSize = 22f
+                text.textSize = 22f * painter.pxScale
                 text.textAlign = Paint.Align.LEFT
                 c.drawText(debug, area.left + 12f, area.top + 26f, text)
                 text.textAlign = Paint.Align.CENTER

@@ -25,6 +25,8 @@ class NavPainter {
 
     /** Деления: циферблат с делениями (true) или пустой (false). Только для темы. */
     var ticksOn: Boolean = true
+    /** Масштаб под разрешение экрана: 1 при опорной высоте ~800 px. */
+    var pxScale: Float = 1f
 
     private val rectF = RectF()
     private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
@@ -176,7 +178,7 @@ class NavPainter {
         val intLabels = abs(step - step.roundToInt()) < 1e-4f && abs(item.min - item.min.roundToInt()) < 1e-4f
         val radius = r * (0.72f - th.tickPaddingDp * 0.008f).coerceIn(0.50f, 0.78f)
         text.color = Color.WHITE
-        text.textSize = max(r * 0.085f, 9f)
+        text.textSize = max(r * 0.085f, 9f * pxScale)
         for (i in 0 until n) {
             val v = item.min + step * i
             val deg = 135f + 270f * i / (n - 1)

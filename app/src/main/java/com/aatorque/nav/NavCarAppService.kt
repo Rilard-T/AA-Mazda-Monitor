@@ -1,6 +1,7 @@
 package com.aatorque.nav
 
 import android.content.ComponentName
+import com.aatorque.stats.R
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
@@ -65,7 +66,7 @@ class NavSession : Session() {
 class NavScreen(carContext: CarContext) : Screen(carContext) {
     override fun onGetTemplate(): Template {
         val exit = Action.Builder()
-            .setTitle("Выход")
+            .setTitle(carContext.getString(R.string.nav_exit))
             .setOnClickListener { carContext.finishCarApp() }
             .build()
         return NavigationTemplate.Builder()
