@@ -34,7 +34,6 @@ import com.aatorque.prefs.SettingsViewModel
 import com.aatorque.prefs.dataStore
 import com.aatorque.stats.databinding.FragmentDashboardBinding
 import com.aatorque.utils.CountDownLatch
-import com.google.android.apps.auto.sdk.StatusBarController
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -377,9 +376,6 @@ open class DashboardFragment : AlbumArt() {
         })
     }
 
-    override fun setupStatusBar(sc: StatusBarController) {
-        sc.hideTitle()
-    }
 
     override fun onResume() {
         Timber.d("onResume")

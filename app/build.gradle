@@ -107,7 +107,6 @@ dependencies {
     implementation project(path: ':speedviewlib', configuration: 'default')
     implementation "androidx.car.app:app:1.7.0"
     implementation "androidx.car.app:app-projected:1.7.0"
-    implementation files('../lib/aauto.aar')
 
     implementation 'com.jjoe64:graphview:4.2.2'
     implementation 'com.github.christophesmet:android_maskable_layout:v1.3.1'
