@@ -1,10 +1,12 @@
 package com.aatorque.nav
 
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -165,6 +167,8 @@ class NavEditorActivity : AppCompatActivity() {
         if (gauge) {
             names.add("Размер круга…")
             actions.add { chooseCircleSize() }
+            names.add("Максимум шкалы…")
+            actions.add { chooseGaugeMax() }
         }
         names.add("Удалить")
         actions.add { deleteSelected() }
@@ -173,6 +177,39 @@ class NavEditorActivity : AppCompatActivity() {
             .setItems(names.toTypedArray()) { _, which -> actions[which]() }
             .setNegativeButton("Отмена", null)
             .show()
+    }
+
+    /** Максимум шкалы выбранного прибора (скорость, обороты и т.д.): число вводится в тех же единицах, что и подписи. */
+    private fun chooseGaugeMax() {
+        val sel = editor.selectedItem() ?: return
+        if (sel.kind != NavItem.GAUGE) return
+        val hint = TextView(this)
+        hint.text = "Максимум шкалы (единицы как у подписей):"
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        input.setText(if (sel.max == sel.max.toInt().toFloat()) sel.max.toInt().toString() else sel.max.toString())
+        input.setSelection(input.text.length)
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(24), dp(16), dp(24), dp(8))
+        box.addView(hint)
+        box.addView(input, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val dialog = AlertDialog.Builder(this)
+            .setView(box)
+            .setPositiveButton("Применить") { _, _ ->
+                val cur = editor.selectedItem() ?: return@setPositiveButton
+                val value = input.text.toString().replace(',', '.').toFloatOrNull()
+                if (value == null || value <= cur.min) {
+                    Toast.makeText(this, "Максимум должен быть больше минимума", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                editor.replaceSelected(cur.copy(max = value))
+                editor.invalidate()
+                updateInfo()
+            }
+            .setNegativeButton("Отмена", null)
+            .create()
+        dialog.show()
     }
 
     /** Размер круга выбранного прибора: ползунок внизу экрана, предпросмотр не затемняется. */
