@@ -233,6 +233,27 @@ class RegenTracker private constructor(private val prefs: SharedPreferences) {
     /** Статус от блока (0/1/2), если он сейчас приходит, иначе null. */
     @Synchronized fun liveStatus(): Int? = if (statusAvailable(System.currentTimeMillis())) lastStatus else null
     @Synchronized fun history(): List<RegenEntry> = ArrayList(log)
+
+    /** Журнал прожигов и интервалы в текстовом виде: одна запись — одна строка, поля через «;». */
+    @Synchronized fun exportText(): String = RegenLogParser.format(log, intervals)
+
+    /**
+     * Заменяет журнал и интервалы данными из текста (формат [exportText]). Возвращает число записей.
+     * Неверные строки пропускаются: файл мог быть отредактирован руками.
+     */
+    @Synchronized fun importText(text: String): Int {
+        val parsed = RegenLogParser.parse(text)
+        val entries = ArrayList(parsed.entries)
+        val ivs = ArrayList(parsed.intervals)
+        entries.sortBy { it.time }
+        log.clear(); log.addAll(entries.takeLast(30))
+        intervals.clear(); intervals.addAll(ivs.takeLast(50))
+        sootPeak = log.lastOrNull()?.soot ?: 0.0
+        awaitDrop = false; followDown = false; skipping = false; recent.clear()
+        save()
+        Timber.i("Журнал прожигов: импортировано %d записей, %d интервалов", log.size, intervals.size)
+        return log.size
+    }
     @Synchronized fun clearSootLog() {
         log.clear(); sootPeak = 0.0; awaitDrop = false; followDown = false; recent.clear()
         save()

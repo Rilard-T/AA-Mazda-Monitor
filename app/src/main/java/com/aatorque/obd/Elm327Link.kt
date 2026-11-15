@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
+import android.content.Context
+import com.aatorque.stats.R
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -11,7 +13,8 @@ import java.net.SocketTimeoutException
 import java.util.UUID
 
 /** Bluetooth Classic (SPP) канал к ELM327. Команды строго по очереди. */
-class Elm327Link(private val device: BluetoothDevice) : ObdLink {
+class Elm327Link(context: Context, private val device: BluetoothDevice) : ObdLink {
+    private val appContext = context.applicationContext
     private var socket: BluetoothSocket? = null
     private var input: InputStream? = null
     private var output: OutputStream? = null
@@ -45,7 +48,7 @@ class Elm327Link(private val device: BluetoothDevice) : ObdLink {
                 if (i < ways.size - 1) Thread.sleep(700)
             }
         }
-        throw IOException("Канал Bluetooth не открылся: ${last?.message}")
+        throw IOException(appContext.getString(R.string.obd_bt_channel_failed, last?.message ?: ""))
     }
 
     override fun close() {
@@ -56,8 +59,8 @@ class Elm327Link(private val device: BluetoothDevice) : ObdLink {
     /** Отправляет команду и читает ответ до приглашения '>' . Возвращает строки ответа без эха. */
     @Synchronized
     override fun command(cmd: String, timeoutMs: Long): String {
-        val out = output ?: throw IOException("Нет соединения")
-        val inp = input ?: throw IOException("Нет соединения")
+        val out = output ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
+        val inp = input ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
         while (inp.available() > 0) inp.read()          // выбрасываем хвост прошлого ответа
         out.write((cmd + "\r").toByteArray(Charsets.US_ASCII))
         out.flush()
@@ -68,14 +71,15 @@ class Elm327Link(private val device: BluetoothDevice) : ObdLink {
             val n = inp.available()
             if (n > 0) {
                 val r = inp.read(buf, 0, minOf(n, buf.size))
-                if (r < 0) throw IOException("Соединение закрыто")
+                if (r < 0) throw IOException(appContext.getString(R.string.obd_err_closed))
                 for (i in 0 until r) {
                     val ch = (buf[i].toInt() and 0xFF).toChar()
                     if (ch == '>') break@done
                     sb.append(ch)
                 }
             } else {
-                if (System.currentTimeMillis() > deadline) throw SocketTimeoutException("Таймаут: $cmd")
+                if (System.currentTimeMillis() > deadline)
+                    throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
                 Thread.sleep(1)
             }
         }

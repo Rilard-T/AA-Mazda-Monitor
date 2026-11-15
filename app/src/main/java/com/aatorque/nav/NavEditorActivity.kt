@@ -236,8 +236,8 @@ class NavEditorActivity : AppCompatActivity() {
         val rpm = pd.id.equals("0c", ignoreCase = true)
         return old.copy(
             pid = pd.id,
-            label = pd.shortName,
-            unit = if (rpm) "x1000" else pd.unit,
+            label = getString(pd.shortRes),
+            unit = if (rpm) "x1000" else unitOf(pd),
             min = if (rpm) 0f else pd.min.toFloat(),
             max = if (rpm) 6f else pd.max.toFloat(),
             scale = if (rpm) 0.001 else 1.0,
@@ -245,9 +245,14 @@ class NavEditorActivity : AppCompatActivity() {
         )
     }
 
+    /** Единицы из ресурсов: 0 означает, что единиц у датчика нет. */
+    private fun unitOf(pd: PidDef): String = if (pd.unitRes != 0) getString(pd.unitRes) else ""
+
     private fun sensorNames(pids: List<PidDef>): Array<String> = Array(pids.size) { i ->
         val p = pids[i]
-        if (p.unit.isEmpty()) p.name else p.name + ", " + p.unit
+        val name = getString(p.nameRes)
+        val unit = unitOf(p)
+        if (unit.isEmpty()) name else name + ", " + unit
     }
 
     private fun chooseSensor() {
@@ -290,10 +295,12 @@ class NavEditorActivity : AppCompatActivity() {
         var n = 0
         while (forms.values.any { l -> l.any { it.id == prefix + n } }) n++
         val id = prefix + n
+        val label = getString(pd.shortRes)
+        val unit = unitOf(pd)
         val base = if (kind == NavItem.GAUGE) {
-            NavItem(id, kind, pd.id, pd.shortName, pd.unit, 0f, 1f, 1.0, 0, 0.35f, 0.25f, 0.3f, 0.5f, 0.9f)
+            NavItem(id, kind, pd.id, label, unit, 0f, 1f, 1.0, 0, 0.35f, 0.25f, 0.3f, 0.5f, 0.9f)
         } else {
-            NavItem(id, kind, pd.id, pd.shortName, pd.unit, 0f, 1f, 1.0, 0, 0.375f, 0.42f, 0.25f, 0.16f, 1f)
+            NavItem(id, kind, pd.id, label, unit, 0f, 1f, 1.0, 0, 0.375f, 0.42f, 0.25f, 0.16f, 1f)
         }
         val item = itemFromPid(base, pd)
         list.add(item)

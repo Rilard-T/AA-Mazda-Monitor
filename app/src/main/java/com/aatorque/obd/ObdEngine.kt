@@ -1,11 +1,17 @@
 package com.aatorque.obd
 
+import android.content.Context
 import android.content.SharedPreferences
+import com.aatorque.stats.R
 import java.io.IOException
 import timber.log.Timber
 
 /** Опрос блоков через ELM327: инициализация, смена заголовков, кэш, разбор ответов. */
-class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences) {
+class ObdEngine(
+    private val link: ObdLink,
+    private val prefs: SharedPreferences,
+    private val context: Context,
+) {
     val tracker = RegenTracker.get(prefs)
 
     private class Sample(val t: Long, val v: Double?)
@@ -52,7 +58,7 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             link.command("ATSP0", 1500); curHdr = ""
             r = parse(send("7E0", "0100", 8000), "4100")
         }
-        if (r == null) throw IOException("Блок двигателя не отвечает. Включите зажигание.")
+        if (r == null) throw IOException(context.getString(R.string.obd_engine_no_response))
         readSupported(r)
         Timber.i("Режим 01, заявлено блоком: %s", supported.sorted().joinToString(",") { "%02X".format(it) })
         failures = 0
@@ -112,7 +118,8 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
             val raw = diagRaw("01$pid")
             Timber.i("Диагностика 01%s: %s", pid, raw.replace(Regex("\\s+"), " ").trim().take(160))
             if (pid == "78") parse(raw, "4178")?.takeIf { it.size >= 9 }?.let { b ->
-                val t = (0 until 4).joinToString(" ") { i -> "%.1f".format((b[1 + 2 * i] * 256 + b[2 + 2 * i]) / 10.0 - 40.0) }
+                val t = ElmParse.egtTemperatures(b)   // нулевой датчик отсутствует и пропускается
+                    .joinToString(" ") { "%.1f".format(it) }
                 Timber.i("Диагностика 0178: флаги %02X, температуры %s °C", b[0], t)
             }
         }
@@ -199,20 +206,5 @@ class ObdEngine(private val link: ObdLink, private val prefs: SharedPreferences)
     }
 
     /** Байты ответа после префикса (например «410C» или «620434»); null, если ответа нет. */
-    private fun parse(text: String?, prefix: String): IntArray? {
-        if (text.isNullOrBlank()) return null
-        val lines = text.uppercase().split(Regex("[\\r\\n]+")).map { it.trim() }.filter { it.isNotEmpty() }
-        val multi = lines.any { Regex("^[0-9A-F]\\s*:").containsMatchIn(it) }
-        val sb = StringBuilder()
-        for (l in lines) {
-            if (multi) {
-                Regex("^[0-9A-F]\\s*:([0-9A-F ]*)$").find(l)?.let { sb.append(it.groupValues[1]) }
-            } else if (Regex("^[0-9A-F ]+$").matches(l)) sb.append(l)
-        }
-        val hex = sb.toString().replace(" ", "")
-        val i = hex.indexOf(prefix.uppercase())
-        if (i < 0) return null
-        val rest = hex.substring(i + prefix.length)
-        return IntArray(rest.length / 2) { rest.substring(it * 2, it * 2 + 2).toInt(16) }
-    }
+    private fun parse(text: String?, prefix: String): IntArray? = ElmParse.bytes(text, prefix)
 }

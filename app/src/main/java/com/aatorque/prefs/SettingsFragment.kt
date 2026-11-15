@@ -200,6 +200,48 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
         blurArtPref.isVisible = Build.VERSION.SDK_INT >= 31
 
+        // Новые секции: навигация по настройкам
+        findPreference<Preference>("open_obd_settings")?.setOnPreferenceClickListener {
+            startActivity(Intent(requireContext(), com.aatorque.obd.ObdSettingsActivity::class.java))
+            true
+        }
+        findPreference<Preference>("export_regen_log")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).exportRegenLog()
+            true
+        }
+        findPreference<Preference>("import_regen_log")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).importRegenLog()
+            true
+        }
+        findPreference<Preference>("export_dashboards")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).exportFile()
+            true
+        }
+        findPreference<Preference>("import_dashboards")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).openFile()
+            true
+        }
+        findPreference<Preference>("open_experimental")?.setOnPreferenceClickListener {
+            startActivity(Intent(requireContext(), com.aatorque.obd.ObdExperimentalActivity::class.java))
+            true
+        }
+        findPreference<Preference>("credits")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).openCredits()
+            true
+        }
+        findPreference<Preference>("report_error")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).logsToClipboard()
+            true
+        }
+        findPreference<Preference>("force_update")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).forceUpdate()
+            true
+        }
+        findPreference<Preference>("exit_app")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).exitApp()
+            true
+        }
+
         numScreensPref.setOnBindEditTextListener {
             it.inputType = InputType.TYPE_CLASS_NUMBER
         }

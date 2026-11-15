@@ -10,3 +10,4 @@ captures/
 google-services.json
 *.keystore
 *.b64
+artifacts/

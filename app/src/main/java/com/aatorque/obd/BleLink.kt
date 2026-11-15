@@ -11,6 +11,7 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
+import com.aatorque.stats.R
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.util.UUID
@@ -90,22 +91,22 @@ class BleLink(context: Context, private val device: BluetoothDevice) : ObdLink {
         connected = false; servicesOk = false; mtu = 23
 
         val g = device.connectGatt(appContext, false, callback, BluetoothDevice.TRANSPORT_LE)
-            ?: throw IOException("BLE: не удалось начать подключение")
+            ?: throw IOException(appContext.getString(R.string.obd_ble_connect_failed))
         gatt = g
         if (!connLatch.await(12, TimeUnit.SECONDS) || !connected) {
-            close(); throw IOException("BLE: адаптер не отвечает (включите зажигание, подойдите ближе)")
+            close(); throw IOException(appContext.getString(R.string.obd_ble_no_answer))
         }
         if (!g.discoverServices()) {
-            close(); throw IOException("BLE: не удалось получить список служб адаптера")
+            close(); throw IOException(appContext.getString(R.string.obd_ble_no_services))
         }
         if (!svcLatch.await(10, TimeUnit.SECONDS) || !servicesOk) {
-            close(); throw IOException("BLE: службы адаптера не найдены")
+            close(); throw IOException(appContext.getString(R.string.obd_ble_services_not_found))
         }
         pickCharacteristics(g.services)
         val n = notifyChar
         val w = writeChar
         if (n == null || w == null) {
-            close(); throw IOException("BLE: у адаптера не найдены каналы обмена (это точно ELM327 по BLE?)")
+            close(); throw IOException(appContext.getString(R.string.obd_ble_no_channels))
         }
         writeType = if ((w.properties and BluetoothGattCharacteristic.PROPERTY_WRITE) != 0)
             BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
@@ -161,8 +162,8 @@ class BleLink(context: Context, private val device: BluetoothDevice) : ObdLink {
     /** Отправка кусками по размеру MTU; для записи с ответом ждём подтверждения каждого куска. */
     @Suppress("DEPRECATION")
     private fun write(data: ByteArray) {
-        val g = gatt ?: throw IOException("BLE: нет соединения")
-        val c = writeChar ?: throw IOException("BLE: нет соединения")
+        val g = gatt ?: throw IOException(appContext.getString(R.string.obd_ble_no_connection))
+        val c = writeChar ?: throw IOException(appContext.getString(R.string.obd_ble_no_connection))
         val chunk = maxOf(20, mtu - 3)
         var off = 0
         while (off < data.size) {
@@ -177,9 +178,10 @@ class BleLink(context: Context, private val device: BluetoothDevice) : ObdLink {
                 c.value = part
                 g.writeCharacteristic(c)
             }
-            if (!started) throw IOException("BLE: не удалось отправить команду")
+            if (!started) throw IOException(appContext.getString(R.string.obd_ble_send_failed))
             if (latch != null) {
-                if (!latch.await(2, TimeUnit.SECONDS) || !writeOk) throw IOException("BLE: нет подтверждения записи")
+                if (!latch.await(2, TimeUnit.SECONDS) || !writeOk)
+                    throw IOException(appContext.getString(R.string.obd_ble_no_ack))
             } else Thread.sleep(15)
             off += part.size
         }
@@ -187,14 +189,14 @@ class BleLink(context: Context, private val device: BluetoothDevice) : ObdLink {
 
     @Synchronized
     override fun command(cmd: String, timeoutMs: Long): String {
-        if (!connected) throw IOException("BLE: соединение потеряно")
+        if (!connected) throw IOException(appContext.getString(R.string.obd_ble_link_lost))
         rx.clear()
         write((cmd + "\r").toByteArray(Charsets.US_ASCII))
         val sb = StringBuilder()
         val deadline = System.currentTimeMillis() + timeoutMs
         while (true) {
             val remaining = deadline - System.currentTimeMillis()
-            if (remaining <= 0) throw SocketTimeoutException("Таймаут: $cmd")
+            if (remaining <= 0) throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
             val chunk = rx.poll(minOf(remaining, 100L), TimeUnit.MILLISECONDS)
             if (chunk != null) {
                 for (b in chunk) {
@@ -202,7 +204,7 @@ class BleLink(context: Context, private val device: BluetoothDevice) : ObdLink {
                     if (ch == '>') return clean(sb.toString(), cmd)
                     sb.append(ch)
                 }
-            } else if (!connected) throw IOException("BLE: соединение потеряно")
+            } else if (!connected) throw IOException(appContext.getString(R.string.obd_ble_link_lost))
         }
     }
 

@@ -22,7 +22,6 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.text.isDigitsOnly
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
@@ -30,6 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.aatorque.datastore.UserPreference
+import com.aatorque.obd.RegenTracker
 import com.aatorque.stats.App
 import com.aatorque.stats.BuildConfig
 import com.aatorque.stats.CreditsFragment
@@ -39,8 +39,6 @@ import com.google.protobuf.InvalidProtocolBufferException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import org.json.JSONException
-import org.json.JSONObject
 import timber.log.Timber
 import java.io.IOException
 import java.net.ConnectException
@@ -143,34 +141,8 @@ class SettingsActivity : AppCompatActivity(),
                 true
             }
 
-            R.id.action_export_dashboards -> {
-                // Export the file to a user provided location
-                exportFile()
-                true
-            }
-
-            R.id.action_import_dashboards -> {
-                openFile()
-                true
-            }
-
             R.id.action_copy_logs -> {
                 logsToClipboard()
-                true
-            }
-
-            R.id.action_obd -> {
-                startActivity(Intent(this, com.aatorque.obd.ObdSettingsActivity::class.java))
-                true
-            }
-
-            R.id.action_exit -> {
-                com.aatorque.obd.AppExit.confirmAndExit(this)
-                true
-            }
-
-            R.id.action_experimental -> {
-                startActivity(Intent(this, com.aatorque.obd.ObdExperimentalActivity::class.java))
                 true
             }
 
@@ -199,11 +171,11 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    private fun openFile() {
+    fun openFile() {
         importFileLauncher.launch(EXPORT_MIME)
     }
 
-    private fun exportFile() {
+    fun exportFile() {
         exportFileLauncher.launch("")
     }
 
@@ -243,6 +215,42 @@ class SettingsActivity : AppCompatActivity(),
     }
 
 
+    private val regenExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val ok = runCatching {
+                contentResolver.openOutputStream(uri)?.use { tracker.exportText().toByteArray(Charsets.UTF_8).let(it::write) } != null
+            }.getOrDefault(false)
+            runOnUiThread {
+                Toast.makeText(
+                    baseContext,
+                    if (ok) R.string.regen_exported else R.string.export_failed,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private val regenImportLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val count = runCatching {
+                contentResolver.openInputStream(uri)
+                    ?.use { tracker.importText(it.readBytes().toString(Charsets.UTF_8)) }
+            }.getOrNull()
+            runOnUiThread {
+                val text = when {
+                    count == null -> getString(R.string.import_failed)
+                    count == 0 -> getString(R.string.regen_import_empty)
+                    else -> getString(R.string.regen_imported, count)
+                }
+                Toast.makeText(baseContext, text, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private val importFileLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
         if (uri != null) {
             val inStream = contentResolver.openInputStream(uri)
@@ -279,6 +287,20 @@ class SettingsActivity : AppCompatActivity(),
             } else {
                 null
             }
+        }
+    }
+
+    class TextExportContract : ActivityResultContract<String, Uri?>() {
+
+        override fun createIntent(context: Context, input: String): Intent {
+            return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TITLE, "regen-log.csv")
+            }
+        }
+
+        override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
+            return if (resultCode == Activity.RESULT_OK) intent?.data else null
         }
     }
 
@@ -370,53 +392,49 @@ class SettingsActivity : AppCompatActivity(),
 
         val url = URL(BuildConfig.RELEASE_URL)
         val urlConnection = url.openConnection() as HttpsURLConnection
-        urlConnection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+        // Не следуем редиректу автоматически — читаем Location, чтобы получить тег релиза.
+        // Это обходит лимит GitHub API (60 req/ч без токена), который давал 403.
+        urlConnection.instanceFollowRedirects = false
         try {
             urlConnection.connect()
         } catch (e: UnknownHostException) {
+            Timber.w("Проверка обновлений: нет сети (%s)", e.message)
             return false
         } catch (e: ConnectException) {
+            Timber.w("Проверка обновлений: GitHub недоступен (%s)", e.message)
             return false
         } catch (e: SSLException) {
+            Timber.w("Проверка обновлений: ошибка TLS (%s)", e.message)
             return false
         } catch (e: IOException) {
+            Timber.w("Проверка обновлений: ошибка сети (%s)", e.message)
             return false
         }
         try {
-            if (urlConnection.responseCode == HttpURLConnection.HTTP_OK) {
-                val response = urlConnection.inputStream.bufferedReader().use {
-                    JSONObject(it.readText())
-                }
-                val tagName = response.getString("tag_name")
-                downloadItem = response.getJSONArray("assets")
-                    .getJSONObject(0)
-                    .getString("browser_download_url")
-
+            val code = urlConnection.responseCode
+            if (code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM || code == 302 || code == 301) {
+                val location = urlConnection.getHeaderField("Location")
+                // Location: https://github.com/.../releases/tag/0.8.6
+                val tagName = location?.substringAfterLast("/tag/")?.substringBefore("?")
                 checked = true
-                val tagSplit = tagName.removePrefix("v").removePrefix("V").split(".")
-                val existingSplit = BuildConfig.VERSION_NAME.split(".")
-
-                tagSplit.forEachIndexed { pos, fromServer ->
-                    if (needsUpdate == null && existingSplit.size > pos) {
-                        val toComp = existingSplit[pos]
-                        if (
-                            fromServer != toComp &&
-                            fromServer.isDigitsOnly() && toComp.isDigitsOnly()
-                        ) {
-                            needsUpdate = fromServer.toInt() > toComp.toInt()
-                        }
-                    }
+                // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
+                // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
+                needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
+                if (needsUpdate == true && !tagName.isNullOrBlank()) {
+                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/app-release.apk"
                 }
+                if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
+            } else {
+                Timber.w("Проверка обновлений: GitHub ответил %d", code)
             }
-        } catch (e: JSONException) {
-            Timber.e("Failed to parse json on update check")
+        } catch (e: Exception) {
+            Timber.e("Failed on update check: %s", e.message)
         } finally {
             urlConnection.disconnect()
         }
 
 
-        if (needsUpdate == true) {
-            assert(downloadItem != null)
+        if (needsUpdate == true && downloadItem != null) {
             Snackbar.make(
                 findViewById(android.R.id.content),
                 R.string.new_version,
@@ -470,9 +488,35 @@ class SettingsActivity : AppCompatActivity(),
         return true
     }
 
-    private fun logsToClipboard() {
+    fun logsToClipboard() {
         val logs = (application as App).logTree.logToString()
         com.aatorque.obd.ErrorReport.start(this, logs.map { it.toString() })
+    }
+
+    fun exportRegenLog() {
+        regenExportLauncher.launch("")
+    }
+
+    fun importRegenLog() {
+        regenImportLauncher.launch("text/plain")
+    }
+
+    fun forceUpdate() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!checkUpdate(true)) {
+                runOnUiThread {
+                    Toast.makeText(this@SettingsActivity, R.string.update_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun exitApp() {
+        com.aatorque.obd.AppExit.confirmAndExit(this)
+    }
+
+    fun openCredits() {
+        launchFragment("credits", CreditsFragment())
     }
 
 
@@ -481,6 +525,7 @@ class SettingsActivity : AppCompatActivity(),
         private const val PERMISSION_CAR_VENDOR_EXTENSION =
             "com.google.android.gms.permission.CAR_VENDOR_EXTENSION"
         const val EXPORT_MIME = "application/octet-stream"
+        private const val OBD_PREFS = "obd_bridge"
     }
 private fun startObd() {
     val need = mutableListOf<String>()

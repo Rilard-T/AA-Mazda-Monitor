@@ -42,12 +42,17 @@ class TorqueServiceWrapper: Service() {
 
     class ListPids(val ts: ITorqueService, val onComplete: (PidInfo) -> Unit): Runnable {
         override fun run() {
-            val pids = ts.listAllPIDs()
-            val pidAttributes = ts.getPIDInformation(pids).map { it.split(",") }
+            try {
+                val pids = ts.listAllPIDs()
+                val pidAttributes = ts.getPIDInformation(pids).map { it.split(",") }
 
-            onComplete(
-                pids.zip(pidAttributes).sortedBy { it.second[0] }
-            )
+                onComplete(
+                    pids.zip(pidAttributes).sortedBy { it.second[0] }
+                )
+            } catch (t: Throwable) {
+                // Раньше сбой в этом потоке терялся молча: список PID просто оставался пустым
+                Timber.e(t, "Не удалось получить список PID от службы OBD")
+            }
         }
 
     }

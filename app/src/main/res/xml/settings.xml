@@ -97,7 +97,9 @@
             android:title="@string/pref_sz_header" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/media">
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/media">
         <SwitchPreferenceCompat
             android:key="showMusic"
             android:persistent="false"
@@ -156,6 +158,63 @@
             android:persistent="false"
             android:title="Раскладка приборов"
             android:summary="Редактор экрана Android Auto (навигационный интерфейс)" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/obd_connection_title">
+        <Preference
+            android:key="open_obd_settings"
+            android:title="@string/action_obd"
+            android:summary="@string/section_obd_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/obd_exp_journal">
+        <Preference
+            android:key="export_regen_log"
+            android:title="@string/export_regen_log" />
+        <Preference
+            android:key="import_regen_log"
+            android:title="@string/import_regen_log" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/obd_exp_cat_data">
+        <Preference
+            android:key="export_dashboards"
+            android:title="@string/export_dashboards" />
+        <Preference
+            android:key="import_dashboards"
+            android:title="@string/import_dashboards" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/obd_exp_title">
+        <Preference
+            android:key="open_experimental"
+            android:title="@string/action_experimental"
+            android:summary="@string/section_experimental_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/section_about">
+        <Preference
+            android:key="credits"
+            android:title="@string/activity_credits_title" />
+        <Preference
+            android:key="report_error"
+            android:title="@string/report_error" />
+        <Preference
+            android:key="force_update"
+            android:title="@string/force_update" />
+        <Preference
+            android:key="exit_app"
+            android:title="@string/action_exit" />
     </PreferenceCategory>
 
 </PreferenceScreen>

@@ -34,7 +34,7 @@ android {
         resourceConfigurations += ['en', 'cs', 'de', 'el', 'es', 'fr', 'fr-rCA', 'it', 'nl', 'pl', 'pt', 'pt-rBR', 'ru', 'sl', 'uk', 'zh-rHK']
     }
     applicationVariants.configureEach {
-        buildConfigField "String", "RELEASE_URL", "\"https://api.github.com/repos/${ghOwner}/${ghPackage}/releases/latest\""
+        buildConfigField "String", "RELEASE_URL", "\"https://github.com/${ghOwner}/${ghPackage}/releases/latest\""
         buildConfigField "boolean", "OTA_ENABLED", "false"
         buildConfigField "String", "REPO_URL", "\"https://github.com/${ghOwner}/${ghPackage}\""
     }
@@ -65,7 +65,6 @@ android {
             buildConfigField "boolean", "SIMULATE_METRICS", "true"
         }
         release {
-            debuggable true
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             resValue "string", "app_version", "${defaultConfig.versionName}"

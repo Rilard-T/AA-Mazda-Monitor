@@ -8,7 +8,7 @@ class CacheLogTree: Timber.DebugTree() {
     companion object {
         const val KEEP_LOGS = 5_000
         // строки-шум, которые вытесняли из буфера нужные записи (6-7 раз в секунду)
-        private val NOISE = listOf("Got valid")
+        private val NOISE = listOf("Got valid", "Sending new metadata", "Got new metadata")
     }
 
     data class LogDesc(
