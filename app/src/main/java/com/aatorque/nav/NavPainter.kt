@@ -181,7 +181,7 @@ class NavPainter {
         }
         val step = range / (n - 1)
         val intLabels = abs(step - step.roundToInt()) < 1e-4f && abs(item.min - item.min.roundToInt()) < 1e-4f
-        val radius = r * (0.80f - th.tickPaddingDp * 0.008f).coerceIn(0.55f, 0.85f)
+        val radius = r * (0.72f - th.tickPaddingDp * 0.008f).coerceIn(0.50f, 0.78f)
         text.color = Color.WHITE
         text.textSize = max(r * 0.085f, 9f)
         for (i in 0 until n) {

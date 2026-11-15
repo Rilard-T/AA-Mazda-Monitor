@@ -37,7 +37,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private val fullF = RectF()
     private var loadedTheme: String? = null
 
-    private val debugOverlay = false
+    private var debugOverlay = false
 
     @Volatile private var surface: Surface? = null
     @Volatile private var width = 0
@@ -222,6 +222,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
             painter.theme = NavThemes.load(appContext, layout.theme)
         }
         painter.ticksOn = layout.ticks
+        debugOverlay = layout.debug
     }
 
     private fun shownText(item: NavItem, gs: GaugeState): String {

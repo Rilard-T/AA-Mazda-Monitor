@@ -40,7 +40,8 @@ data class NavLayout(
     val narrowAspect: Float,
     val forms: Map<String, NavForm>,
     val theme: String = "",
-    val ticks: Boolean = true
+    val ticks: Boolean = true,
+    val debug: Boolean = false
 ) {
     fun form(key: String): NavForm =
         forms[key] ?: forms[NavLayoutStore.WIDE] ?: NavLayoutStore.defaultLayout().forms.getValue(NavLayoutStore.WIDE)
@@ -140,7 +141,7 @@ object NavLayoutStore {
             forms.put(key, JSONObject().put("items", arr))
         }
         return JSONObject().put("v", 1).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
-            .put("theme", l.theme).put("ticks", l.ticks).toString()
+            .put("theme", l.theme).put("ticks", l.ticks).put("debug", l.debug).toString()
     }
 
     fun parse(text: String): NavLayout? {
@@ -180,7 +181,7 @@ object NavLayoutStore {
             if (wide == null || wide.items.isEmpty()) return null
             return NavLayout(
                 root.optDouble("narrowAspect", 1.15).toFloat(), forms,
-                root.optString("theme", ""), root.optBoolean("ticks", true)
+                root.optString("theme", ""), root.optBoolean("ticks", true), root.optBoolean("debug", false)
             )
         } catch (e: Exception) {
             return null
@@ -209,7 +210,7 @@ object NavLayoutStore {
         val wide = NavForm(
             listOf(
                 gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, third, gh, 0.765f),
-                gauge("g1", "0c", "Обороты", "x1000", 0f, 6f, 0.001, third, 0f, third, gh, 0.9f),
+                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, third, 0f, third, gh, 0.9f),
                 gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 2f * third, 0f, third, gh, 0.765f),
                 info("i0", "ff9010", "DPF", "%", 0, 0f, gh, fourth, footer),
                 info("i1", "ff9003", "Сажа", "г/л", 2, fourth, gh, fourth, footer),

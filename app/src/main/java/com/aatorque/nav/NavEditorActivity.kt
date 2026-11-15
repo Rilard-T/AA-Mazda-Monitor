@@ -28,6 +28,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var baseline = ""
     private var themeName = ""
     private var ticksOn = true
+    private var debugOn = false
 
     private val wideAspects = floatArrayOf(2.59f, 2.27f, 2.13f)
     private val wideNames = arrayOf("Mazda, весь экран", "Mazda, с виджетом", "эмулятор")
@@ -68,6 +69,7 @@ class NavEditorActivity : AppCompatActivity() {
         const val M_ADD = 5
         const val M_THEME = 6
         const val M_TICKS = 7
+        const val M_DEBUG = 10
         const val M_COPY = 8
         const val M_RESET = 9
     }
@@ -75,7 +77,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
-        return NavLayout(narrowAspect, map, themeName, ticksOn)
+        return NavLayout(narrowAspect, map, themeName, ticksOn, debugOn)
     }
 
     private fun currentJson(): String = NavLayoutStore.toJson(currentLayout())
@@ -87,6 +89,7 @@ class NavEditorActivity : AppCompatActivity() {
         narrowAspect = layout.narrowAspect
         themeName = layout.theme
         ticksOn = layout.ticks
+        debugOn = layout.debug
         baseline = currentJson()
     }
 
@@ -118,6 +121,7 @@ class NavEditorActivity : AppCompatActivity() {
         menu.add(Menu.NONE, M_ADD, 4, "Добавить…").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_THEME, 5, "Тема…").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_TICKS, 6, "Деления вкл/выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_DEBUG, 9, "Отладка вкл/выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_COPY, 7, "Датчики во все формы").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_RESET, 8, "Сбросить").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         return true
@@ -143,6 +147,7 @@ class NavEditorActivity : AppCompatActivity() {
             M_ADD -> addElement()
             M_THEME -> chooseTheme()
             M_TICKS -> toggleTicks()
+            M_DEBUG -> toggleDebug()
             M_COPY -> confirmCopySensors()
             M_RESET -> reset()
             else -> return super.onOptionsItemSelected(item)
@@ -353,7 +358,7 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun themeLine(): String {
         val t = if (themeName.isEmpty()) "плоская" else themeName
-        return "Тема: " + t + ", деления: " + (if (ticksOn) "да" else "нет")
+        return "Тема: " + t + ", деления: " + (if (ticksOn) "да" else "нет") + ", отладка: " + (if (debugOn) "вкл" else "выкл")
     }
 
     /** Применить выбранную тему и деления к предпросмотру. */
@@ -378,6 +383,11 @@ class NavEditorActivity : AppCompatActivity() {
     private fun toggleTicks() {
         ticksOn = !ticksOn
         applyTheme()
+    }
+
+    private fun toggleDebug() {
+        debugOn = !debugOn
+        updateInfo()
     }
 
     private fun save(): Boolean {
