@@ -3,6 +3,7 @@ package com.aatorque.nav
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.math.abs
 
 /**
  * Элемент раскладки: прибор (GAUGE) или текстовое значение (INFO).
@@ -55,8 +56,13 @@ object NavLayoutStore {
     const val NARROW = "narrow"
     private const val PREFS = "nav_layout"
     private const val KEY = "layout_json"
+    private const val KEY_AREA = "area_aspect"
 
     @Volatile var layout: NavLayout = defaultLayout()
+        private set
+
+    /** Последняя пропорция области, которую сообщил Android Auto (ширина / высота); 0 - в машине ещё не запускались. */
+    @Volatile var carAspect: Float = 0f
         private set
 
     /** Параметры, которые читаются часто (приборы) и редко (значения). */
@@ -96,6 +102,28 @@ object NavLayoutStore {
         }
         val parsed = if (text == null) null else parse(text)
         install(parsed ?: defaultLayout())
+        val area = try {
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat(KEY_AREA, 0f)
+        } catch (e: Exception) {
+            0f
+        }
+        carAspect = NavAspects.sanitize(area)
+    }
+
+    /**
+     * Запомнить пропорцию видимой области из машины: редактор на телефоне показывает предпросмотр
+     * в тех же пропорциях. В настройки пишется только при заметном изменении, не каждый кадр.
+     */
+    fun reportArea(context: Context, aspect: Float) {
+        val a = NavAspects.sanitize(aspect)
+        if (a <= 0f) return
+        if (abs(a - carAspect) < 0.02f) return
+        carAspect = a
+        try {
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putFloat(KEY_AREA, a).apply()
+        } catch (e: Exception) {
+        }
     }
 
     /** Сохранить раскладку и сразу применить. */

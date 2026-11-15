@@ -54,11 +54,11 @@
     <string name="nav_exit_no_save">Выйти без сохранения</string>
     <string name="nav_stay">Остаться</string>
     <string name="nav_exit">Выход</string>
-    <string name="nav_preset_wide_1">Mazda, весь экран</string>
-    <string name="nav_preset_wide_2">Mazda, с виджетом</string>
-    <string name="nav_preset_wide_3">эмулятор</string>
-    <string name="nav_preset_narrow_1">Mazda, колонка</string>
-    <string name="nav_preset_narrow_2">эмулятор, колонка</string>
+    <string name="nav_aspect_prefix">, пропорции: </string>
+    <string name="nav_aspect_auto">авто</string>
+    <string name="nav_aspect_car">из машины</string>
+    <string name="nav_aspect_landscape">телефон, альбом</string>
+    <string name="nav_aspect_portrait">телефон, портрет</string>
     <string name="nav_settings_cat">Дашборды AA NAV</string>
     <string name="nav_no_answer">нет ответа</string>
     <string name="nav_item_red">Красная зона…</string>

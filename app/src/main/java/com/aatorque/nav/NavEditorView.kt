@@ -23,7 +23,7 @@ class NavEditorView(context: Context) : View(context) {
     /** Элементы по формам; список меняется на месте. */
     var forms: HashMap<String, ArrayList<NavItem>> = HashMap()
     var formKey: String = NavLayoutStore.WIDE
-    var aspect: Float = 2.59f
+    var aspect: Float = NavAspects.DEFAULT
         set(value) {
             field = value
             invalidate()

@@ -177,6 +177,9 @@ class NavRenderer(context: Context) : SurfaceCallback {
             areaF.set(al, at, ar, ab)
             val area = areaF
 
+            // реальные пропорции области - для предпросмотра в редакторе на телефоне
+            NavLayoutStore.reportArea(appContext, (tr - tl) / (tb - tt))
+
             // форма области: узкая колонка или широкая, по пропорциям целевой области
             painter.pxScale = (minOf(tr - tl, tb - tt) / 800f).coerceIn(0.6f, 3f)
             val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect

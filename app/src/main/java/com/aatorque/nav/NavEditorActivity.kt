@@ -18,6 +18,7 @@ import com.aatorque.obd.MazdaPids
 import com.aatorque.obd.PidDef
 import com.aatorque.obd.PidProbe
 import com.aatorque.stats.R
+import java.util.Locale
 
 /**
  * Редактор раскладки бета-экрана Android Auto на телефоне: предпросмотр, перемещение и размер касанием,
@@ -28,25 +29,11 @@ class NavEditorActivity : AppCompatActivity() {
     private val forms = HashMap<String, ArrayList<NavItem>>()
     private var narrowAspect = 1.15f
     private var formKey = NavLayoutStore.WIDE
-    private var presetIdx = 0
+    private var aspectSource = NavAspectSource.AUTO
     private var baseline = ""
     private var themeName = ""
     private var ticksOn = true
     private var debugOn = false
-
-    private val wideAspects = floatArrayOf(2.59f, 2.27f, 2.13f)
-    private val narrowAspects = floatArrayOf(0.92f, 0.73f)
-
-    private fun wideNames() = arrayOf(
-        getString(R.string.nav_preset_wide_1),
-        getString(R.string.nav_preset_wide_2),
-        getString(R.string.nav_preset_wide_3)
-    )
-
-    private fun narrowNames() = arrayOf(
-        getString(R.string.nav_preset_narrow_1),
-        getString(R.string.nav_preset_narrow_2)
-    )
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
@@ -145,18 +132,13 @@ class NavEditorActivity : AppCompatActivity() {
             M_SAVE -> save()
             M_WIDE -> {
                 formKey = NavLayoutStore.WIDE
-                presetIdx = 0
                 applyForm()
             }
             M_NARROW -> {
                 formKey = NavLayoutStore.NARROW
-                presetIdx = 0
                 applyForm()
             }
-            M_PRESET -> {
-                presetIdx += 1
-                applyForm()
-            }
+            M_PRESET -> cycleAspects()
             M_ADD -> addElement()
             M_THEME -> chooseTheme()
             M_TICKS -> toggleTicks()
@@ -296,17 +278,42 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun applyForm() {
         if (forms[formKey] == null) forms[formKey] = ArrayList(NavLayoutStore.defaultLayout().form(formKey).items)
-        val aspects = if (formKey == NavLayoutStore.NARROW) narrowAspects else wideAspects
-        if (presetIdx >= aspects.size) presetIdx = 0
         editor.formKey = formKey
         editor.selectedId = null
-        editor.aspect = aspects[presetIdx]
+        editor.aspect = currentAspect()
         updateInfo()
+    }
+
+    /**
+     * Пропорции предпросмотра (ширина / высота): по умолчанию - реальная область из машины,
+     * если она ещё неизвестна - экран телефона в подходящей ориентации.
+     */
+    private fun currentAspect(): Float {
+        val dm = resources.displayMetrics
+        val a = NavAspects.of(
+            aspectSource, NavLayoutStore.carAspect, dm.widthPixels, dm.heightPixels,
+            formKey == NavLayoutStore.NARROW
+        )
+        return if (a > 0f) a else NavAspects.DEFAULT
+    }
+
+    /** Переключить источник пропорций: авто → из машины → экран телефона в альбоме → в портрете. */
+    private fun cycleAspects() {
+        val all = NavAspectSource.values()
+        aspectSource = all[(aspectSource.ordinal + 1) % all.size]
+        editor.aspect = currentAspect()
+        updateInfo()
+    }
+
+    private fun aspectLabel(): String = when (aspectSource) {
+        NavAspectSource.AUTO -> getString(R.string.nav_aspect_auto)
+        NavAspectSource.CAR -> getString(R.string.nav_aspect_car)
+        NavAspectSource.LANDSCAPE -> getString(R.string.nav_aspect_landscape)
+        NavAspectSource.PORTRAIT -> getString(R.string.nav_aspect_portrait)
     }
 
     private fun updateInfo() {
         val narrow = formKey == NavLayoutStore.NARROW
-        val names = if (narrow) narrowNames() else wideNames()
         val count = forms[formKey]?.size ?: 0
         val sel = editor.selectedItem()
         val selText = if (sel == null) {
@@ -315,7 +322,9 @@ class NavEditorActivity : AppCompatActivity() {
             getString(R.string.nav_selected) + sel.label + " (" + sel.pid + ")" +
                 (if (sel.kind == NavItem.GAUGE) getString(R.string.nav_circle) + (sel.size * 100f).toInt() + "%" else "")
         }
-        info.text = getString(R.string.nav_form) + (if (narrow) getString(R.string.nav_narrow) else getString(R.string.nav_wide)) + ", " + names[presetIdx] +
+        info.text = getString(R.string.nav_form) + (if (narrow) getString(R.string.nav_narrow) else getString(R.string.nav_wide)) +
+            getString(R.string.nav_aspect_prefix) + aspectLabel() + " " +
+            String.format(Locale.US, "%.2f", editor.aspect) +
             getString(R.string.nav_items) + count + "\n" + themeLine() + "\n" + selText
     }
 

@@ -54,11 +54,11 @@
     <string name="nav_exit_no_save">Exit without saving</string>
     <string name="nav_stay">Stay</string>
     <string name="nav_exit">Exit</string>
-    <string name="nav_preset_wide_1">Mazda, full screen</string>
-    <string name="nav_preset_wide_2">Mazda, with widget</string>
-    <string name="nav_preset_wide_3">emulator</string>
-    <string name="nav_preset_narrow_1">Mazda, column</string>
-    <string name="nav_preset_narrow_2">emulator, column</string>
+    <string name="nav_aspect_prefix">, proportions: </string>
+    <string name="nav_aspect_auto">auto</string>
+    <string name="nav_aspect_car">from car</string>
+    <string name="nav_aspect_landscape">phone, landscape</string>
+    <string name="nav_aspect_portrait">phone, portrait</string>
     <string name="nav_settings_cat">AA NAV dashboards</string>
     <string name="nav_no_answer">no response</string>
     <string name="nav_item_red">Red zone…</string>
