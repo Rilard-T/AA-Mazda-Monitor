@@ -4,7 +4,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import java.util.Locale
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -81,6 +83,7 @@ class NavPainter {
         val th = theme
         if (th != null && (th.dialTicks != null || th.dialEmpty != null)) {
             themedDial(c, cx, cy, r, th, frac)
+            if (ticksOn && th.dialTicks != null) tickLabels(c, cx, cy, r, item, th)
         } else {
             flatDial(c, cx, cy, r, frac)
         }
@@ -159,14 +162,50 @@ class NavPainter {
         }
     }
 
+    /**
+     * Числа шкалы у делений, внутри круга. Число подписей и значения берутся из min/max прибора
+     * (в масштабе прибора: обороты в тысячах, своя отсечка у каждой машины). Угол i-й подписи
+     * 135 + 270*i/(N-1), как в старом интерфейсе; N = 9, а при небольшом диапазоне (целом или
+     * с шагом 0,5) шаг подписей 1 или 0,5. Удалённость от центра приближённо берётся из
+     * отступа sv_tickPadding темы.
+     */
+    private fun tickLabels(c: Canvas, cx: Float, cy: Float, r: Float, item: NavItem, th: NavThemeRes) {
+        val range = item.max - item.min
+        if (range <= 0f) return
+        val full = range.roundToInt()
+        val half = (range * 2f).roundToInt()
+        val n = when {
+            abs(range - full) < 1e-4f && full in 2..12 -> full + 1
+            abs(range * 2f - half) < 1e-4f && half in 2..12 -> half + 1
+            else -> 9
+        }
+        val step = range / (n - 1)
+        val intLabels = abs(step - step.roundToInt()) < 1e-4f && abs(item.min - item.min.roundToInt()) < 1e-4f
+        val radius = r * (0.80f - th.tickPaddingDp * 0.008f).coerceIn(0.55f, 0.85f)
+        text.color = Color.WHITE
+        text.textSize = max(r * 0.085f, 9f)
+        for (i in 0 until n) {
+            val v = item.min + step * i
+            val deg = 135f + 270f * i / (n - 1)
+            val a = deg * PI / 180.0
+            val x = cx + radius * cos(a).toFloat()
+            val y = cy + radius * sin(a).toFloat()
+            val s = if (intLabels) v.roundToInt().toString() else "%.1f".format(Locale.US, v).replace('.', ',')
+            c.save()
+            if (th.tickRotation) c.rotate(deg + 90f, x, y)
+            c.drawText(s, x, y + text.textSize * 0.35f, text)
+            c.restore()
+        }
+    }
+
     /** Подписи прибора: показание, единицы и название. */
     private fun gaugeTexts(c: Canvas, cx: Float, cy: Float, r: Float, item: NavItem, valueText: String) {
         text.color = Color.WHITE
         text.textSize = r * 0.30f
-        c.drawText(valueText, cx, cy + r * 0.45f, text)
+        c.drawText(valueText, cx, cy + r * 0.11f, text)
         text.color = Color.rgb(170, 185, 220)
         text.textSize = r * 0.13f
-        c.drawText(item.unit, cx, cy + r * 0.62f, text)
+        c.drawText(item.unit, cx, cy + r * 0.30f, text)
         text.textSize = r * 0.14f
         c.drawText(item.label, cx, cy + r * 0.86f, text)
     }
