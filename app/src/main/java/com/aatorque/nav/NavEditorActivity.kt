@@ -16,6 +16,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.aatorque.obd.MazdaPids
 import com.aatorque.obd.PidDef
+import com.aatorque.obd.PidProbe
 import com.aatorque.stats.R
 
 /**
@@ -302,7 +303,8 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun sensorNames(pids: List<PidDef>): Array<String> = Array(pids.size) { i ->
         val p = pids[i]
-        val name = getString(p.nameRes)
+        var name = getString(p.nameRes)
+        if (PidProbe.isMissing(p.id)) name += " · " + getString(R.string.nav_no_answer)
         val unit = unitOf(p)
         if (unit.isEmpty()) name else name + ", " + unit
     }

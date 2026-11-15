@@ -64,6 +64,9 @@ class ObdEngine(
         failures = 0
         readId("33")                                       // барометр нужен для расчёта наддува
         bg = Thread(::backgroundLoop, "obd-regen").also { it.isDaemon = true; it.start() }
+        // Torque-стиль: сразу после подключения проверяем, на какие нестандартные датчики блок отвечает
+        PidProbe.reset()
+        Thread(::probePids, "obd-probe").apply { isDaemon = true; start() }
     }
 
     fun close() {
@@ -123,6 +126,28 @@ class ObdEngine(
                 Timber.i("Диагностика 0178: флаги %02X, температуры %s °C", b[0], t)
             }
         }
+    }
+
+    /** Опрос нестандартных датчиков: ответ есть — датчик доступен, нет — помечаем в [PidProbe]. */
+    private fun probePids() {
+        for (p in MazdaPids.all) {
+            if (closed) return
+            if (p.virtual != null || p.request == null || p.isStandard) continue
+            val answered = probeOne(p) ?: continue
+            PidProbe.onAnswer(p.id, answered)
+            try { Thread.sleep(150) } catch (_: InterruptedException) { return }
+        }
+        PidProbe.finish()
+        Timber.i("Опрос датчиков: без ответа: %s", PidProbe.missingIds().sorted().joinToString(","))
+    }
+
+    /** Один запрос мимо кэша; null — оборвалась связь, ответ неизвестен. */
+    @Synchronized
+    private fun probeOne(p: PidDef): Boolean? = try {
+        fetch(p) != null
+    } catch (e: IOException) {
+        failures++
+        null
     }
 
     fun listIds(): Array<String> = MazdaPids.all

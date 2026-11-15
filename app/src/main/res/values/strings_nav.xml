@@ -60,4 +60,5 @@
     <string name="nav_preset_narrow_1">Mazda, column</string>
     <string name="nav_preset_narrow_2">emulator, column</string>
     <string name="nav_settings_cat">AA NAV dashboards</string>
+    <string name="nav_no_answer">no response</string>
 </resources>

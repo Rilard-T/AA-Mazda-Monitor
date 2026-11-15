@@ -60,4 +60,5 @@
     <string name="nav_preset_narrow_1">Mazda, колонка</string>
     <string name="nav_preset_narrow_2">эмулятор, колонка</string>
     <string name="nav_settings_cat">Дашборды AA NAV</string>
+    <string name="nav_no_answer">нет ответа</string>
 </resources>
