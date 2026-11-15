@@ -82,18 +82,21 @@ class NavPainter {
         val r = min(item.w * area.width(), item.h * area.height()) / 2f * item.size
         if (r <= 1f) return
         val frac = ((shown - item.min) / (item.max - item.min)).coerceIn(0f, 1f)
+        val redFrac = if (item.red > item.min && item.red < item.max)
+            (item.red - item.min) / (item.max - item.min) else -1f
         val th = theme
         if (th != null && (th.dialTicks != null || th.dialEmpty != null)) {
-            themedDial(c, cx, cy, r, th, frac)
+            val divisions = GaugeScale.ticks(item.max - item.min, item.min).second - 1
+            themedDial(c, cx, cy, r, th, frac, divisions, redFrac)
             if (ticksOn && th.dialTicks != null) tickLabels(c, cx, cy, r, item, th)
         } else {
-            flatDial(c, cx, cy, r, frac)
+            flatDial(c, cx, cy, r, frac, redFrac)
         }
         gaugeTexts(c, cx, cy, r, item, valueText)
     }
 
     /** Плоский вид (без темы): тёмный круг, дуга, деления и стрелка. */
-    private fun flatDial(c: Canvas, cx: Float, cy: Float, r: Float, frac: Float) {
+    private fun flatDial(c: Canvas, cx: Float, cy: Float, r: Float, frac: Float, redFrac: Float = -1f) {
         fill.color = Color.rgb(18, 26, 54)
         c.drawCircle(cx, cy, r, fill)
 
@@ -106,6 +109,7 @@ class NavPainter {
         stroke.color = if (frac > 0.85f) Color.rgb(255, 80, 60) else Color.rgb(60, 170, 255)
         c.drawArc(rectF, 135f, 270f * frac, false, stroke)
         stroke.strokeCap = Paint.Cap.BUTT
+        drawRedZone(c, cx, cy, r, redFrac)
 
         // деления
         stroke.strokeWidth = r * 0.02f
@@ -132,8 +136,15 @@ class NavPainter {
      * стрелка-картинка занимает тот же квадрат и поворачивается вокруг центра от 225 градусов (минимум) на 270.
      * Если в теме нет картинки стрелки, рисуется линия цвета индикатора темы (приближённо).
      */
-    private fun themedDial(c: Canvas, cx: Float, cy: Float, r: Float, th: NavThemeRes, frac: Float) {
-        val dial = if (ticksOn) (th.dialTicks ?: th.dialEmpty) else (th.dialEmpty ?: th.dialTicks)
+    private fun themedDial(
+        c: Canvas, cx: Float, cy: Float, r: Float, th: NavThemeRes, frac: Float, divisions: Int,
+        redFrac: Float = -1f
+    ) {
+        // Циферблат темы нарисован под 8 делений (как у стандартных шкал). Если делений другое число
+        // (например, отсечка оборотов 0..6), риски темы не совпадут с подписями — берём пустой
+        // циферблат и рисуем деления сами.
+        val nativeTicks = ticksOn && th.dialTicks != null && divisions == NATIVE_DIVISIONS
+        val dial = if (nativeTicks) th.dialTicks else (th.dialEmpty ?: th.dialTicks)
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -142,6 +153,8 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
+        if (ticksOn && !nativeTicks) drawTicks(c, cx, cy, r, divisions)
+        drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {
             c.save()
@@ -162,6 +175,36 @@ class NavPainter {
             fill.color = color
             c.drawCircle(cx, cy, r * 0.04f, fill)
         }
+    }
+
+    /** Красная зона (отсечка): дуга от redFrac до конца шкалы, поверх циферблата, под стрелкой. */
+    private fun drawRedZone(c: Canvas, cx: Float, cy: Float, r: Float, redFrac: Float) {
+        if (redFrac <= 0f || redFrac >= 1f) return
+        val start = 135f + 270f * redFrac
+        rectF.set(cx - r * 0.86f, cy - r * 0.86f, cx + r * 0.86f, cy + r * 0.86f)
+        stroke.strokeCap = Paint.Cap.BUTT
+        stroke.strokeWidth = r * 0.05f
+        stroke.color = Color.rgb(235, 70, 55)
+        c.drawArc(rectF, start, 135f + 270f - start, false, stroke)
+    }
+
+    /** Деления шкалы, когда циферблат темы пустой или его рисок не хватает под текущую шкалу. */
+    private fun drawTicks(c: Canvas, cx: Float, cy: Float, r: Float, divisions: Int) {
+        if (divisions <= 0) return
+        stroke.color = Color.rgb(170, 185, 220)
+        stroke.strokeWidth = r * 0.02f
+        stroke.strokeCap = Paint.Cap.BUTT
+        for (i in 0..divisions) {
+            val a = (135.0 + 270.0 * i / divisions) * PI / 180.0
+            val ca = cos(a).toFloat()
+            val sa = sin(a).toFloat()
+            c.drawLine(cx + r * 0.70f * ca, cy + r * 0.70f * sa, cx + r * 0.78f * ca, cy + r * 0.78f * sa, stroke)
+        }
+    }
+
+    private companion object {
+        /** Столько делений нарисовано на циферблатах тем (картинка диала фиксированная). */
+        const val NATIVE_DIVISIONS = 8
     }
 
     /**

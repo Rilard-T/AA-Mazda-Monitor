@@ -24,7 +24,9 @@ data class NavItem(
     val y: Float,
     val w: Float,
     val h: Float,
-    val size: Float
+    val size: Float,
+    /** Начало красной зоны (отсечка) в единицах шкалы; 0 или вне диапазона — зоны нет. */
+    val red: Float = 0f
 ) {
     companion object {
         const val GAUGE = "gauge"
@@ -136,6 +138,7 @@ object NavLayoutStore {
                 o.put("w", item.w.toDouble())
                 o.put("h", item.h.toDouble())
                 o.put("size", item.size.toDouble())
+                o.put("red", item.red.toDouble())
                 arr.put(o)
             }
             forms.put(key, JSONObject().put("items", arr))
@@ -170,10 +173,13 @@ object NavLayoutStore {
                         y = o.getDouble("y").toFloat(),
                         w = o.getDouble("w").toFloat(),
                         h = o.getDouble("h").toFloat(),
-                        size = o.optDouble("size", 0.9).toFloat()
+                        size = o.optDouble("size", 0.9).toFloat(),
+                        red = o.optDouble("red", 0.0).toFloat()
                     )
                     // сохранённые ранее раскладки: шкала оборотов была 0..6, а на циферблате темы 0..8
-                    val fixed = if (item.pid.equals("0c", true) && item.max == 6f) item.copy(max = 8f) else item
+                    var fixed = if (item.pid.equals("0c", true) && item.max == 6f) item.copy(max = 8f) else item
+                    // у оборотов по умолчанию красная зона с 6000: выше отсечки
+                    if (fixed.pid.equals("0c", true) && fixed.red <= fixed.min) fixed = fixed.copy(red = 6f)
                     if (fixed.max <= fixed.min || fixed.w <= 0f || fixed.h <= 0f) return null
                     items.add(fixed)
                 }
@@ -203,8 +209,8 @@ object NavLayoutStore {
 
         fun gauge(
             id: String, pid: String, label: String, unit: String, min: Float, max: Float, scale: Double,
-            x: Float, y: Float, w: Float, h: Float, size: Float
-        ) = NavItem(id, NavItem.GAUGE, pid, label, unit, min, max, scale, 0, x, y, w, h, size)
+            x: Float, y: Float, w: Float, h: Float, size: Float, red: Float = 0f
+        ) = NavItem(id, NavItem.GAUGE, pid, label, unit, min, max, scale, 0, x, y, w, h, size, red)
 
         fun info(id: String, pid: String, label: String, unit: String, decimals: Int, x: Float, y: Float, w: Float, h: Float) =
             NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, 1.0, decimals, x, y, w, h, 1f)
@@ -212,7 +218,7 @@ object NavLayoutStore {
         val wide = NavForm(
             listOf(
                 gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, third, gh, 0.765f),
-                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, third, 0f, third, gh, 0.9f),
+                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, third, 0f, third, gh, 0.9f, 6f),
                 gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 2f * third, 0f, third, gh, 0.765f),
                 info("i0", "ff9010", "DPF", "%", 0, 0f, gh, fourth, footer),
                 info("i1", "ff9003", "Сажа", "г/л", 2, fourth, gh, fourth, footer),
@@ -223,7 +229,7 @@ object NavLayoutStore {
         val narrow = NavForm(
             listOf(
                 gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, cw, third, 0.765f),
-                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, 0f, third, cw, third, 0.9f),
+                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, 0f, third, cw, third, 0.9f, 6f),
                 gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 0f, 2f * third, cw, third, 0.765f),
                 info("i0", "ff9010", "DPF", "%", 0, cw, 0f, 1f - cw, fourth),
                 info("i1", "ff9003", "Сажа", "г/л", 2, cw, fourth, 1f - cw, fourth),

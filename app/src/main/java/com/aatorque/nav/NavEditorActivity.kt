@@ -180,6 +180,8 @@ class NavEditorActivity : AppCompatActivity() {
             actions.add { chooseCircleSize() }
             names.add(getString(R.string.nav_item_max))
             actions.add { chooseGaugeMax() }
+            names.add(getString(R.string.nav_item_red))
+            actions.add { chooseRedZone() }
         }
         names.add(getString(R.string.nav_delete))
         actions.add { deleteSelected() }
@@ -221,6 +223,39 @@ class NavEditorActivity : AppCompatActivity() {
             .setNegativeButton(getString(R.string.nav_cancel), null)
             .create()
         dialog.show()
+    }
+
+    /** Красная зона прибора: значение, с которого шкала краснеет (0 — выключить). */
+    private fun chooseRedZone() {
+        val sel = editor.selectedItem() ?: return
+        if (sel.kind != NavItem.GAUGE) return
+        val hint = TextView(this)
+        hint.text = getString(R.string.nav_red_hint)
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
+        val cur = sel.red
+        input.setText(if (cur == cur.toInt().toFloat()) cur.toInt().toString() else cur.toString())
+        input.setSelection(input.text.length)
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(24), dp(16), dp(24), dp(8))
+        box.addView(hint)
+        box.addView(input, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        AlertDialog.Builder(this)
+            .setView(box)
+            .setPositiveButton(getString(R.string.nav_apply)) { _, _ ->
+                val item = editor.selectedItem() ?: return@setPositiveButton
+                val value = input.text.toString().replace(',', '.').toFloatOrNull()
+                if (value == null || (value != 0f && (value <= item.min || value >= item.max))) {
+                    Toast.makeText(this, getString(R.string.nav_red_invalid), Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                editor.replaceSelected(item.copy(red = value))
+                editor.invalidate()
+                updateInfo()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
     }
 
     /** Размер круга выбранного прибора: ползунок внизу экрана, предпросмотр не затемняется. */

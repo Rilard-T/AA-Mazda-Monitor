@@ -61,4 +61,7 @@
     <string name="nav_preset_narrow_2">эмулятор, колонка</string>
     <string name="nav_settings_cat">Дашборды AA NAV</string>
     <string name="nav_no_answer">нет ответа</string>
+    <string name="nav_item_red">Красная зона…</string>
+    <string name="nav_red_hint">Красная зона начинается с (0 — выключить):</string>
+    <string name="nav_red_invalid">Значение должно быть внутри шкалы (или 0, чтобы выключить)</string>
 </resources>
