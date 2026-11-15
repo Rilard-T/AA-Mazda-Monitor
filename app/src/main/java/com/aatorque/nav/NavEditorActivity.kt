@@ -1,8 +1,10 @@
 package com.aatorque.nav
 
 import android.os.Bundle
+import android.view.Gravity
+import android.view.Menu
+import android.view.MenuItem
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -34,8 +36,6 @@ class NavEditorActivity : AppCompatActivity() {
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
-    private lateinit var sizeBar: SeekBar
-    private var updatingSeek = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +60,18 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
+    private companion object {
+        const val M_SAVE = 1
+        const val M_WIDE = 2
+        const val M_NARROW = 3
+        const val M_PRESET = 4
+        const val M_ADD = 5
+        const val M_THEME = 6
+        const val M_TICKS = 7
+        const val M_COPY = 8
+        const val M_RESET = 9
+    }
+
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
@@ -78,80 +90,120 @@ class NavEditorActivity : AppCompatActivity() {
         baseline = currentJson()
     }
 
-    private fun makeButton(label: String, onClick: () -> Unit): Button {
-        val b = Button(this)
-        b.text = label
-        b.isAllCaps = false
-        b.setOnClickListener { onClick() }
-        b.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        return b
-    }
-
     private fun buildUi(): LinearLayout {
         val root = LinearLayout(this)
         root.orientation = LinearLayout.VERTICAL
-        root.setPadding(dp(8), dp(8), dp(8), dp(8))
 
-        val row1 = LinearLayout(this)
-        row1.orientation = LinearLayout.HORIZONTAL
-        row1.addView(makeButton("Широкая") { formKey = NavLayoutStore.WIDE; presetIdx = 0; applyForm() })
-        row1.addView(makeButton("Узкая") { formKey = NavLayoutStore.NARROW; presetIdx = 0; applyForm() })
-        row1.addView(makeButton("Пропорции") { presetIdx += 1; applyForm() })
-        root.addView(row1)
-
+        // предпросмотр занимает всё свободное место в портрете и в альбоме
         editor = NavEditorView(this)
         editor.forms = forms
         editor.onSelectionChanged = { updateInfo() }
+        editor.onLongPressItem = { item -> showItemMenu(item) }
         root.addView(editor, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         info = TextView(this)
-        info.setPadding(dp(4), dp(6), dp(4), dp(6))
-        root.addView(info)
+        info.textSize = 12f
+        info.maxLines = 3
+        info.setPadding(dp(12), dp(4), dp(12), dp(6))
+        root.addView(info, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        return root
+    }
 
-        // размер круга выбранного прибора: 0,30 .. 1,00 от ячейки
-        sizeBar = SeekBar(this)
-        sizeBar.max = 70
-        sizeBar.progress = 60
-        sizeBar.isEnabled = false
-        sizeBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+    /** Общие действия: «Сохранить» всегда на виду, остальное в меню «⋯». */
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menu.add(Menu.NONE, M_SAVE, 0, "Сохранить").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        menu.add(Menu.NONE, M_WIDE, 1, "Форма: широкая").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_NARROW, 2, "Форма: узкая").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_PRESET, 3, "Пропорции предпросмотра").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_ADD, 4, "Добавить…").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_THEME, 5, "Тема…").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_TICKS, 6, "Деления вкл/выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_COPY, 7, "Датчики во все формы").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_RESET, 8, "Сбросить").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            M_SAVE -> save()
+            M_WIDE -> {
+                formKey = NavLayoutStore.WIDE
+                presetIdx = 0
+                applyForm()
+            }
+            M_NARROW -> {
+                formKey = NavLayoutStore.NARROW
+                presetIdx = 0
+                applyForm()
+            }
+            M_PRESET -> {
+                presetIdx += 1
+                applyForm()
+            }
+            M_ADD -> addElement()
+            M_THEME -> chooseTheme()
+            M_TICKS -> toggleTicks()
+            M_COPY -> confirmCopySensors()
+            M_RESET -> reset()
+            else -> return super.onOptionsItemSelected(item)
+        }
+        return true
+    }
+
+    /** Меню элемента: открывается удержанием пальца на приборе или значении. */
+    private fun showItemMenu(item: NavItem) {
+        val gauge = item.kind == NavItem.GAUGE
+        val names = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        names.add("Датчик…")
+        actions.add { chooseSensor() }
+        if (gauge) {
+            names.add("Размер круга…")
+            actions.add { chooseCircleSize() }
+        }
+        names.add("Удалить")
+        actions.add { deleteSelected() }
+        AlertDialog.Builder(this)
+            .setTitle(item.label + " (" + item.pid + ")")
+            .setItems(names.toTypedArray()) { _, which -> actions[which]() }
+            .setNegativeButton("Отмена", null)
+            .show()
+    }
+
+    /** Размер круга выбранного прибора: ползунок внизу экрана, предпросмотр не затемняется. */
+    private fun chooseCircleSize() {
+        val sel = editor.selectedItem() ?: return
+        if (sel.kind != NavItem.GAUGE) return
+        val label = TextView(this)
+        val bar = SeekBar(this)
+        bar.max = 70
+        bar.progress = ((sel.size - 0.3f) * 100f).toInt().coerceIn(0, 70)
+        label.text = "Размер круга: " + (sel.size * 100f).toInt() + "%"
+        bar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (!fromUser || updatingSeek) return
-                val sel = editor.selectedItem() ?: return
-                if (sel.kind != NavItem.GAUGE) return
-                editor.replaceSelected(sel.copy(size = 0.3f + progress / 100f))
+                if (!fromUser) return
+                val cur = editor.selectedItem() ?: return
+                val next = cur.copy(size = 0.3f + progress / 100f)
+                editor.replaceSelected(next)
+                label.text = "Размер круга: " + (next.size * 100f).toInt() + "%"
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
 
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
-        root.addView(sizeBar)
-
-        val row2 = LinearLayout(this)
-        row2.orientation = LinearLayout.HORIZONTAL
-        row2.addView(makeButton("Датчик…") { chooseSensor() })
-        row2.addView(makeButton("Добавить") { addElement() })
-        row2.addView(makeButton("Удалить") { deleteSelected() })
-        root.addView(row2)
-
-        val row3 = LinearLayout(this)
-        row3.orientation = LinearLayout.HORIZONTAL
-        row3.addView(makeButton("Датчики во все формы") { confirmCopySensors() })
-        row3.addView(makeButton("Сбросить") { reset() })
-        root.addView(row3)
-
-        val row4 = LinearLayout(this)
-        row4.orientation = LinearLayout.HORIZONTAL
-        row4.addView(makeButton("Назад") { exitEditor() })
-        row4.addView(makeButton("Сохранить") { save() })
-        root.addView(row4)
-
-        val row5 = LinearLayout(this)
-        row5.orientation = LinearLayout.HORIZONTAL
-        row5.addView(makeButton("Тема…") { chooseTheme() })
-        row5.addView(makeButton("Деления вкл/выкл") { toggleTicks() })
-        root.addView(row5)
-        return root
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(24), dp(16), dp(24), dp(8))
+        box.addView(label)
+        box.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val dialog = AlertDialog.Builder(this)
+            .setView(box)
+            .setPositiveButton("Готово", null)
+            .create()
+        dialog.window?.setGravity(Gravity.BOTTOM)
+        dialog.window?.setDimAmount(0f)
+        dialog.show()
     }
 
     private fun applyForm() {
@@ -170,17 +222,11 @@ class NavEditorActivity : AppCompatActivity() {
         val count = forms[formKey]?.size ?: 0
         val sel = editor.selectedItem()
         val selText = if (sel == null) {
-            "Коснитесь элемента: тяните, чтобы переместить; кружок в углу меняет размер."
+            "Удержание на приборе или значении открывает меню; тяните, чтобы переместить; кружок в углу меняет размер."
         } else {
             "Выбран: " + sel.label + " (" + sel.pid + ")" +
                 (if (sel.kind == NavItem.GAUGE) ", круг " + (sel.size * 100f).toInt() + "%" else "")
         }
-        updatingSeek = true
-        sizeBar.isEnabled = sel != null && sel.kind == NavItem.GAUGE
-        if (sel != null && sel.kind == NavItem.GAUGE) {
-            sizeBar.progress = ((sel.size - 0.3f) * 100f).toInt().coerceIn(0, 70)
-        }
-        updatingSeek = false
         info.text = "Форма: " + (if (narrow) "узкая" else "широкая") + ", " + names[presetIdx] +
             ", элементов: " + count + "\n" + themeLine() + "\n" + selText
     }

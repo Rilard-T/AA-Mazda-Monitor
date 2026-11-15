@@ -5,7 +5,11 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.os.Handler
+import android.os.Looper
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.View
 import com.aatorque.obd.MazdaPids
 import kotlin.math.hypot
@@ -27,6 +31,9 @@ class NavEditorView(context: Context) : View(context) {
     var selectedId: String? = null
     var onSelectionChanged: (() -> Unit)? = null
 
+    /** Удержание пальца на элементе: Activity показывает меню элемента. */
+    var onLongPressItem: ((NavItem) -> Unit)? = null
+
     private val painter = NavPainter()
     private val area = RectF()
     private val tmp = RectF()
@@ -36,6 +43,19 @@ class NavEditorView(context: Context) : View(context) {
     private var mode = MODE_NONE
     private var lastX = 0f
     private var lastY = 0f
+    private val pressHandler = Handler(Looper.getMainLooper())
+    private val slop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    private var downX = 0f
+    private var downY = 0f
+    private var moved = false
+    private val longPress = Runnable {
+        val sel = selectedItem()
+        if (sel != null && mode == MODE_MOVE && !moved) {
+            mode = MODE_NONE
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+            onLongPressItem?.invoke(sel)
+        }
+    }
 
     /** Тема предпросмотра (null - плоский вид) и деления. */
     fun setThemeRes(res: NavThemeRes?, ticks: Boolean) {
@@ -147,11 +167,25 @@ class NavEditorView(context: Context) : View(context) {
                     if (hit != null) mode = MODE_MOVE
                     onSelectionChanged?.invoke()
                 }
+                downX = event.x
+                downY = event.y
+                moved = false
+                pressHandler.removeCallbacks(longPress)
+                if (mode == MODE_MOVE) {
+                    pressHandler.postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
+                }
                 parent?.requestDisallowInterceptTouchEvent(true)
                 invalidate()
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
+                if (!moved) {
+                    if (hypot(event.x - downX, event.y - downY) <= slop) return true
+                    moved = true
+                    pressHandler.removeCallbacks(longPress)
+                    lastX = downX
+                    lastY = downY
+                }
                 val sel = selectedItem()
                 if (sel != null && mode != MODE_NONE && area.width() > 0f && area.height() > 0f) {
                     val dx = (event.x - lastX) / area.width()
@@ -176,11 +210,17 @@ class NavEditorView(context: Context) : View(context) {
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                pressHandler.removeCallbacks(longPress)
                 mode = MODE_NONE
                 return true
             }
         }
         return super.onTouchEvent(event)
+    }
+
+    override fun onDetachedFromWindow() {
+        pressHandler.removeCallbacks(longPress)
+        super.onDetachedFromWindow()
     }
 
     companion object {
