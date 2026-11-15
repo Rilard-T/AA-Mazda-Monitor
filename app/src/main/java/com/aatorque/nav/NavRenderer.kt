@@ -75,6 +75,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
     }
 
     override fun onSurfaceAvailable(surfaceContainer: SurfaceContainer) {
+        if (surfaceContainer.width != width || surfaceContainer.height != height) areaInit = false
         surface = surfaceContainer.surface
         width = surfaceContainer.width
         height = surfaceContainer.height

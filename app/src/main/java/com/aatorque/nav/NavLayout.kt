@@ -172,8 +172,10 @@ object NavLayoutStore {
                         h = o.getDouble("h").toFloat(),
                         size = o.optDouble("size", 0.9).toFloat()
                     )
-                    if (item.max <= item.min || item.w <= 0f || item.h <= 0f) return null
-                    items.add(item)
+                    // сохранённые ранее раскладки: шкала оборотов была 0..6, а на циферблате темы 0..8
+                    val fixed = if (item.pid.equals("0c", true) && item.max == 6f) item.copy(max = 8f) else item
+                    if (fixed.max <= fixed.min || fixed.w <= 0f || fixed.h <= 0f) return null
+                    items.add(fixed)
                 }
                 forms[key] = NavForm(items)
             }
@@ -221,7 +223,7 @@ object NavLayoutStore {
         val narrow = NavForm(
             listOf(
                 gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, cw, third, 0.765f),
-                gauge("g1", "0c", "Обороты", "x1000", 0f, 6f, 0.001, 0f, third, cw, third, 0.9f),
+                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, 0f, third, cw, third, 0.9f),
                 gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 0f, 2f * third, cw, third, 0.765f),
                 info("i0", "ff9010", "DPF", "%", 0, cw, 0f, 1f - cw, fourth),
                 info("i1", "ff9003", "Сажа", "г/л", 2, cw, fourth, 1f - cw, fourth),

@@ -29,6 +29,7 @@ class NavCarAppService : CarAppService() {
 
 class NavSession : Session() {
     private var conn: ServiceConnection? = null
+    private var screen: NavScreen? = null
 
     override fun onCreateScreen(intent: Intent): Screen {
         // запускаем и держим службу связи с адаптером, пока открыт экран
@@ -48,6 +49,12 @@ class NavSession : Session() {
         carContext.getCarService(AppManager::class.java).setSurfaceCallback(NavRenderer(carContext))
 
         lifecycle.addObserver(object : DefaultLifecycleObserver {
+            // после выхода в меню магнитолы и возврата хост отдаёт прежнюю (маленькую) область,
+            // пока не перезапросить шаблон: обновляем его при каждом показе экрана
+            override fun onStart(owner: LifecycleOwner) {
+                screen?.invalidate()
+            }
+
             override fun onDestroy(owner: LifecycleOwner) {
                 NavData.stop()
                 conn?.let {
@@ -59,7 +66,7 @@ class NavSession : Session() {
                 conn = null
             }
         })
-        return NavScreen(carContext)
+        return NavScreen(carContext).also { screen = it }
     }
 }
 
