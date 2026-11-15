@@ -462,6 +462,27 @@
     <string name="pid_ff9014_name">Сажа максимум с прошлого прожига (эксп.)</string>
     <string name="pid_ff9014_short">Сажа макс</string>
     <string name="pid_ff9014_unit">г/л</string>
+    <string name="pid_ff9015_name">Целевое накопление сажи</string>
+    <string name="pid_ff9015_short">Сажа цель</string>
+    <string name="pid_ff9015_unit">г/л</string>
+    <string name="pid_ff9016_name">Перепад давления на DPF</string>
+    <string name="pid_ff9016_short">Перепад DPF</string>
+    <string name="pid_ff9016_unit">кПа</string>
+    <string name="pid_ff9017_name">Положение клапана EGR A</string>
+    <string name="pid_ff9017_short">EGR A</string>
+    <string name="pid_ff9017_unit">%</string>
+    <string name="pid_ff9018_name">Положение клапана EGR B</string>
+    <string name="pid_ff9018_short">EGR B</string>
+    <string name="pid_ff9018_unit">%</string>
+    <string name="pid_ff9019_name">Положение заслонки впуска</string>
+    <string name="pid_ff9019_short">Заслонка</string>
+    <string name="pid_ff9019_unit">%</string>
+    <string name="pid_ff901a_name">Пробег по счётчику блока</string>
+    <string name="pid_ff901a_short">Пробег</string>
+    <string name="pid_ff901a_unit">км</string>
+    <string name="pid_ff901b_name">Заряд аккумулятора (оценка)</string>
+    <string name="pid_ff901b_short">Заряд АКБ</string>
+    <string name="pid_ff901b_unit">%</string>
 
     <!-- Ранее отсутствовавшие переводы -->
     <string name="download_dialog">Попробовать установить приложение через Play Store? Если не получится, попробуйте Kingstaller.</string>

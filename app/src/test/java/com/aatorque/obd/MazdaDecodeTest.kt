@@ -59,4 +59,18 @@ class MazdaDecodeTest {
         assertEquals(0.0, MazdaDecode.regenStatus(intArrayOf(0x00)), 0.0)
         assertEquals(2.0, MazdaDecode.regenStatus(intArrayOf(0x02, 0x00)), 0.0)
     }
+
+    @Test
+    fun torqueSkyactivDExtraSensors() {
+        // 22 F47A: знаковый перепад, -1.00 кПа
+        assertEquals(-1.0, MazdaDecode.dpfDiffPressure(intArrayOf(0x00, 0xFF, 0x9C)), 0.001)
+        // 22 F469: EGR A по байту C, EGR B по байту F
+        assertEquals(100.0, MazdaDecode.egrA(intArrayOf(0, 0, 0xFF)), 0.001)
+        assertEquals(50.196, MazdaDecode.egrB(intArrayOf(0, 0, 0, 0, 0, 0x80)), 0.01)
+        // 22 F411 и 22 4028: процент от байта A
+        assertEquals(100.0, MazdaDecode.intakeShutter(intArrayOf(0xFF)), 0.001)
+        assertEquals(80.0, MazdaDecode.batterySoc(intArrayOf(0xCC)), 0.01)
+        // 22 DD01: три байта, 1 км = 0x000001
+        assertEquals(65536.0, MazdaDecode.totalDistance(intArrayOf(0x01, 0x00, 0x00)), 0.001)
+    }
 }

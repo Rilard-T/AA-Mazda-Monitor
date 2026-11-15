@@ -95,6 +95,22 @@ object MazdaPids {
             header = "7E1", request = "221E1C", slow = true,
             decode = { MazdaDecode.transTemp(it) }),
 
+        // --- SkyActiv-D: набор Torque Pro (проверено на Mazda2 1.5 S5-DPTS) ---
+        PidDef("ff9015", R.string.pid_ff9015_name, R.string.pid_ff9015_short, R.string.pid_ff9015_unit, 0.0, 10.0,
+            request = "22042B", slow = true, decode = soot),
+        PidDef("ff9016", R.string.pid_ff9016_name, R.string.pid_ff9016_short, R.string.pid_ff9016_unit, -20.0, 50.0,
+            request = "22F47A", slow = true, decode = { MazdaDecode.dpfDiffPressure(it) }),
+        PidDef("ff9017", R.string.pid_ff9017_name, R.string.pid_ff9017_short, R.string.pid_ff9017_unit, 0.0, 100.0,
+            request = "22F469", slow = true, decode = { MazdaDecode.egrA(it) }),
+        PidDef("ff9018", R.string.pid_ff9018_name, R.string.pid_ff9018_short, R.string.pid_ff9018_unit, 0.0, 100.0,
+            request = "22F469", slow = true, decode = { MazdaDecode.egrB(it) }),
+        PidDef("ff9019", R.string.pid_ff9019_name, R.string.pid_ff9019_short, R.string.pid_ff9019_unit, 0.0, 100.0,
+            request = "22F411", slow = true, decode = { MazdaDecode.intakeShutter(it) }),
+        PidDef("ff901a", R.string.pid_ff901a_name, R.string.pid_ff901a_short, R.string.pid_ff901a_unit, 0.0, 1000000.0,
+            request = "22DD01", slow = true, decode = { MazdaDecode.totalDistance(it) }),
+        PidDef("ff901b", R.string.pid_ff901b_name, R.string.pid_ff901b_short, R.string.pid_ff901b_unit, 0.0, 100.0,
+            request = "224028", slow = true, decode = { MazdaDecode.batterySoc(it) }),
+
         // --- расчётные ---
         // Процент считается от порога dpf_full_gl (настройка, г/л). Пока порог не задан, значение пустое.
         PidDef("ff9010", R.string.pid_ff9010_name, R.string.pid_ff9010_short, R.string.pid_ff9010_unit, 0.0, 100.0,

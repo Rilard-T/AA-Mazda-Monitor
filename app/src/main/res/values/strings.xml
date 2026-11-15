@@ -475,4 +475,25 @@
     <string name="pid_ff9014_name">Soot maximum since the last regeneration (exp.)</string>
     <string name="pid_ff9014_short">Soot max</string>
     <string name="pid_ff9014_unit">g/L</string>
+    <string name="pid_ff9015_name">DPF PM accumulation desired</string>
+    <string name="pid_ff9015_short">Soot target</string>
+    <string name="pid_ff9015_unit">g/L</string>
+    <string name="pid_ff9016_name">DPF differential pressure</string>
+    <string name="pid_ff9016_short">DPF dP</string>
+    <string name="pid_ff9016_unit">kPa</string>
+    <string name="pid_ff9017_name">EGR A valve position</string>
+    <string name="pid_ff9017_short">EGR A</string>
+    <string name="pid_ff9017_unit">%</string>
+    <string name="pid_ff9018_name">EGR B valve position</string>
+    <string name="pid_ff9018_short">EGR B</string>
+    <string name="pid_ff9018_unit">%</string>
+    <string name="pid_ff9019_name">Intake shutter position</string>
+    <string name="pid_ff9019_short">Shutter</string>
+    <string name="pid_ff9019_unit">%</string>
+    <string name="pid_ff901a_name">Total distance (ECU)</string>
+    <string name="pid_ff901a_short">Odometer</string>
+    <string name="pid_ff901a_unit">km</string>
+    <string name="pid_ff901b_name">Battery state of charge</string>
+    <string name="pid_ff901b_short">Battery</string>
+    <string name="pid_ff901b_unit">%</string>
 </resources>

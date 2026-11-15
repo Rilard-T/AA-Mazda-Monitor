@@ -90,5 +90,23 @@ object MazdaDecode {
     fun boost(b: IntArray, baro: Double): Double? =
         if ((b.u(0) and 2) != 0) ((b.u(3) * 256 + b.u(4)) * 0.03125 - baro) / 100.0 else null
 
+    /** 22 F47A — перепад давления на сажевом фильтре по данным блока, кПа (знаковый старший байт). */
+    fun dpfDiffPressure(b: IntArray): Double = s16(b.u(1), b.u(2)) / 100.0
+
+    /** 22 F469, байт C — положение клапана EGR A, %. */
+    fun egrA(b: IntArray): Double = percent(b.u(2))
+
+    /** 22 F469, байт F — положение клапана EGR B, %. */
+    fun egrB(b: IntArray): Double = percent(b.u(5))
+
+    /** 22 F411, байт A — положение заслонки впуска, %. */
+    fun intakeShutter(b: IntArray): Double = percent(b.u(0))
+
+    /** 22 DD01 — общий пробег по счётчику блока, км (три байта). */
+    fun totalDistance(b: IntArray): Double = ((b.u(0) shl 16) + (b.u(1) shl 8) + b.u(2)).toDouble()
+
+    /** 22 4028, байт A — оценка заряда АКБ, %. */
+    fun batterySoc(b: IntArray): Double = percent(b.u(0))
+
     private fun IntArray.u(i: Int): Int = if (i < size) this[i] else 0
 }
