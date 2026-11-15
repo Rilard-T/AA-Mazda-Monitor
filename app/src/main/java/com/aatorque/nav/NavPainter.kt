@@ -172,14 +172,7 @@ class NavPainter {
     private fun tickLabels(c: Canvas, cx: Float, cy: Float, r: Float, item: NavItem, th: NavThemeRes) {
         val range = item.max - item.min
         if (range <= 0f) return
-        val full = range.roundToInt()
-        val half = (range * 2f).roundToInt()
-        val n = when {
-            abs(range - full) < 1e-4f && full in 2..12 -> full + 1
-            abs(range * 2f - half) < 1e-4f && half in 2..12 -> half + 1
-            else -> 9
-        }
-        val step = range / (n - 1)
+        val (step, n) = niceTicks(range, item.min)
         val intLabels = abs(step - step.roundToInt()) < 1e-4f && abs(item.min - item.min.roundToInt()) < 1e-4f
         val radius = r * (0.72f - th.tickPaddingDp * 0.008f).coerceIn(0.50f, 0.78f)
         text.color = Color.WHITE
@@ -196,6 +189,29 @@ class NavPainter {
             c.drawText(s, x, y + text.textSize * 0.35f, text)
             c.restore()
         }
+    }
+
+    /**
+     * Круглый шаг подписей: 1, 2, 2.5, 5 и их степени десятки.
+     * Берём шаг, который делит диапазон и минимум нацело и даёт 4–10 делений;
+     * если такого нет (например 240 км/ч) — делим диапазон на восемь частей.
+     */
+    private fun niceTicks(range: Float, min: Float): Pair<Float, Int> {
+        val steps = ArrayList<Float>(32)
+        var base = 0.1f
+        repeat(6) {
+            for (m in floatArrayOf(1f, 2f, 2.5f, 5f)) steps.add(base * m)
+            base *= 10f
+        }
+        for (s in steps) {
+            val count = range / s
+            val ticks = count.roundToInt()
+            if (ticks !in 3..9 || abs(count - ticks) > 1e-3f) continue
+            val minTicks = min / s
+            if (abs(minTicks - minTicks.roundToInt()) > 1e-3f) continue
+            return s to ticks + 1
+        }
+        return range / 8f to 9
     }
 
     /** Подписи прибора: показание, единицы и название. */
