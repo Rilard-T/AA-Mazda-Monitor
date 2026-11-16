@@ -11,6 +11,11 @@
             android:persistent="false"
             android:title="@string/nav_editor_title"
             android:summary="@string/nav_editor_summary" />
+        <Preference
+            android:key="media_access"
+            android:persistent="false"
+            android:title="@string/media_access_title"
+            android:summary="@string/media_access_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory

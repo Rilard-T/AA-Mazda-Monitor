@@ -2,6 +2,8 @@
 <resources>
     <string name="nav_editor_title">Раскладка приборов</string>
     <string name="nav_editor_summary">Редактор экрана Android Auto (навигационный интерфейс)</string>
+    <string name="media_access_title">Доступ к уведомлениям (медиа)</string>
+    <string name="media_access_summary">Нужен для отображения играющего трека в Android Auto; открывает настройки системы</string>
     <string name="nav_save">Сохранить</string>
     <string name="nav_form_wide">Форма: широкая</string>
     <string name="nav_form_narrow">Форма: узкая</string>

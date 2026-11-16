@@ -1,6 +1,9 @@
 package com.aatorque.nav
 
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.Menu
@@ -17,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.aatorque.obd.MazdaPids
 import com.aatorque.obd.PidDef
 import com.aatorque.obd.PidProbe
+import com.aatorque.stats.NotiService
 import com.aatorque.stats.R
 import java.util.Locale
 
@@ -418,6 +422,25 @@ class NavEditorActivity : AppCompatActivity() {
 
     /** Новый элемент-медиа (название играющего трека) по центру текущей формы. */
     private fun createMediaItem() {
+        if (!NotiService.isNotificationAccessEnabled(this)) {
+            AlertDialog.Builder(this)
+                .setTitle(getString(R.string.media_access_title))
+                .setMessage(getString(R.string.media_access_summary))
+                .setPositiveButton("Открыть настройки") { _, _ ->
+                    startActivity(
+                        Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                putExtra(
+                                    Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                                    NotiService::class.java.canonicalName
+                                )
+                            }
+                        }
+                    )
+                }
+                .setNegativeButton(getString(R.string.nav_cancel), null)
+                .show()
+        }
         val list = forms[formKey] ?: return
         var n = 0
         while (forms.values.any { l -> l.any { it.id == "m" + n } }) n++

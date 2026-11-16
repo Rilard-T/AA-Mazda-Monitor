@@ -1,9 +1,13 @@
 package com.aatorque.prefs
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.widget.Toast
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import com.aatorque.stats.NotiService
 import com.aatorque.stats.R
 
 class SettingsFragment : PreferenceFragmentCompat() {
@@ -13,6 +17,23 @@ class SettingsFragment : PreferenceFragmentCompat() {
         preferenceManager.sharedPreferencesName = null
         findPreference<Preference>("navEditor")?.setOnPreferenceClickListener {
             startActivity(Intent(requireContext(), com.aatorque.nav.NavEditorActivity::class.java))
+            true
+        }
+        findPreference<Preference>("media_access")?.setOnPreferenceClickListener {
+            if (!NotiService.isNotificationAccessEnabled(requireContext())) {
+                startActivity(
+                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            putExtra(
+                                Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                                NotiService::class.java.canonicalName
+                            )
+                        }
+                    }
+                )
+            } else {
+                Toast.makeText(requireContext(), "Доступ уже включён", Toast.LENGTH_SHORT).show()
+            }
             true
         }
         findPreference<Preference>("open_obd_settings")?.setOnPreferenceClickListener {

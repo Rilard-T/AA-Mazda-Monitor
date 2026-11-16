@@ -2,6 +2,8 @@
 <resources>
     <string name="nav_editor_title">Gauge layout</string>
     <string name="nav_editor_summary">Android Auto screen editor (navigation interface)</string>
+    <string name="media_access_title">Notification access (media)</string>
+    <string name="media_access_summary">Required to show the playing track in Android Auto; opens system settings</string>
     <string name="nav_save">Save</string>
     <string name="nav_form_wide">Form: wide</string>
     <string name="nav_form_narrow">Form: narrow</string>
