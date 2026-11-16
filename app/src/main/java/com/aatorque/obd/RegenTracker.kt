@@ -42,6 +42,7 @@ class RegenTracker private constructor(private val prefs: SharedPreferences) {
 
     private var lastStatus: Int? = null          // статус прожига от блока (DID 0380): 0 нет, не 0 идёт (различие 1 и 2 не подтверждено)
     private var statusSeenAt = 0L
+    private var newSessionPending = false   // первый ненулевой статус после паузы: подключились посреди прожига
     private var active = false             // сейчас идёт прожиг (по статусу блока)
     private var engineOffSince = 0L        // блок не отвечает или оборотов нет: с какого момента
     private var engineOffHandled = false
@@ -96,15 +97,22 @@ class RegenTracker private constructor(private val prefs: SharedPreferences) {
         lastStatus = s
         if (!active) {
             if (s >= 1) {
-                if (newSession) {
-                    // подключились посреди прожига: максимум сажи неизвестен, запись не ведём
-                    active = true; hotSince = 0L; coldSince = 0L
-                    skipping = true; skipMax = 0.0; sootPeak = 0.0
-                } else {
-                    if (hotSince == 0L) hotSince = now
-                    else if (now - hotSince >= STATUS_HOLD_MS) startRegen(now)
+                // статус 1/2 должен продержаться STATUS_HOLD_MS: короткий всплеск не считается прожигом
+                if (hotSince == 0L) {
+                    hotSince = now
+                    newSessionPending = newSession
+                } else if (now - hotSince >= STATUS_HOLD_MS) {
+                    if (newSessionPending) {
+                        // подключились посреди прожига: максимум сажи неизвестен, запись не ведём
+                        active = true; hotSince = 0L; coldSince = 0L
+                        skipping = true; skipMax = 0.0; sootPeak = 0.0
+                        newSessionPending = false
+                    } else startRegen(now)
                 }
-            } else hotSince = 0L
+            } else {
+                hotSince = 0L
+                newSessionPending = false
+            }
         } else {
             if (s == 0) {
                 if (coldSince == 0L) coldSince = now
@@ -137,6 +145,7 @@ class RegenTracker private constructor(private val prefs: SharedPreferences) {
             active = false; coldSince = 0L; endedAt = 0L
         }
         hotSince = 0L
+        newSessionPending = false
         if (skipping) { skipping = false; sootPeak = lastSoot ?: 0.0 }
         save()
     }
@@ -287,7 +296,7 @@ class RegenTracker private constructor(private val prefs: SharedPreferences) {
 
     companion object {
         private const val ENGINE_OFF_MS = 10_000L    // блок не отвечает или оборотов нет
-        private const val STATUS_HOLD_MS = 10_000L   // статус блока не 0
+        private const val STATUS_HOLD_MS = 30_000L   // статус блока не 0 должен продержаться 30 с
         private const val STATUS_END_HOLD_MS = 600_000L   // статус блока 0: прожиг закончился через 10 минут
         @Volatile private var inst: RegenTracker? = null
         fun get(prefs: SharedPreferences): RegenTracker =

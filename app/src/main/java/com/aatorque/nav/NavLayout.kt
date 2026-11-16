@@ -236,7 +236,6 @@ object NavLayoutStore {
         val gh = 1f - footer
         val third = 1f / 3f
         val fourth = 0.25f
-        val cw = 0.45f
 
         fun gauge(
             id: String, pid: String, label: String, unit: String, min: Float, max: Float, scale: Double,
@@ -257,15 +256,19 @@ object NavLayoutStore {
                 info("i3", "ff9002", "После прожига", "км", 0, 3f * fourth, gh, fourth, footer)
             )
         )
+        // Узкая колонка: без приборов, только текст — в split-screen круги получаются слишком мелкими.
+        val narrowRow = 1f / 7f
+        fun narrowInfo(id: String, pid: String, label: String, unit: String, decimals: Int, row: Int) =
+            info(id, pid, label, unit, decimals, 0f, row * narrowRow, 1f, narrowRow)
         val narrow = NavForm(
             listOf(
-                gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, cw, third, 0.765f),
-                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, 0f, third, cw, third, 0.9f, 6f),
-                gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 0f, 2f * third, cw, third, 0.765f),
-                info("i0", "ff9010", "DPF", "%", 0, cw, 0f, 1f - cw, fourth),
-                info("i1", "ff9003", "Сажа", "г/л", 2, cw, fourth, 1f - cw, fourth),
-                info("i2", "ff9005", "АКПП", "°C", 0, cw, 2f * fourth, 1f - cw, fourth),
-                info("i3", "ff9002", "После прожига", "км", 0, cw, 3f * fourth, 1f - cw, fourth)
+                narrowInfo("i0", "0d", "Скорость", "км/ч", 0, 0),
+                narrowInfo("i1", "0c", "Обороты", "x1000", 2, 1),
+                narrowInfo("i2", "05", "Темп. ОЖ", "°C", 0, 2),
+                narrowInfo("i3", "ff9010", "DPF", "%", 0, 3),
+                narrowInfo("i4", "ff9003", "Сажа", "г/л", 2, 4),
+                narrowInfo("i5", "ff9005", "АКПП", "°C", 0, 5),
+                narrowInfo("i6", "ff9002", "После прожига", "км", 0, 6)
             )
         )
         return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), "", "")

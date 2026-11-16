@@ -264,6 +264,10 @@
     <string name="obd_cat_state">Status</string>
     <string name="obd_pref_link_status">Adapter link</string>
     <string name="obd_pref_values">Current values</string>
+    <string name="obd_pref_probe">Vehicle sensors</string>
+    <string name="obd_probe_in_progress">Probing sensors…</string>
+    <string name="obd_probe_all">All %d sensors answered</string>
+    <string name="obd_probe_some">Answered %1$d of %2$d; no answer: %3$s</string>
     <string name="obd_cat_connection">Connection</string>
     <string name="obd_action_connect">Start / connect</string>
     <string name="obd_action_connect_summary">Starts the background service and reconnects to the adapter</string>

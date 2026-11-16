@@ -64,8 +64,10 @@ class ObdEngine(
         failures = 0
         readId("33")                                       // барометр нужен для расчёта наддува
         bg = Thread(::backgroundLoop, "obd-regen").also { it.isDaemon = true; it.start() }
-        // Torque-стиль: сразу после подключения проверяем, на какие нестандартные датчики блок отвечает
-        PidProbe.reset()
+        // Torque-стиль: сразу после подключения проверяем, на какие нестандартные датчики блок отвечает.
+        // Результат прошлого опроса показываем сразу, затем обновляем его.
+        PidProbe.load(prefs)
+        PidProbe.begin()
         Thread(::probePids, "obd-probe").apply { isDaemon = true; start() }
     }
 
@@ -138,6 +140,7 @@ class ObdEngine(
             try { Thread.sleep(150) } catch (_: InterruptedException) { return }
         }
         PidProbe.finish()
+        PidProbe.save(prefs)
         Timber.i("Опрос датчиков: без ответа: %s", PidProbe.missingIds().sorted().joinToString(","))
     }
 
@@ -165,7 +168,7 @@ class ObdEngine(
         if (!force) cache[p.id]?.let { if (now - it.t < ttl) return it.v }
         var failed = false
         var v = try { fetch(p) } catch (e: IOException) { failures++; failed = true; lastRaw = e.message ?: "ошибка связи"; null }
-        if (v == null && !failed && p.virtual == null && p.header != "7E0") {   // блок АКПП иногда молчит: один быстрый повтор
+        if (v == null && !failed && p.virtual == null && (p.slow || p.header != "7E0")) {   // медленные датчики и блок АКПП иногда молчат: один быстрый повтор
             v = try { fetch(p) } catch (e: IOException) { failures++; failed = true; lastRaw = e.message ?: "ошибка связи"; null }
         }
         val t = System.currentTimeMillis()

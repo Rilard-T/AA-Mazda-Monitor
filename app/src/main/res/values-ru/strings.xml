@@ -251,6 +251,10 @@
     <string name="obd_cat_state">Состояние</string>
     <string name="obd_pref_link_status">Связь с адаптером</string>
     <string name="obd_pref_values">Текущие значения</string>
+    <string name="obd_pref_probe">Датчики машины</string>
+    <string name="obd_probe_in_progress">Опрос датчиков…</string>
+    <string name="obd_probe_all">Ответили все датчики: %d</string>
+    <string name="obd_probe_some">Ответили %1$d из %2$d; нет ответа: %3$s</string>
     <string name="obd_cat_connection">Подключение</string>
     <string name="obd_action_connect">Запустить / подключиться</string>
     <string name="obd_action_connect_summary">Запускает фоновую службу и переподключается к адаптеру</string>
