@@ -174,11 +174,11 @@ class NavPainter {
         // циферблат и рисуем деления сами.
         // Циферблат темы нарисован под 8 делений. Для другой шкалы (обороты 0..6, скорость 240 и т.п.)
         // используем пустой циферблат (фон без рисок) и рисуем риски сами — так они не пропадают.
-        // Сохраняем «родные» риски темы (плотное кольцо делений) везде, где они есть:
-        // при смене шкалы (обороты 0..6/8, скорость 180/240) риски не должны пропадать.
-        // Пустой циферблат используем только если у темы нет диала с рисками.
-        val useTicksDial = th.dialTicks != null
-        val dial = if (useTicksDial) th.dialTicks else th.dialEmpty
+        // Риски должны совпадать с подписями. Родной диал темы нарисован под 8 делений,
+        // поэтому для другой шкалы (0..6, 0..180) используем пустой циферблат и рисуем риски сами.
+        val needTicks = ticksOn && divisions != NATIVE_DIVISIONS
+        val useEmpty = needTicks && th.dialEmpty != null
+        val dial = if (useEmpty) th.dialEmpty else th.dialTicks
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -187,7 +187,7 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
-        if (ticksOn && !useTicksDial && th.dialEmpty != null) drawTicks(c, cx, cy, r, divisions)
+        if (ticksOn && (useEmpty || (needTicks && th.dialTicks == null))) drawTicks(c, cx, cy, r, divisions)
         drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {
@@ -225,14 +225,14 @@ class NavPainter {
     /** Деления шкалы, когда циферблат темы пустой или его рисок не хватает под текущую шкалу. */
     private fun drawTicks(c: Canvas, cx: Float, cy: Float, r: Float, divisions: Int) {
         if (divisions <= 0) return
-        stroke.color = Color.rgb(170, 185, 220)
-        stroke.strokeWidth = r * 0.02f
+        stroke.color = Color.WHITE
+        stroke.strokeWidth = r * 0.025f
         stroke.strokeCap = Paint.Cap.BUTT
         for (i in 0..divisions) {
             val a = (135.0 + 270.0 * i / divisions) * PI / 180.0
             val ca = cos(a).toFloat()
             val sa = sin(a).toFloat()
-            c.drawLine(cx + r * 0.70f * ca, cy + r * 0.70f * sa, cx + r * 0.78f * ca, cy + r * 0.78f * sa, stroke)
+            c.drawLine(cx + r * 0.72f * ca, cy + r * 0.72f * sa, cx + r * 0.84f * ca, cy + r * 0.84f * sa, stroke)
         }
     }
 
