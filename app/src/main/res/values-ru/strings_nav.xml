@@ -9,6 +9,9 @@
     <string name="nav_add">Добавить…</string>
     <string name="nav_kind_media">Медиа (трек)</string>
     <string name="nav_theme">Тема…</string>
+    <string name="nav_font">Шрифт…</string>
+    <string name="nav_font_dialog">Шрифт</string>
+    <string name="nav_font_default">По умолчанию (digital)</string>
     <string name="nav_ticks">Деления вкл/выкл</string>
     <string name="nav_debug">Отладка вкл/выкл</string>
     <string name="nav_copy">Датчики во все формы</string>

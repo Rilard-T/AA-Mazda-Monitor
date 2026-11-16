@@ -44,6 +44,7 @@ data class NavLayout(
     val narrowAspect: Float,
     val forms: Map<String, NavForm>,
     val theme: String = "",
+    val font: String = "",
     val ticks: Boolean = true,
     val debug: Boolean = false
 ) {
@@ -173,7 +174,7 @@ object NavLayoutStore {
             forms.put(key, JSONObject().put("items", arr))
         }
         return JSONObject().put("v", 1).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
-            .put("theme", l.theme).put("ticks", l.ticks).put("debug", l.debug).toString()
+            .put("theme", l.theme).put("font", l.font).put("ticks", l.ticks).put("debug", l.debug).toString()
     }
 
     fun parse(text: String): NavLayout? {
@@ -218,7 +219,7 @@ object NavLayoutStore {
             if (wide == null || wide.items.isEmpty()) return null
             return NavLayout(
                 root.optDouble("narrowAspect", 1.15).toFloat(), forms,
-                root.optString("theme", ""), root.optBoolean("ticks", true), root.optBoolean("debug", false)
+                root.optString("theme", ""), root.optString("font", ""), root.optBoolean("ticks", true), root.optBoolean("debug", false)
             )
         } catch (e: Exception) {
             return null
@@ -266,6 +267,6 @@ object NavLayoutStore {
                 info("i3", "ff9002", "После прожига", "км", 0, cw, 3f * fourth, 1f - cw, fourth)
             )
         )
-        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow))
+        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), "", "")
     }
 }

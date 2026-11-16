@@ -2,6 +2,7 @@ package com.aatorque.nav
 
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.Paint
 import android.graphics.RectF
 import java.util.Locale
@@ -27,6 +28,13 @@ class NavPainter {
     var ticksOn: Boolean = true
     /** Масштаб под разрешение экрана: 1 при опорной высоте ~800 px. */
     var pxScale: Float = 1f
+
+    /** Шрифт подписей приборов (null - системный). */
+    var typeface: Typeface? = null
+        set(value) {
+            field = value
+            text.typeface = value
+        }
 
     private val rectF = RectF()
     private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
@@ -164,8 +172,10 @@ class NavPainter {
         // Циферблат темы нарисован под 8 делений (как у стандартных шкал). Если делений другое число
         // (например, отсечка оборотов 0..6), риски темы не совпадут с подписями — берём пустой
         // циферблат и рисуем деления сами.
-        val nativeTicks = ticksOn && th.dialTicks != null && divisions == NATIVE_DIVISIONS
-        val dial = if (nativeTicks) th.dialTicks else (th.dialEmpty ?: th.dialTicks)
+        // Циферблат темы нарисован под 8 делений. Для другой шкалы (обороты 0..6, скорость 240 и т.п.)
+        // используем пустой циферблат (фон без рисок) и рисуем риски сами — так они не пропадают.
+        val useEmpty = th.dialEmpty != null
+        val dial = if (useEmpty) th.dialEmpty else th.dialTicks
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -174,7 +184,7 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
-        if (ticksOn && !nativeTicks) drawTicks(c, cx, cy, r, divisions)
+        if (ticksOn && (useEmpty || divisions != NATIVE_DIVISIONS)) drawTicks(c, cx, cy, r, divisions)
         drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {

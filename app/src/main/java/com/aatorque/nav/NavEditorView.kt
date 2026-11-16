@@ -3,6 +3,7 @@ package com.aatorque.nav
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.Paint
 import android.graphics.RectF
 import android.os.Handler
@@ -61,6 +62,11 @@ class NavEditorView(context: Context) : View(context) {
     fun setThemeRes(res: NavThemeRes?, ticks: Boolean) {
         painter.theme = res
         painter.ticksOn = ticks
+        invalidate()
+    }
+
+    fun setFont(typeface: Typeface?) {
+        painter.typeface = typeface
         invalidate()
     }
 

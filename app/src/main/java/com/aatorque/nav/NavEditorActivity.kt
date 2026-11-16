@@ -32,6 +32,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var aspectSource = NavAspectSource.AUTO
     private var baseline = ""
     private var themeName = ""
+    private var fontName = ""
     private var ticksOn = true
     private var debugOn = false
 
@@ -47,6 +48,7 @@ class NavEditorActivity : AppCompatActivity() {
         setContentView(buildUi())
         applyForm()
         applyTheme()
+        applyFont()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 exitEditor()
@@ -70,6 +72,7 @@ class NavEditorActivity : AppCompatActivity() {
         const val M_THEME = 6
         const val M_TICKS = 7
         const val M_DEBUG = 10
+        const val M_FONT = 11
         const val M_COPY = 8
         const val M_RESET = 9
     }
@@ -77,7 +80,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
-        return NavLayout(narrowAspect, map, themeName, ticksOn, debugOn)
+        return NavLayout(narrowAspect, map, themeName, fontName, ticksOn, debugOn)
     }
 
     private fun currentJson(): String = NavLayoutStore.toJson(currentLayout())
@@ -88,6 +91,7 @@ class NavEditorActivity : AppCompatActivity() {
         for ((key, form) in layout.forms) forms[key] = ArrayList(form.items)
         narrowAspect = layout.narrowAspect
         themeName = layout.theme
+        fontName = layout.font
         ticksOn = layout.ticks
         debugOn = layout.debug
         baseline = currentJson()
@@ -120,6 +124,7 @@ class NavEditorActivity : AppCompatActivity() {
         menu.add(Menu.NONE, M_PRESET, 3, getString(R.string.nav_preset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_ADD, 4, getString(R.string.nav_add)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_THEME, 5, getString(R.string.nav_theme)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_FONT, 6, getString(R.string.nav_font)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_TICKS, 6, getString(R.string.nav_ticks)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_DEBUG, 9, getString(R.string.nav_debug)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_COPY, 7, getString(R.string.nav_copy)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
@@ -141,6 +146,7 @@ class NavEditorActivity : AppCompatActivity() {
             M_PRESET -> cycleAspects()
             M_ADD -> addElement()
             M_THEME -> chooseTheme()
+            M_FONT -> chooseFont()
             M_TICKS -> toggleTicks()
             M_DEBUG -> toggleDebug()
             M_COPY -> confirmCopySensors()
@@ -474,6 +480,25 @@ class NavEditorActivity : AppCompatActivity() {
     private fun applyTheme() {
         editor.setThemeRes(NavThemes.load(this, themeName), ticksOn)
         updateInfo()
+    }
+
+    private fun applyFont() {
+        editor.setFont(NavFonts.load(this, fontName))
+        updateInfo()
+    }
+
+    private fun chooseFont() {
+        val entries = resources.getStringArray(R.array.fontEntries)
+        val values = resources.getStringArray(R.array.fontValues)
+        val items = Array(entries.size + 1) { i -> if (i == 0) getString(R.string.nav_font_default) else entries[i - 1] }
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.nav_font_dialog))
+            .setItems(items) { _, which ->
+                fontName = if (which == 0) "" else values[which - 1]
+                applyFont()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
     }
 
     private fun chooseTheme() {
