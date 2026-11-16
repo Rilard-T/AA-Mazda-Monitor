@@ -225,14 +225,20 @@ class NavPainter {
     /** Деления шкалы, когда циферблат темы пустой или его рисок не хватает под текущую шкалу. */
     private fun drawTicks(c: Canvas, cx: Float, cy: Float, r: Float, divisions: Int) {
         if (divisions <= 0) return
-        stroke.color = Color.WHITE
-        stroke.strokeWidth = r * 0.025f
+        // Плотное кольцо рисок, как на приборной панели: основные риски по делениям шкалы
+        // и промежуточные между ними. Основные длиннее и толще.
+        val subdiv = if (divisions <= 7) 5 else 2
+        val total = divisions * subdiv
         stroke.strokeCap = Paint.Cap.BUTT
-        for (i in 0..divisions) {
-            val a = (135.0 + 270.0 * i / divisions) * PI / 180.0
+        for (i in 0..total) {
+            val major = (i % subdiv == 0)
+            val a = (135.0 + 270.0 * i / total) * PI / 180.0
             val ca = cos(a).toFloat()
             val sa = sin(a).toFloat()
-            c.drawLine(cx + r * 0.72f * ca, cy + r * 0.72f * sa, cx + r * 0.84f * ca, cy + r * 0.84f * sa, stroke)
+            val inner = if (major) r * 0.72f else r * 0.78f
+            stroke.color = Color.WHITE
+            stroke.strokeWidth = if (major) r * 0.025f else r * 0.012f
+            c.drawLine(cx + inner * ca, cy + inner * sa, cx + r * 0.84f * ca, cy + r * 0.84f * sa, stroke)
         }
     }
 
