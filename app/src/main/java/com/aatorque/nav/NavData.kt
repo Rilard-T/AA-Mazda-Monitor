@@ -10,10 +10,17 @@ import java.util.concurrent.ConcurrentHashMap
  */
 object NavData {
     private val values = ConcurrentHashMap<String, Double>()
+    private val texts = ConcurrentHashMap<String, String>()
     @Volatile private var running = false
     private var thread: Thread? = null
 
     fun get(id: String): Double? = values[id]
+
+    fun getText(id: String): String? = texts[id]
+
+    fun setText(id: String, text: String?) {
+        if (text.isNullOrBlank()) texts.remove(id) else texts[id] = text
+    }
 
     @Synchronized
     fun start() {

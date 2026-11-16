@@ -75,6 +75,27 @@ class NavPainter {
         c.drawText(valueText, cx, top + h * 0.86f, text)
     }
 
+    /** Медиа: подпись сверху, название трека снизу (одна строка, при необходимости уменьшенный шрифт). */
+    fun media(c: Canvas, area: RectF, item: NavItem, valueText: String) {
+        val left = area.left + item.x * area.width()
+        val top = area.top + item.y * area.height()
+        val w = item.w * area.width()
+        val h = item.h * area.height()
+        if (w <= 1f || h <= 1f) return
+        val cx = left + w / 2f
+        text.color = Color.rgb(170, 185, 220)
+        text.textSize = min(h * 0.26f, w / 7f)
+        c.drawText(item.label.ifBlank { "Трек" }, cx, top + h * 0.34f, text)
+        text.color = Color.WHITE
+        var size = min(h * 0.34f, w / 6f)
+        while (size > 9f * pxScale && text.measureText(valueText) > w * 0.92f) {
+            size -= 1f * pxScale
+            text.textSize = size
+        }
+        text.textSize = size
+        c.drawText(valueText, cx, top + h * 0.82f, text)
+    }
+
     /** Прибор: круг (квадрат картинки темы) вписан в свою ячейку, размер задаёт item.size. */
     fun gauge(c: Canvas, area: RectF, item: NavItem, shown: Float, valueText: String) {
         val cx = area.left + (item.x + item.w / 2f) * area.width()

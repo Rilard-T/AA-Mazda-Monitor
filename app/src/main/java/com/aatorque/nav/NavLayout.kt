@@ -32,6 +32,7 @@ data class NavItem(
     companion object {
         const val GAUGE = "gauge"
         const val INFO = "info"
+        const val MEDIA = "media"
     }
 }
 
@@ -85,7 +86,7 @@ object NavLayoutStore {
         }
         for (form in l.forms.values) {
             for (item in form.items) {
-                if (item.kind != NavItem.GAUGE && !fast.contains(item.pid)) slow.add(item.pid)
+                if (item.kind != NavItem.GAUGE && item.kind != NavItem.MEDIA && !fast.contains(item.pid)) slow.add(item.pid)
             }
         }
         fastPids = fast.toList()

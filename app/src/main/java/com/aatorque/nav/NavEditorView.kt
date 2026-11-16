@@ -122,6 +122,8 @@ class NavEditorView(context: Context) : View(context) {
             if (item.kind == NavItem.GAUGE) {
                 val shown = item.min + (item.max - item.min) * 0.45f
                 painter.gauge(canvas, area, item, shown, painter.gaugeText(shown, item.max))
+            } else if (item.kind == NavItem.MEDIA) {
+                painter.media(canvas, area, item, "Artist — Title")
             } else {
                 painter.info(canvas, area, item, sampleInfo(item))
             }

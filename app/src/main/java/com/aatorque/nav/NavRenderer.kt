@@ -195,6 +195,8 @@ class NavRenderer(context: Context) : SurfaceCallback {
                     val goal = if (raw != null) (raw * item.scale).toFloat() else item.min
                     gs.shown += (goal - gs.shown) * k
                     painter.gauge(c, area, item, gs.shown, shownText(item, gs))
+                } else if (item.kind == NavItem.MEDIA) {
+                    painter.media(c, area, item, NavData.getText(item.pid) ?: "--")
                 } else {
                     painter.info(c, area, item, infoText(item))
                 }

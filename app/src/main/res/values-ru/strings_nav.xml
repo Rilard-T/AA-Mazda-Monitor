@@ -7,6 +7,7 @@
     <string name="nav_form_narrow">Форма: узкая</string>
     <string name="nav_preset">Пропорции предпросмотра</string>
     <string name="nav_add">Добавить…</string>
+    <string name="nav_kind_media">Медиа (трек)</string>
     <string name="nav_theme">Тема…</string>
     <string name="nav_ticks">Деления вкл/выкл</string>
     <string name="nav_debug">Отладка вкл/выкл</string>

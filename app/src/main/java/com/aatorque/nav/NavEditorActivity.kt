@@ -153,10 +153,13 @@ class NavEditorActivity : AppCompatActivity() {
     /** Меню элемента: открывается удержанием пальца на приборе или значении. */
     private fun showItemMenu(item: NavItem) {
         val gauge = item.kind == NavItem.GAUGE
+        val media = item.kind == NavItem.MEDIA
         val names = ArrayList<String>()
         val actions = ArrayList<() -> Unit>()
-        names.add(getString(R.string.nav_item_sensor))
-        actions.add { chooseSensor() }
+        if (!media) {
+            names.add(getString(R.string.nav_item_sensor))
+            actions.add { chooseSensor() }
+        }
         if (gauge) {
             names.add(getString(R.string.nav_item_size))
             actions.add { chooseCircleSize() }
@@ -370,8 +373,8 @@ class NavEditorActivity : AppCompatActivity() {
     private fun addElement() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.nav_add_current))
-            .setItems(arrayOf(getString(R.string.nav_kind_gauge), getString(R.string.nav_kind_info))) { _, which ->
-                pickSensorForNew(if (which == 0) NavItem.GAUGE else NavItem.INFO)
+            .setItems(arrayOf(getString(R.string.nav_kind_gauge), getString(R.string.nav_kind_info), getString(R.string.nav_kind_media))) { _, which ->
+                if (which == 2) createMediaItem() else pickSensorForNew(if (which == 0) NavItem.GAUGE else NavItem.INFO)
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
@@ -401,6 +404,19 @@ class NavEditorActivity : AppCompatActivity() {
             NavItem(id, kind, pd.id, label, unit, 0f, 1f, 1.0, 0, 0.375f, 0.42f, 0.25f, 0.16f, 1f)
         }
         val item = itemFromPid(base, pd)
+        list.add(item)
+        editor.selectedId = item.id
+        editor.invalidate()
+        updateInfo()
+    }
+
+    /** Новый элемент-медиа (название играющего трека) по центру текущей формы. */
+    private fun createMediaItem() {
+        val list = forms[formKey] ?: return
+        var n = 0
+        while (forms.values.any { l -> l.any { it.id == "m" + n } }) n++
+        val id = "m" + n
+        val item = NavItem(id, NavItem.MEDIA, "media_title", "Трек", "", 0f, 1f, 1.0, 0, 0.375f, 0.42f, 0.25f, 0.16f, 1f)
         list.add(item)
         editor.selectedId = item.id
         editor.invalidate()
