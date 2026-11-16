@@ -211,6 +211,12 @@ object NavLayoutStore {
                     var fixed = if (item.pid.equals("0c", true) && item.max == 6f && item.red <= item.min) item.copy(max = 8f) else item
                     // у оборотов по умолчанию красная зона с 6000: выше отсечки
                     if (fixed.pid.equals("0c", true) && fixed.red <= fixed.min) fixed = fixed.copy(red = 6f)
+                    // Узкая текстовая форма показывает обороты обычным числом (2750), а не в тысячах (2,75 x1000).
+                    // Старые раскладки с «x1000» приводим к этому виду, не трогая приборы (GAUGE).
+                    if (fixed.kind == NavItem.INFO && fixed.pid.equals("0c", true)
+                        && (fixed.unit.equals("x1000", true) || fixed.scale == 0.001)) {
+                        fixed = fixed.copy(unit = "об/мин", scale = 1.0, decimals = 0)
+                    }
                     if (fixed.max <= fixed.min || fixed.w <= 0f || fixed.h <= 0f) return null
                     items.add(fixed)
                 }
@@ -258,12 +264,12 @@ object NavLayoutStore {
         )
         // Узкая колонка: без приборов, только текст — в split-screen круги получаются слишком мелкими.
         val narrowRow = 1f / 7f
-        fun narrowInfo(id: String, pid: String, label: String, unit: String, decimals: Int, row: Int) =
-            info(id, pid, label, unit, decimals, 0f, row * narrowRow, 1f, narrowRow)
+        fun narrowInfo(id: String, pid: String, label: String, unit: String, decimals: Int, row: Int, scale: Double = 1.0) =
+            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, scale, decimals, 0f, row * narrowRow, 1f, narrowRow, 1f)
         val narrow = NavForm(
             listOf(
                 narrowInfo("i0", "0d", "Скорость", "км/ч", 0, 0),
-                narrowInfo("i1", "0c", "Обороты", "x1000", 2, 1),
+                narrowInfo("i1", "0c", "Обороты", "об/мин", 0, 1),
                 narrowInfo("i2", "05", "Темп. ОЖ", "°C", 0, 2),
                 narrowInfo("i3", "ff9010", "DPF", "%", 0, 3),
                 narrowInfo("i4", "ff9003", "Сажа", "г/л", 2, 4),

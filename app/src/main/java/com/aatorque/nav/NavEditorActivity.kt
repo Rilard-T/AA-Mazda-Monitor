@@ -344,13 +344,16 @@ class NavEditorActivity : AppCompatActivity() {
     /** Новый элемент на месте старого: те же положение и размер, параметры от выбранного датчика. */
     private fun itemFromPid(old: NavItem, pd: PidDef): NavItem {
         val rpm = pd.id.equals("0c", ignoreCase = true)
+        // Обороты как прибор (GAUGE) остаются в тысячах (x1000), как на шкале 0..8;
+        // текстовое значение (INFO) показываем обычным числом (2750).
+        val rpmGauge = rpm && old.kind == NavItem.GAUGE
         return old.copy(
             pid = pd.id,
             label = getString(pd.shortRes),
-            unit = if (rpm) "x1000" else unitOf(pd),
-            min = if (rpm) 0f else pd.min.toFloat(),
-            max = if (rpm) 8f else pd.max.toFloat(),
-            scale = if (rpm) 0.001 else 1.0,
+            unit = if (rpmGauge) "x1000" else unitOf(pd),
+            min = if (rpmGauge) 0f else pd.min.toFloat(),
+            max = if (rpmGauge) 8f else pd.max.toFloat(),
+            scale = if (rpmGauge) 0.001 else 1.0,
             decimals = if (pd.max <= 10.0) 2 else 0
         )
     }
