@@ -136,11 +136,6 @@ class SettingsActivity : AppCompatActivity(),
     override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
         // Handle item selection
         return when (item.itemId) {
-            R.id.action_preview -> {
-                launchFragment("preview", DashboardPreviewFragment())
-                true
-            }
-
             R.id.action_copy_logs -> {
                 logsToClipboard()
                 true
