@@ -89,6 +89,7 @@ class NavSession : Session() {
     }
 
     private fun startMediaTracking() {
+        Timber.i("Media: notification access enabled = %s", NotiService.isNotificationAccessEnabled(carContext))
         if (!NotiService.isNotificationAccessEnabled(carContext)) return
         mediaJob = lifecycleScope.launch {
             mediaUpdates.asSharedFlow().distinctUntilChangedBy { meta ->
@@ -118,7 +119,9 @@ class NavSession : Session() {
             mm.addOnActiveSessionsChangedListener({ controllers ->
                 updateMediaSessions(controllers ?: emptyList())
             }, component)
-            updateMediaSessions(mm.getActiveSessions(component))
+            val sessions = mm.getActiveSessions(component)
+            Timber.i("Media: active sessions = %d: %s", sessions.size, sessions.map { it.packageName + " / " + it.metadata?.getString(MediaMetadata.METADATA_KEY_TITLE) }.joinToString())
+            updateMediaSessions(sessions)
         } catch (e: SecurityException) {
             Timber.e("No permission to read media", e)
         }
