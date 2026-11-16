@@ -345,7 +345,7 @@ class NavEditorActivity : AppCompatActivity() {
             label = getString(pd.shortRes),
             unit = if (rpm) "x1000" else unitOf(pd),
             min = if (rpm) 0f else pd.min.toFloat(),
-            max = if (rpm) 6f else pd.max.toFloat(),
+            max = if (rpm) 8f else pd.max.toFloat(),
             scale = if (rpm) 0.001 else 1.0,
             decimals = if (pd.max <= 10.0) 2 else 0
         )

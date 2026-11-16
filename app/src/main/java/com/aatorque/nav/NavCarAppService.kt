@@ -132,14 +132,21 @@ class NavSession : Session() {
                     override fun onMetadataChanged(metadata: MediaMetadata?) {
                         lifecycleScope.launch { mediaUpdates.emit(metadata) }
                     }
+
+                    override fun onPlaybackStateChanged(state: PlaybackState?) {
+                        if (isActive(state)) {
+                            lifecycleScope.launch { mediaUpdates.emit(mc.metadata) }
+                        }
+                    }
                 }
                 mc.registerCallback(cb)
                 mediaRegistrations[code] = {
                     mc.unregisterCallback(cb)
                     mediaRegistrations.remove(code)
                 }
-                if (isActive(mc.playbackState)) {
-                    lifecycleScope.launch { mediaUpdates.emit(mc.metadata) }
+                val meta = mc.metadata
+                if (meta != null && (!meta.getString(MediaMetadata.METADATA_KEY_TITLE).isNullOrBlank() || isActive(mc.playbackState))) {
+                    lifecycleScope.launch { mediaUpdates.emit(meta) }
                 }
             }
             code

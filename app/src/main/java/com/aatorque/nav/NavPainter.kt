@@ -176,9 +176,10 @@ class NavPainter {
         // используем пустой циферблат (фон без рисок) и рисуем риски сами — так они не пропадают.
         // Риски должны совпадать с подписями. Родной диал темы нарисован под 8 делений,
         // поэтому для другой шкалы (0..6, 0..180) используем пустой циферблат и рисуем риски сами.
-        // Все приборы рисуем одинаково: пустой циферблат + плотное кольцо рисок,
-        // как у спидометра с лимитом 180 км/ч (9 интервалов × 4 риски).
-        val dial = if (th.dialEmpty != null) th.dialEmpty else th.dialTicks
+        // Риски рисуем только на пустом циферблате: на темах без пустого (dialTicks) у них
+        // уже есть свои риски, иначе происходит наслоение.
+        val useEmpty = ticksOn && th.dialEmpty != null
+        val dial = if (useEmpty) th.dialEmpty else th.dialTicks
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -187,7 +188,7 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
-        if (ticksOn) drawTicks(c, cx, cy, r, divisions)
+        if (useEmpty) drawTicks(c, cx, cy, r, divisions)
         drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {

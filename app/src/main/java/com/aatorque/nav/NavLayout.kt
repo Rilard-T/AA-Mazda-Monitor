@@ -206,8 +206,9 @@ object NavLayoutStore {
                         size = o.optDouble("size", 0.9).toFloat(),
                         red = o.optDouble("red", 0.0).toFloat()
                     )
-                    // сохранённые ранее раскладки: шкала оборотов была 0..6, а на циферблате темы 0..8
-                    var fixed = if (item.pid.equals("0c", true) && item.max == 6f) item.copy(max = 8f) else item
+                    // Старые раскладки: шкала оборотов была 0..6, а на циферблате темы 0..8.
+                    // Конвертируем только дефолтные (без красной зоны), чтобы не затирать ручной выбор.
+                    var fixed = if (item.pid.equals("0c", true) && item.max == 6f && item.red <= item.min) item.copy(max = 8f) else item
                     // у оборотов по умолчанию красная зона с 6000: выше отсечки
                     if (fixed.pid.equals("0c", true) && fixed.red <= fixed.min) fixed = fixed.copy(red = 6f)
                     if (fixed.max <= fixed.min || fixed.w <= 0f || fixed.h <= 0f) return null
