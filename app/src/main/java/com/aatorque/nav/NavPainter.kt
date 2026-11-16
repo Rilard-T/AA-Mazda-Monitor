@@ -176,9 +176,11 @@ class NavPainter {
         // используем пустой циферблат (фон без рисок) и рисуем риски сами — так они не пропадают.
         // Риски должны совпадать с подписями. Родной диал темы нарисован под 8 делений,
         // поэтому для другой шкалы (0..6, 0..180) используем пустой циферблат и рисуем риски сами.
-        // Риски рисуем всегда (поверх циферблата), чтобы они не пропадали при любой шкале.
-        // Пустой циферблат предпочтительнее — он без родных рисок, чтобы не было двойных.
-        val dial = if (th.dialEmpty != null) th.dialEmpty else th.dialTicks
+        // Родной диал темы (с рисками) используем для стандартной шкалы 0..8 — так нет задвоения.
+        // Для нестандартной шкалы (0..6, 0..180) берём пустой циферблат и рисуем риски сами.
+        val needTicks = ticksOn && divisions != NATIVE_DIVISIONS
+        val useEmpty = needTicks && th.dialEmpty != null
+        val dial = if (useEmpty) th.dialEmpty else th.dialTicks
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -187,7 +189,7 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
-        if (ticksOn) drawTicks(c, cx, cy, r, divisions)
+        if (ticksOn && (useEmpty || (needTicks && th.dialTicks == null))) drawTicks(c, cx, cy, r, divisions)
         drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {
