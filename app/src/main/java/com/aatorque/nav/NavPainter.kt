@@ -176,11 +176,9 @@ class NavPainter {
         // используем пустой циферблат (фон без рисок) и рисуем риски сами — так они не пропадают.
         // Риски должны совпадать с подписями. Родной диал темы нарисован под 8 делений,
         // поэтому для другой шкалы (0..6, 0..180) используем пустой циферблат и рисуем риски сами.
-        // Родной диал темы (с рисками) используем для стандартной шкалы 0..8 — так нет задвоения.
-        // Для нестандартной шкалы (0..6, 0..180) берём пустой циферблат и рисуем риски сами.
-        val needTicks = ticksOn && divisions != NATIVE_DIVISIONS
-        val useEmpty = needTicks && th.dialEmpty != null
-        val dial = if (useEmpty) th.dialEmpty else th.dialTicks
+        // Все приборы рисуем одинаково: пустой циферблат + плотное кольцо рисок,
+        // как у спидометра с лимитом 180 км/ч (9 интервалов × 4 риски).
+        val dial = if (th.dialEmpty != null) th.dialEmpty else th.dialTicks
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -189,7 +187,7 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
-        if (ticksOn && (useEmpty || (needTicks && th.dialTicks == null))) drawTicks(c, cx, cy, r, divisions)
+        if (ticksOn) drawTicks(c, cx, cy, r, divisions)
         drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {
@@ -227,8 +225,9 @@ class NavPainter {
     /** Деления шкалы, когда циферблат темы пустой или его рисок не хватает под текущую шкалу. */
     private fun drawTicks(c: Canvas, cx: Float, cy: Float, r: Float, divisions: Int) {
         if (divisions <= 0) return
-        // Плотное кольцо рисок, как на приборной панели: между двумя соседними цифрами —
+        // Плотное кольцо рисок: между двумя соседними цифрами —
         // 3 риски: 2 маленькие и 1 средняя (больше маленьких, но меньше основной).
+        // Цифра попадает на 5-ю риску от предыдущей (индекс 4).
         val subdiv = 4
         val total = divisions * subdiv
         stroke.strokeCap = Paint.Cap.BUTT
