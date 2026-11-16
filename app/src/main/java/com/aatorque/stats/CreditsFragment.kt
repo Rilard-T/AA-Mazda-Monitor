@@ -30,8 +30,9 @@ class CreditsFragment : Fragment() {
         btnOpenUrl(R.id.githubOrigBtn, "https://github.com/agronick/aa-torque")
         btnOpenUrl(R.id.translateBtn, "https://poeditor.com/join/project/yttme0y1VZ")
         val iconCredits = view.findViewById<LinearLayout>(R.id.ic_credits_list)
+        val build = BuildConfig.BUILD_NUMBER
         view.findViewById<TextView>(R.id.txtVersion)?.text =
-            "Версия ${BuildConfig.VERSION_NAME} (сборка ${BuildConfig.VERSION_CODE})"
+            if (build > 0) "Версия ${BuildConfig.VERSION_NAME}-${build}" else "Версия ${BuildConfig.VERSION_NAME}"
         resources.getStringArray(R.array.ic_credits_items).forEach {
             val tv = TextView(requireContext())
             tv.text = Html.fromHtml(it, Html.FROM_HTML_MODE_COMPACT)
