@@ -22,7 +22,7 @@ data class PidDef(
     val virtual: ((ObdEngine) -> Double?)? = null,
 ) {
     val isStandard: Boolean get() = request?.startsWith("01") == true
-    val stdPid: Int get() = request!!.substring(2).toInt(16)
+    val stdPid: Int get() = request?.takeIf { it.startsWith("01") }?.substring(2)?.toIntOrNull(16) ?: -1
     /**
      * Формат строки: «Название,Кратко,Единицы,Максимум,Минимум,Масштаб» (как в Torque).
      * Названия берутся из ресурсов, поэтому подписи следуют языку телефона.

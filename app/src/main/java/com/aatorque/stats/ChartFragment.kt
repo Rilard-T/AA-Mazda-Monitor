@@ -28,7 +28,7 @@ import kotlin.math.roundToInt
 import kotlin.properties.Delegates
 
 
-class TorqueChart: Fragment() {
+class ChartFragment: Fragment() {
 
     class LegendBinding : ViewModel() {
         var color = MutableLiveData<Int>()
@@ -37,7 +37,7 @@ class TorqueChart: Fragment() {
         var icon = MutableLiveData<Int>()
     }
 
-    private val series = HashMap<TorqueData, LineGraphSeries<DataPointInterface>>()
+    private val series = HashMap<GaugeData, LineGraphSeries<DataPointInterface>>()
     private lateinit var graph: GraphView
     private lateinit var binding: FragmentChartBinding
     private var startDate by Delegates.notNull<Long>()
@@ -104,7 +104,7 @@ class TorqueChart: Fragment() {
         })
     }
 
-    fun setupItems(torqueData: Array<TorqueData>) {
+    fun setupItems(torqueData: Array<GaugeData>) {
         graph.series.clear()
         series.clear()
 
@@ -160,7 +160,7 @@ class TorqueChart: Fragment() {
         graph.viewport.setMinY(0.0)
     }
 
-    fun notifyUpdate(data: TorqueData, binding: LegendBinding) {
+    fun notifyUpdate(data: GaugeData, binding: LegendBinding) {
         val line = series[data]
         val now = Date()
         val scaled = (data.lastData / (data.display.maxValue - data.display.minValue)) * 100f

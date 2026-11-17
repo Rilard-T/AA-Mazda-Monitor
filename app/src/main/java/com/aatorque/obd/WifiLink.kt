@@ -79,31 +79,29 @@ class WifiLink(context: Context, private val host: String, private val port: Int
 
     @Synchronized
     override fun command(cmd: String, timeoutMs: Long): String {
+        val s = socket ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
         val out = output ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
         val inp = input ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
         while (inp.available() > 0) inp.read()
+        // Блокирующее чтение с таймаутом вместо опроса available() каждую миллисекунду.
+        s.soTimeout = timeoutMs.toInt().coerceAtLeast(1)
         out.write((cmd + "\r").toByteArray(Charsets.US_ASCII))
         out.flush()
         val sb = StringBuilder()
-        val deadline = System.currentTimeMillis() + timeoutMs
         val buf = ByteArray(256)
-        done@ while (true) {
-            val n = inp.available()
-            if (n > 0) {
-                val r = inp.read(buf, 0, minOf(n, buf.size))
+        try {
+            while (true) {
+                val r = inp.read(buf)
                 if (r < 0) throw IOException(appContext.getString(R.string.obd_err_closed))
                 for (i in 0 until r) {
                     val ch = (buf[i].toInt() and 0xFF).toChar()
-                    if (ch == '>') break@done
+                    if (ch == '>') return clean(sb.toString(), cmd)
                     sb.append(ch)
                 }
-            } else {
-                if (System.currentTimeMillis() > deadline)
-                    throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
-                Thread.sleep(1)
             }
+        } catch (e: SocketTimeoutException) {
+            throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
         }
-        return clean(sb.toString(), cmd)
     }
 
     private fun clean(s: String, cmd: String): String =

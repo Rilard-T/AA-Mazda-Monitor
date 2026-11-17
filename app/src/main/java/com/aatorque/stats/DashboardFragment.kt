@@ -46,8 +46,8 @@ open class DashboardFragment : AlbumArt() {
     lateinit var rootView: View
     lateinit var mLayoutDashboard: ConstraintLayout
 
-    val torqueRefresher = TorqueRefresher()
-    private val torqueService = TorqueService()
+    val gaugeRefresher = GaugeRefresher()
+    private val obdService = ObdServiceClient()
 
     private lateinit var mBtnNext: ImageButton
     private lateinit var mBtnPrev: ImageButton
@@ -55,14 +55,14 @@ open class DashboardFragment : AlbumArt() {
     private lateinit var mWrapper: RelativeLayout
     lateinit var mConStatus: TextView
 
-    var guages = arrayOfNulls<TorqueGauge>(3)
-    var displays = arrayOfNulls<TorqueDisplay>(4)
+    var guages = arrayOfNulls<GaugeFragment>(3)
+    var displays = arrayOfNulls<DisplayFragment>(4)
     var gaugeViews = arrayOfNulls<FragmentContainerView>(3)
 
     private var screensAnimating = false
     private var mStarted = false
     lateinit var binding: FragmentDashboardBinding
-    lateinit var torqueChart: TorqueChart
+    lateinit var chartFragment: ChartFragment
     lateinit var settingsViewModel: SettingsViewModel
 
     val viewReady = CountDownLatch(1)
@@ -99,7 +99,7 @@ open class DashboardFragment : AlbumArt() {
         super.onCreate(savedInstanceState)
         settingsViewModel = ViewModelProvider(this)[SettingsViewModel::class.java]
         val context = requireContext()
-        torqueService.startTorque(context)
+        obdService.connect(context)
         val registerWithView = { call: suspend (Flow<UserPreference>) -> Unit ->
             lifecycleScope.launch {
                 viewReady.await()
@@ -128,22 +128,22 @@ open class DashboardFragment : AlbumArt() {
                 albumArtReady.countDown()
 
                 if (it.showChart) {
-                    torqueChart.setupItems(
+                    chartFragment.setupItems(
                         screens.gaugesList.mapIndexed { index, display ->
-                            torqueRefresher.updateIfNeeded(index, screenIndex, display)
+                            gaugeRefresher.updateIfNeeded(index, screenIndex, display)
                         }.toTypedArray()
                     )
                 } else {
                     screens.gaugesList.forEachIndexed { index, display ->
-                        if (showChartChanged || torqueRefresher.hasChanged(index, display)) {
-                            val clock = torqueRefresher.populateQuery(index, screenIndex, display)
+                        if (showChartChanged || gaugeRefresher.hasChanged(index, display)) {
+                            val clock = gaugeRefresher.populateQuery(index, screenIndex, display)
                             guages[index]?.setupClock(clock)
                         }
                     }
                 }
                 screens.displaysList.forEachIndexed { index, display ->
-                    if (torqueRefresher.hasChanged(index + DISPLAY_OFFSET, display)) {
-                        val td = torqueRefresher.populateQuery(
+                    if (gaugeRefresher.hasChanged(index + DISPLAY_OFFSET, display)) {
+                        val td = gaugeRefresher.populateQuery(
                             index + DISPLAY_OFFSET,
                             screenIndex,
                             display
@@ -151,7 +151,7 @@ open class DashboardFragment : AlbumArt() {
                         displays[index]?.setupElement(td)
                     }
                 }
-                torqueRefresher.makeExecutors(torqueService)
+                gaugeRefresher.makeExecutors(obdService)
             }
         }
         registerWithView {
@@ -218,9 +218,9 @@ open class DashboardFragment : AlbumArt() {
             }
         }
         registerWithView{
-            torqueRefresher.connectStatus.collect {
+            gaugeRefresher.connectStatus.collect {
                 binding.status = when (it) {
-                    ConnectStatus.CONNECTING_TORQUE -> R.string.status_connecting_torque
+                    ConnectStatus.CONNECTING_SERVICE -> R.string.status_connecting_torque
                     ConnectStatus.CONNECTING_ECU -> R.string.status_connecting_to_ecu
                     ConnectStatus.SETUP_GAUGE -> R.string.status_setup_gauges
                     ConnectStatus.CONNECTED -> null
@@ -261,16 +261,16 @@ open class DashboardFragment : AlbumArt() {
         gaugeViews[1] = binding.gaugeCenter
         gaugeViews[2] = binding.gaugeRight
 
-        guages[0] = childFragmentManager.findFragmentById(R.id.gaugeLeft)!! as TorqueGauge
-        guages[1] = childFragmentManager.findFragmentById(R.id.gaugeCenter)!! as TorqueGauge
-        guages[2] = childFragmentManager.findFragmentById(R.id.gaugeRight)!! as TorqueGauge
-        displays[0] = childFragmentManager.findFragmentById(R.id.display1)!! as TorqueDisplay
-        displays[1] = childFragmentManager.findFragmentById(R.id.display2)!! as TorqueDisplay
-        displays[2] = childFragmentManager.findFragmentById(R.id.display3)!! as TorqueDisplay
-        displays[3] = childFragmentManager.findFragmentById(R.id.display4)!! as TorqueDisplay
+        guages[0] = childFragmentManager.findFragmentById(R.id.gaugeLeft)!! as GaugeFragment
+        guages[1] = childFragmentManager.findFragmentById(R.id.gaugeCenter)!! as GaugeFragment
+        guages[2] = childFragmentManager.findFragmentById(R.id.gaugeRight)!! as GaugeFragment
+        displays[0] = childFragmentManager.findFragmentById(R.id.display1)!! as DisplayFragment
+        displays[1] = childFragmentManager.findFragmentById(R.id.display2)!! as DisplayFragment
+        displays[2] = childFragmentManager.findFragmentById(R.id.display3)!! as DisplayFragment
+        displays[3] = childFragmentManager.findFragmentById(R.id.display4)!! as DisplayFragment
         displays[2]!!.isBottomDisplay = true
         displays[3]!!.isBottomDisplay = true
-        torqueChart = childFragmentManager.findFragmentById(R.id.chartFrag)!! as TorqueChart
+        chartFragment = childFragmentManager.findFragmentById(R.id.chartFrag)!! as ChartFragment
         val filter = IntentFilter().apply { addAction("KEY_DOWN") }
         LocalBroadcastManager.getInstance(requireContext())
             .registerReceiver(object : BroadcastReceiver() {
@@ -381,7 +381,7 @@ open class DashboardFragment : AlbumArt() {
         Timber.d("onResume")
         super.onResume()
         lifecycleScope.launch {
-            torqueRefresher.makeExecutors(torqueService)
+            gaugeRefresher.makeExecutors(obdService)
         }
     }
 
@@ -400,13 +400,13 @@ open class DashboardFragment : AlbumArt() {
     override fun onPause() {
         Timber.d("onPause")
         super.onPause()
-        torqueRefresher.stopExecutors()
+        gaugeRefresher.stopExecutors()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        torqueService.onDestroy(requireContext())
-        torqueService.requestQuit(requireContext())
+        obdService.onDestroy(requireContext())
+        gaugeRefresher.shutdown()
     }
 
     override suspend fun onMediaChanged(medadata: MediaMetadata?) {

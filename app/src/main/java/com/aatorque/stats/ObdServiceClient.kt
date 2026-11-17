@@ -13,45 +13,40 @@ import timber.log.Timber
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-class TorqueService {
-    var torqueService: ITorqueService? = null
+class ObdServiceClient {
+    var obdService: ITorqueService? = null
     val onConnect = ArrayList<(ITorqueService) -> Unit>()
     val conLock = ReentrantLock()
     var hasBound = false
 
-    fun addConnectCallback(func: (ITorqueService) -> Unit): TorqueService {
-        if (torqueService == null) {
+    fun addConnectCallback(func: (ITorqueService) -> Unit): ObdServiceClient {
+        if (obdService == null) {
             conLock.withLock {
                 onConnect.add(func)
             }
         } else {
-            func(torqueService!!)
+            func(obdService!!)
         }
         return this
     }
 
     fun runIfConnected(func: (ITorqueService) -> Unit) {
-        if (torqueService != null) {
-            func(torqueService!!)
+        if (obdService != null) {
+            func(obdService!!)
         }
     }
 
-    private val torqueConnection = object : ServiceConnection {
+    private val serviceConnection = object : ServiceConnection {
         var forceReconnect: (()-> Unit)? = null
 
-        /**
-         * What to do when we get connected to Torque.
-         *
-         * @param arg0
-         * @param service
-         */
+        /** Что делать, когда служба OBD подключилась. */
         override fun onServiceConnected(arg0: ComponentName, service: IBinder) {
             try {
                 val svc = ITorqueService.Stub.asInterface(service)
                 if (BuildConfig.SIMULATE_METRICS) {
                     svc.setDebugTestMode(!svc.isConnectedToECU)
                 }
-                torqueService = svc
+                obdService = svc
                 conLock.withLock {
                     for (funt in onConnect) {
                         funt(svc)
@@ -60,43 +55,38 @@ class TorqueService {
                 }
             } catch (e: DeadObjectException) {
                 Timber.e("Disconnected from service", e)
-                torqueService = null
+                obdService = null
                 forceReconnect?.invoke()
             }
         }
 
-        /**
-         * What to do when we get disconnected from Torque.
-         *
-         * @param name
-         */
+        /** Что делать при отключении службы OBD. */
         override fun onServiceDisconnected(name: ComponentName) {
-            torqueService = null
+            obdService = null
         }
     }
 
     fun onDestroy(context: Context) {
-        if (torqueService != null) {
-            context.unbindService(torqueConnection)
+        // Снимаем привязку по флагу, а не по наличию соединения: если bindService() уже
+        // вызван, но onServiceConnected ещё не пришёл, прежняя проверка оставляла
+        // BIND_AUTO_CREATE висеть, и служба не останавливалась вместе с приложением.
+        if (hasBound) {
+            runCatching { context.unbindService(serviceConnection) }
             hasBound = false
-            torqueService = null
         }
+        obdService = null
     }
 
-    fun requestQuit(context: Context) {
-        context.sendBroadcast(Intent("org.prowl.torque.REQUEST_TORQUE_QUIT"))
-        Timber.i("Torque stop")
-    }
-    fun startTorque(context: Context): Boolean {
+    fun connect(context: Context): Boolean {
         val intent = Intent(context, ObdBridgeService::class.java)
         ObdBridgeService.start(context)
-        hasBound = context.bindService(intent, torqueConnection, Activity.BIND_AUTO_CREATE)
-        torqueConnection.forceReconnect = {
+        hasBound = context.bindService(intent, serviceConnection, Activity.BIND_AUTO_CREATE)
+        serviceConnection.forceReconnect = {
             onDestroy(context)
-            context.bindService(intent, torqueConnection, Activity.BIND_AUTO_CREATE)
+            context.bindService(intent, serviceConnection, Activity.BIND_AUTO_CREATE)
         }
         Timber.i(
-            if (hasBound) "Connected to torque service!" else "Unable to connect to Torque plugin service"
+            if (hasBound) "Connected to OBD service!" else "Unable to connect to OBD service"
         )
         return hasBound
     }

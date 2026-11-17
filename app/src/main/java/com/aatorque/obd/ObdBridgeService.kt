@@ -139,13 +139,27 @@ class ObdBridgeService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        return START_STICKY
+        // START_NOT_STICKY: после выхода из приложения система не должна поднимать службу
+        // заново и снова занимать адаптер — иначе она мешает подключаться другим приложениям.
+        return START_NOT_STICKY
+    }
+
+    /** Свайп приложения из «недавних» тоже должен освобождать адаптер. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        isForeground = false
+        stopSelf()
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
         running = false
         worker?.interrupt()
         engine?.close(); engine = null
+        if (isForeground) {
+            runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+            isForeground = false
+        }
         status = getString(R.string.obd_status_stopped)
         super.onDestroy()
     }
@@ -251,12 +265,15 @@ class ObdBridgeService : Service() {
     }
 
     private fun connectLoop() {
+        var failures = 0
         while (running) {
             var link: ObdLink? = null      // закрываем при любом сбое, иначе адаптер остаётся занятым нами же
             try {
                 reconnectFlag = false
                 val t = createTarget()
                 if (t == null) {
+                    // Не крутимся бесконечно, если адаптера нет: после 5 попыток служба останавливается.
+                    if (++failures >= MAX_CONNECT_ATTEMPTS) { giveUp(); break }
                     Thread.sleep(5000); continue
                 }
                 post(getString(R.string.obd_status_connecting, t.label))
@@ -270,7 +287,13 @@ class ObdBridgeService : Service() {
                 val e = ObdEngine(t.link, prefs, applicationContext)
                 e.init()
                 engine = e
+                failures = 0
                 post(getString(R.string.obd_status_connected))
+                // Связь есть — теперь «Проверка датчиков» имеет смысл: экран откроется один раз,
+                // когда пользователь будет на экране подключения.
+                if (!prefs.getBoolean("sensor_check_shown", false)) {
+                    prefs.edit().putBoolean("sensor_check_pending", true).apply()
+                }
                 while (running && e.failures < 5 && !reconnectFlag) Thread.sleep(1000)
                 post(if (reconnectFlag) getString(R.string.obd_status_reconnecting) else getString(R.string.obd_status_lost))
                 reconnectFlag = false
@@ -283,9 +306,18 @@ class ObdBridgeService : Service() {
                 engine?.close(); engine = null
                 link?.close()
                 post(ex.message ?: getString(R.string.obd_err_generic))
+                if (++failures >= MAX_CONNECT_ATTEMPTS) { giveUp(); break }
                 try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
             }
         }
+    }
+
+    /** Попытки кончились: снимаем уведомление, иначе при активной привязке оно висит со старым статусом. */
+    private fun giveUp() {
+        post(getString(R.string.obd_status_stopped))
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+        isForeground = false
+        stopSelf()
     }
 
     @SuppressLint("MissingPermission")
@@ -309,6 +341,9 @@ class ObdBridgeService : Service() {
         private const val NOTIF_ID = 4711
         private const val ACTION_STOP = "com.aatorque.obd.STOP"
 
+        /** Сколько подряд неудачных попыток подключения терпеть, прежде чем остановиться. */
+        private const val MAX_CONNECT_ATTEMPTS = 5
+
         /** Текст состояния для экрана настроек; null — служба ещё не сообщала состояние. */
         @Volatile var status: String? = null
 
@@ -322,16 +357,23 @@ class ObdBridgeService : Service() {
         /** Текущее значение параметра для экрана проверки. Вызывать только не из главного потока. */
         fun peek(id: String): Double? = current?.value(id)
 
+        /** Зажигание: true — блок отвечает, false — молчит, null — связи с адаптером нет. */
+        fun ignitionOn(): Boolean? = current?.ignitionOn()
+
         /** Переподключиться (например, после смены адаптера). */
         fun reconnect(context: Context) {
             reconnectFlag = true
             start(context)
         }
 
-        /** Остановить foreground-режим и сервис. */
+        /**
+         * Остановить службу. stopService() уничтожает её сразу (onDestroy) и не создаёт
+         * новый экземпляр, который успел бы запустить connectLoop, — в отличие от
+         * startService(ACTION_STOP). ACTION_STOP остаётся для кнопки в уведомлении.
+         */
         fun stop(context: Context) {
             try {
-                context.startService(Intent(context, ObdBridgeService::class.java).setAction(ACTION_STOP))
+                context.stopService(Intent(context, ObdBridgeService::class.java))
             } catch (e: Exception) {
                 Log.w(TAG, "stop: ${e.message}")
             }

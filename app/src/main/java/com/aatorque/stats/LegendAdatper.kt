@@ -9,10 +9,10 @@ import com.aatorque.prefs.SettingsViewModel
 import com.aatorque.stats.databinding.ChartLegendBinding
 import com.google.common.collect.ImmutableList
 
-class LegendAdapter(private var settingsViewModel: SettingsViewModel, var items: ImmutableList<TorqueChart.LegendBinding>): RecyclerView.Adapter<LegendAdapter.ViewHolder>() {
+class LegendAdapter(private var settingsViewModel: SettingsViewModel, var items: ImmutableList<ChartFragment.LegendBinding>): RecyclerView.Adapter<LegendAdapter.ViewHolder>() {
 
     class ViewHolder(var binding: ChartLegendBinding, itemView: View) : RecyclerView.ViewHolder(itemView) {
-        fun bind(vm: SettingsViewModel, data: TorqueChart.LegendBinding) {
+        fun bind(vm: SettingsViewModel, data: ChartFragment.LegendBinding) {
             binding.binding = data
             // make sure to include this so your view will be updated
             binding.executePendingBindings()

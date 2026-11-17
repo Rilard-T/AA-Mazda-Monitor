@@ -89,7 +89,8 @@ class SettingsActivity : AppCompatActivity(),
     public override fun onCreate(savedInstanceState: Bundle?) {
         com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
-        startObd()
+        // Служба OBD больше не поднимается при каждом открытии настроек: адаптер занимается
+        // только когда пользователь сам заходит на экран «Подключение к OBD» или запускает AA.
         com.aatorque.obd.AppExit.installBackConfirm(this)
         setContentView(R.layout.activity_settings)
         supportActionBar!!.setDisplayUseLogoEnabled(true)
@@ -522,23 +523,5 @@ class SettingsActivity : AppCompatActivity(),
         const val EXPORT_MIME = "application/octet-stream"
         private const val OBD_PREFS = "obd_bridge"
     }
-private fun startObd() {
-    val need = mutableListOf<String>()
-    if (Build.VERSION.SDK_INT >= 31 &&
-        checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED)
-        need += Manifest.permission.BLUETOOTH_CONNECT
-    if (Build.VERSION.SDK_INT >= 33 &&
-        checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
-        need += Manifest.permission.POST_NOTIFICATIONS
-    if (need.isEmpty()) ObdBridgeService.start(this)
-    else requestPermissions(need.toTypedArray(), 4711)
-}
-
-override fun onRequestPermissionsResult(
-    requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    if (requestCode == 4711) ObdBridgeService.start(this)
-}
 }
 

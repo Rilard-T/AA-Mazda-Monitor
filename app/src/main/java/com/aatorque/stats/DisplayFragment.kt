@@ -18,7 +18,7 @@ import com.aatorque.utils.AwareObserver
 import timber.log.Timber
 
 
-class TorqueDisplay : Fragment() {
+class DisplayFragment : Fragment() {
     lateinit var rootView: View
     private var unit = ""
 
@@ -56,7 +56,7 @@ class TorqueDisplay : Fragment() {
         return binding.root
     }
     // this sets all the labels/values in an initial state, depending on the chosen options
-    fun setupElement(data: TorqueData) {
+    fun setupElement(data: GaugeData) {
         unit = data.display.unit
 
         data.notifyUpdate = this::onUpdate
@@ -95,7 +95,7 @@ class TorqueDisplay : Fragment() {
     }
 
     @SuppressLint("SetTextI18n")
-    fun onUpdate(data: TorqueData) {
+    fun onUpdate(data: GaugeData) {
         binding.value = data.lastDataStr + unit
     }
 

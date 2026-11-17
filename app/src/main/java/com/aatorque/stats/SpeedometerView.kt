@@ -13,7 +13,7 @@ import com.aatorque.datastore.Coloring
 import com.aatorque.utils.OpenCloseAnimator
 import com.github.anastr.speedviewlib.ImageSpeedometer
 
-class TorqueSpeedometer @JvmOverloads constructor(
+class SpeedometerView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,

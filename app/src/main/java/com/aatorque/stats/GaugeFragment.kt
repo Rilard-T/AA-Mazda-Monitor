@@ -28,10 +28,10 @@ import java.util.Locale
 
 const val NUM_TICKS = 9
 val MIN_MAX_DEFAULT = Pair(0f, 100f)
-class TorqueGauge : Fragment() {
+class GaugeFragment : Fragment() {
 
     private var rootView: View? = null
-    private val mClock: TorqueSpeedometer
+    private val mClock: SpeedometerView
         get() {
             return binding.dial
         }
@@ -200,7 +200,7 @@ class TorqueGauge : Fragment() {
         }
     }
 
-    fun setupClock(data: TorqueData) {
+    fun setupClock(data: GaugeData) {
         binding.visible = data.pid != null
 
 
@@ -267,10 +267,10 @@ class TorqueGauge : Fragment() {
         }
     }
 
-    private fun onUpdate(data: TorqueData) {
+    private fun onUpdate(data: GaugeData) {
         val fVal = data.lastData.toFloat()
-        mClock.speedTo(fVal, TorqueRefresher.REFRESH_INTERVAL)
-        mRayClock.speedTo(fVal, TorqueRefresher.REFRESH_INTERVAL)
+        mClock.speedTo(fVal, GaugeRefresher.REFRESH_INTERVAL)
+        mRayClock.speedTo(fVal, GaugeRefresher.REFRESH_INTERVAL)
         if (data.display.maxMarksActive == MaxControl.MAX && data.maxValue.isFinite()) {
             mMax.setSpeedAt(data.maxValue.toFloat())
             Timber.d("Setting max speed ${data.maxValue}")

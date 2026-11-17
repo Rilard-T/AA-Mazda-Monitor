@@ -11,6 +11,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.SocketTimeoutException
 import java.util.UUID
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /** Bluetooth Classic (SPP) канал к ELM327. Команды строго по очереди. */
 class Elm327Link(context: Context, private val device: BluetoothDevice) : ObdLink {
@@ -18,6 +20,9 @@ class Elm327Link(context: Context, private val device: BluetoothDevice) : ObdLin
     private var socket: BluetoothSocket? = null
     private var input: InputStream? = null
     private var output: OutputStream? = null
+    /** Байты от адаптера: читатель кладёт их сюда, команда ждёт с таймаутом вместо опроса available(). */
+    private val rx = LinkedBlockingQueue<ByteArray>()
+    private var reader: Thread? = null
 
     @SuppressLint("MissingPermission")
     override fun open() {
@@ -41,6 +46,7 @@ class Elm327Link(context: Context, private val device: BluetoothDevice) : ObdLin
                 socket = s
                 input = s.inputStream
                 output = s.outputStream
+                startReader(s.inputStream)
                 return
             } catch (e: Exception) {
                 last = e
@@ -51,43 +57,56 @@ class Elm327Link(context: Context, private val device: BluetoothDevice) : ObdLin
         throw IOException(appContext.getString(R.string.obd_bt_channel_failed, last?.message ?: ""))
     }
 
-    override fun close() {
-        runCatching { socket?.close() }
-        socket = null; input = null; output = null
+    /** Один блокирующий поток на чтение: без него пришлось бы опрашивать available() каждую миллисекунду. */
+    private fun startReader(inp: InputStream) {
+        reader = Thread({
+            val buf = ByteArray(512)
+            try {
+                while (true) {
+                    val r = inp.read(buf)
+                    if (r < 0) break
+                    if (r > 0) rx.offer(buf.copyOf(r))
+                }
+            } catch (_: IOException) {
+                // сокет закрыт — штатное завершение читателя
+            }
+        }, "elm327-reader").also { it.isDaemon = true; it.start() }
     }
 
-    /** Отправляет команду и читает ответ до приглашения '>' . Возвращает строки ответа без эха. */
+    override fun close() {
+        runCatching { socket?.close() }
+        reader?.interrupt()
+        reader = null
+        socket = null; input = null; output = null
+        rx.clear()
+    }
+
+    /** Отправляет команду и читает ответ до приглашения '>'. Возвращает строки ответа без эха. */
     @Synchronized
     override fun command(cmd: String, timeoutMs: Long): String {
         val out = output ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
-        val inp = input ?: throw IOException(appContext.getString(R.string.obd_err_no_socket))
-        while (inp.available() > 0) inp.read()          // выбрасываем хвост прошлого ответа
+        rx.clear()                                      // выбрасываем хвост прошлого ответа
         out.write((cmd + "\r").toByteArray(Charsets.US_ASCII))
         out.flush()
         val sb = StringBuilder()
         val deadline = System.currentTimeMillis() + timeoutMs
-        val buf = ByteArray(256)
-        done@ while (true) {
-            val n = inp.available()
-            if (n > 0) {
-                val r = inp.read(buf, 0, minOf(n, buf.size))
-                if (r < 0) throw IOException(appContext.getString(R.string.obd_err_closed))
-                for (i in 0 until r) {
-                    val ch = (buf[i].toInt() and 0xFF).toChar()
-                    if (ch == '>') break@done
-                    sb.append(ch)
-                }
-            } else {
-                if (System.currentTimeMillis() > deadline)
-                    throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
-                Thread.sleep(1)
+        while (true) {
+            val remaining = deadline - System.currentTimeMillis()
+            if (remaining <= 0) throw SocketTimeoutException(appContext.getString(R.string.obd_err_timeout, cmd))
+            val chunk = rx.poll(minOf(remaining, 100L), TimeUnit.MILLISECONDS) ?: continue
+            for (b in chunk) {
+                val ch = (b.toInt() and 0xFF).toChar()
+                if (ch == '>') return clean(sb.toString(), cmd)
+                sb.append(ch)
             }
         }
-        return sb.toString().replace('\r', '\n').lines()
+    }
+
+    private fun clean(s: String, cmd: String): String =
+        s.replace('\r', '\n').lines()
             .map { it.trim() }
             .filter { it.isNotEmpty() && !it.equals(cmd, ignoreCase = true) }
             .joinToString("\n")
-    }
 
     companion object {
         val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")

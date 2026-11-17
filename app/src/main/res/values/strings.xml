@@ -107,7 +107,7 @@
     <string name="pidLabel">Label</string>
     <string name="pidShowLabel">Show Label</string>
     <string name="icon">Icon</string>
-    <string name="torque_waiting">Waiting for Torque to become available</string>
+    <string name="torque_waiting">Waiting for OBD to become available</string>
     <string name="min_value">Minimum value</string>
     <string name="max_value">Maximum value</string>
     <string name="num_screens">Number of dashboards to display</string>
@@ -121,7 +121,7 @@
     <string name="custom_script_desc">Run an EvalEx expression. Use a to represent the current value</string>
     <string name="formulas">Formulas</string>
     <string name="custom_expression">Custom expression</string>
-    <string name="status_connecting_torque">Connecting to Torque…</string>
+    <string name="status_connecting_torque">Connecting to OBD…</string>
     <string name="status_connecting_to_ecu">Connecting to ECU…</string>
     <string name="credits_modifications">Developed by:</string>
     <string name="export_dashboards">Export dashboards</string>
@@ -339,6 +339,19 @@
     <string name="obd_val_distance">Distance since the last regeneration, km</string>
 
     <!-- Experimental features screen -->
+    <string name="obd_check_title">Sensor check</string>
+    <string name="obd_check_hint">Every parameter is polled every 2 seconds. “No answer” means the unit did not respond. Connect to the adapter to fill the list.</string>
+    <string name="obd_check_action_summary">Polls every sensor and shows which ones answer</string>
+    <string name="obd_check_cat_engine">Engine (7E0)</string>
+    <string name="obd_check_cat_trans">Transmission (7E1)</string>
+    <string name="obd_check_cat_calculated">Calculated</string>
+    <string name="obd_check_answer">Answers: %1$s</string>
+    <string name="obd_check_no_answer">No answer</string>
+    <string name="obd_check_waiting">Waiting…</string>
+    <string name="obd_check_ignition">Ignition</string>
+    <string name="obd_check_ignition_on">On — the unit answers</string>
+    <string name="obd_check_ignition_off">Off — turn the ignition on, the unit does not answer</string>
+    <string name="obd_check_no_link">No adapter connection</string>
     <string name="obd_exp_title">Experimental features</string>
     <string name="obd_exp_cat_about">About this section</string>
     <string name="obd_exp_about_action">Why this is needed</string>

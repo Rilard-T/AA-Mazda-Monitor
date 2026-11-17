@@ -16,7 +16,7 @@
 
         <import type="kotlin.Pair" />
 
-        <import type="com.aatorque.stats.TorqueGaugeKt" />
+        <import type="com.aatorque.stats.GaugeFragmentKt" />
 
         <import type="androidx.constraintlayout.widget.ConstraintLayout.LayoutParams" />
 
@@ -134,7 +134,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <com.aatorque.stats.TorqueSpeedometer
+            <com.aatorque.stats.SpeedometerView
                 android:id="@+id/dial"
                 style="@style/AppTheme.Car.Speedometer"
                 android:layout_width="0dp"
@@ -156,7 +156,7 @@
                 app:sv_unitTextSize="20sp"
                 app:minMax="@{minMax}"
                 app:textTypeface="@{font}"
-                app:tickNumber="@{ticksOn ? TorqueGaugeKt.NUM_TICKS : 0}"
+                app:tickNumber="@{ticksOn ? GaugeFragmentKt.NUM_TICKS : 0}"
                 app:onPrintTickLabel="@{ tickFormatter }"
                 app:wholeNumbers="@{wholeNumbers}"
                 app:icon="@{icon}" />

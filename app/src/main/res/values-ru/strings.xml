@@ -70,7 +70,7 @@
     <string name="pidLabel">Название</string>
     <string name="pidShowLabel">Показывать название</string>
     <string name="icon">Иконка</string>
-    <string name="torque_waiting">Ожидание Torque</string>
+    <string name="torque_waiting">Ожидание OBD</string>
 
     <!-- Fuzzy -->
     <string name="min_value">Минимальное значение</string>
@@ -84,7 +84,7 @@
     <string name="rotary_desc">Убрать кнопки и использвать шайбу для управления</string>
     <string name="custom_script">Конверсия ед.изм.</string>
     <string name="formulas">Формулы</string>
-    <string name="status_connecting_torque">Соединение с Torque</string>
+    <string name="status_connecting_torque">Соединение с OBD</string>
     <string name="status_connecting_to_ecu">Соединение с ECU</string>
     <string name="export_dashboards">Экспорт панелей приборов</string>
     <string name="import_dashboards">Импорт панелей приборов</string>
@@ -326,6 +326,19 @@
     <string name="obd_val_distance">Пробег после прожига, км</string>
 
     <!-- Экран «Экспериментальные функции» -->
+    <string name="obd_check_title">Проверка датчиков</string>
+    <string name="obd_check_hint">Каждый параметр опрашивается каждые 2 секунды. «Нет ответа» — блок не ответил. Чтобы список заполнился, подключитесь к адаптеру.</string>
+    <string name="obd_check_action_summary">Опрос всех датчиков: какие отвечают, а какие нет</string>
+    <string name="obd_check_cat_engine">Двигатель (7E0)</string>
+    <string name="obd_check_cat_trans">АКПП (7E1)</string>
+    <string name="obd_check_cat_calculated">Расчётные</string>
+    <string name="obd_check_answer">Отвечает: %1$s</string>
+    <string name="obd_check_no_answer">Нет ответа</string>
+    <string name="obd_check_waiting">Ожидание…</string>
+    <string name="obd_check_ignition">Зажигание</string>
+    <string name="obd_check_ignition_on">Включено — блок отвечает</string>
+    <string name="obd_check_ignition_off">Выключено — включите зажигание, блок не отвечает</string>
+    <string name="obd_check_no_link">Нет связи с адаптером</string>
     <string name="obd_exp_title">Экспериментальные функции</string>
     <string name="obd_exp_cat_about">О разделе</string>
     <string name="obd_exp_about_action">Зачем это нужно</string>

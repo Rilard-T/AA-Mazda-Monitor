@@ -24,10 +24,6 @@
 
 
 
-    <queries>
-        <package android:name="org.prowl.torque" />
-    </queries>
-
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" tools:ignore="CoarseFineLocation"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -60,9 +56,9 @@
         </activity>
 
         <service
-            android:name=".TorqueServiceWrapper"
+            android:name=".StatsService"
             android:exported="false"
-            android:label="TorqueService"
+            android:label="ObdServiceClient"
             tools:ignore="ExportedService" />
 
         <service
@@ -102,6 +98,11 @@
             android:name="com.aatorque.obd.ObdSettingsActivity"
             android:theme="@style/Theme.App.Settings"
             android:label="@string/obd_connection_title"
+            android:exported="false"/>
+        <activity
+            android:name="com.aatorque.obd.ObdCheckActivity"
+            android:theme="@style/Theme.App.Settings"
+            android:label="@string/obd_check_title"
             android:exported="false"/>
         <activity
                 android:name="com.aatorque.obd.ObdExperimentalActivity"

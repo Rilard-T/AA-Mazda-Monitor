@@ -12,7 +12,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import com.aatorque.stats.R
-import com.aatorque.stats.TorqueServiceWrapper
+import com.aatorque.stats.StatsService
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -40,11 +40,11 @@ class SettingsDashboard : PreferenceFragmentCompat() {
     )
     var mBound = false
 
-    var torqueConnection = object : ServiceConnection {
+    var serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             mBound = true
-            val torqueService = (service as TorqueServiceWrapper.LocalBinder).getService()
-            torqueService.loadPidInformation(false) { pids ->
+            val obdService = (service as StatsService.LocalBinder).getService()
+            obdService.loadPidInformation(false) { pids ->
                 activity?.let {
                     it.runOnUiThread {
                         mainCat.title = null
@@ -101,7 +101,7 @@ class SettingsDashboard : PreferenceFragmentCompat() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        mBound = TorqueServiceWrapper.runStartIntent(requireContext(), torqueConnection)
+        mBound = StatsService.runStartIntent(requireContext(), serviceConnection)
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -126,7 +126,7 @@ class SettingsDashboard : PreferenceFragmentCompat() {
         super.onDestroy()
         if (mBound) {
             try {
-                requireActivity().unbindService(torqueConnection)
+                requireActivity().unbindService(serviceConnection)
             } catch (e: IllegalArgumentException) {
                 Timber.e("Failed to unbind service", e)
             }

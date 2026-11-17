@@ -36,6 +36,27 @@ class ObdEngine(
     /** Подряд идущие сбои связи; сервис переподключается, когда их набирается 5. */
     @Volatile var failures = 0
         private set
+    private var okStreak = 0
+
+    /** Когда блок в последний раз ответил на запрос датчика (0 — ещё ни разу). */
+    @Volatile private var lastAnswerAt = 0L
+
+    /**
+     * Зажигание включено: блок отвечает на запросы. Стоит зажигание или нет, по CAN не отличить,
+     * поэтому признак — свежий ответ блока; двигатель при этом может и не работать.
+     */
+    fun ignitionOn(now: Long = System.currentTimeMillis()): Boolean =
+        lastAnswerAt > 0 && now - lastAnswerAt < IGNITION_HOLD_MS
+
+    /** Обмен прошёл: счётчик сбоев сбрасывается только после трёх успехов подряд, иначе «мигающая» связь никогда не приведёт к переподключению. */
+    private fun onOk() {
+        if (failures > 0 && ++okStreak >= 3) { failures = 0; okStreak = 0 }
+    }
+
+    private fun onFail() {
+        okStreak = 0
+        failures++
+    }
 
     /** Порог сажи (г/л) для расчёта процента заполнения; 0 — не задан. */
     fun dpfFullGl(): Double {
@@ -59,9 +80,10 @@ class ObdEngine(
             r = parse(send("7E0", "0100", 8000), "4100")
         }
         if (r == null) throw IOException(context.getString(R.string.obd_engine_no_response))
-        readSupported(r)
-        Timber.i("Режим 01, заявлено блоком: %s", supported.sorted().joinToString(",") { "%02X".format(it) })
-        failures = 0
+                readSupported(r)
+        Timber.i("Режим 01, заявлено блоком: %s", supported.sorted().joinToString(", ") { "%02X".format(it) })
+        failures = 0; okStreak = 0
+        lastAnswerAt = System.currentTimeMillis()   // блок ответил на 0100 — зажигание включено
         readId("33")                                       // барометр нужен для расчёта наддува
         bg = Thread(::backgroundLoop, "obd-regen").also { it.isDaemon = true; it.start() }
         // Torque-стиль: сразу после подключения проверяем, на какие нестандартные датчики блок отвечает.
@@ -99,7 +121,7 @@ class ObdEngine(
     private fun diagRaw(req: String): String = try {
         // без цифры-счётчика: иначе адаптер отдаёт только первый кадр многокадрового ответа
         send("7E0", req, 2500)
-    } catch (e: IOException) { failures++; "ошибка связи: " + (e.message ?: "") }
+    } catch (e: IOException) { onFail(); "ошибка связи: " + (e.message ?: "") }
 
     /** Раз в 30 с пишет в журнал строку состояния (значения берутся из кэша, запросов к блоку нет). */
     private fun stateLog() {
@@ -167,11 +189,14 @@ class ObdEngine(
         val ttl = if (p.slow) slowMs() else fastMs()
         if (!force) cache[p.id]?.let { if (now - it.t < ttl) return it.v }
         var failed = false
-        var v = try { fetch(p) } catch (e: IOException) { failures++; failed = true; lastRaw = e.message ?: "ошибка связи"; null }
-        if (v == null && !failed && p.virtual == null && (p.slow || p.header != "7E0")) {   // медленные датчики и блок АКПП иногда молчат: один быстрый повтор
-            v = try { fetch(p) } catch (e: IOException) { failures++; failed = true; lastRaw = e.message ?: "ошибка связи"; null }
+        var v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
+        // Медленные датчики и блок АКПП иногда молчат: один быстрый повтор.
+        if (v == null && !failed && p.virtual == null && (p.slow || p.header != "7E0")) {
+            v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
         }
+        if (failed) onFail() else onOk()
         val t = System.currentTimeMillis()
+        if (v != null && p.virtual == null) lastAnswerAt = t   // блок ответил: зажигание включено
         var shown: Double? = v
         if (v != null) {
             if (p.slow) lastGood[p.id] = Sample(t, v)
@@ -210,7 +235,6 @@ class ObdEngine(
             text = send(p.header, req, 1500)
         }
         lastRaw = text
-        failures = 0
         val b = parse(text, prefix) ?: return null
         return p.decode?.invoke(b)
     }
@@ -235,4 +259,9 @@ class ObdEngine(
 
     /** Байты ответа после префикса (например «410C» или «620434»); null, если ответа нет. */
     private fun parse(text: String?, prefix: String): IntArray? = ElmParse.bytes(text, prefix)
+
+    private companion object {
+        /** Сколько терпим молчание блока, прежде чем считать зажигание выключенным (мс). */
+        const val IGNITION_HOLD_MS = 15_000L
+    }
 }
