@@ -33,7 +33,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
     }
 
     private val states = HashMap<String, GaugeState>()
-    private val painter = NavPainter()
+    private val painter = NavPainter().apply { appContext = context.applicationContext }
     private val fullF = RectF()
     private var loadedTheme: String? = null
 
@@ -180,26 +180,29 @@ class NavRenderer(context: Context) : SurfaceCallback {
             // реальные пропорции области - для предпросмотра в редакторе на телефоне
             NavLayoutStore.reportArea(appContext, (tr - tl) / (tb - tt))
 
-            // форма области: узкая колонка или широкая, по пропорциям целевой области
             painter.pxScale = (minOf(tr - tl, tb - tt) / 800f).coerceIn(0.6f, 3f)
-            val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect
-            val form = layout.form(if (narrow) NavLayoutStore.NARROW else NavLayoutStore.WIDE)
-
-            // сглаживание показаний: постоянная времени 0,12 с
-            val k = 1f - exp(-dt / 0.12f)
-            for (item in form.items) {
-                if (item.kind == NavItem.GAUGE) {
-                    val gs = states.getOrPut(item.id) { GaugeState(item.min) }
-                    val raw = NavData.get(item.pid)
-                    gs.has = raw != null
-                    val goal = if (raw != null) (raw * item.scale).toFloat() else item.min
-                    gs.shown += (goal - gs.shown) * k
-                    painter.gauge(c, area, item, gs.shown, shownText(item, gs))
-                } else if (item.kind == NavItem.MEDIA) {
-                    painter.media(c, area, item, NavData.getText(item.pid) ?: "--")
-                } else {
-                    painter.info(c, area, item, infoText(item))
+            val idx = NavScreen.currentIndex
+            if (idx <= 0 || layout.graphs.isEmpty()) {
+                val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect
+                val form = layout.form(if (narrow) NavLayoutStore.NARROW else NavLayoutStore.WIDE)
+                val k = 1f - exp(-dt / 0.12f)
+                for (item in form.items) {
+                    if (item.kind == NavItem.GAUGE) {
+                        val gs = states.getOrPut(item.id) { GaugeState(item.min) }
+                        val raw = NavData.get(item.pid)
+                        gs.has = raw != null
+                        val goal = if (raw != null) (raw * item.scale).toFloat() else item.min
+                        gs.shown += (goal - gs.shown) * k
+                        painter.gauge(c, area, item, gs.shown, shownText(item, gs))
+                    } else if (item.kind == NavItem.MEDIA) {
+                        painter.media(c, area, item, NavData.getText(item.pid) ?: "--")
+                    } else {
+                        painter.info(c, area, item, infoText(item))
+                    }
                 }
+            } else {
+                val g = layout.graphs.getOrNull(idx - 1)
+                if (g != null) painter.graph(c, area, g)
             }
 
             if (debugOverlay) {

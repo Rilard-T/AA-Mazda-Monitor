@@ -92,7 +92,7 @@ object MazdaPids {
         PidDef("0f", R.string.pid_0f_name, R.string.pid_0f_short, R.string.pid_0f_unit, -40.0, 100.0,
             request = "010F", decode = { MazdaDecode.at(it.u(0)) }),
         PidDef("5c", R.string.pid_5c_name, R.string.pid_5c_short, R.string.pid_5c_unit, -40.0, 150.0,
-            request = "015C", decode = { MazdaDecode.at(it.u(0)) }),
+            request = "015C", slow = true, decode = { MazdaDecode.at(it.u(0)) }),
         PidDef("2f", R.string.pid_2f_name, R.string.pid_2f_short, R.string.pid_2f_unit, 0.0, 100.0,
             request = "012F", slow = true, decode = { MazdaDecode.percent(it.u(0)) }),
         PidDef("42", R.string.pid_42_name, R.string.pid_42_short, R.string.pid_42_unit, 8.0, 16.0,
@@ -112,7 +112,10 @@ object MazdaPids {
             request = "22042C", slow = true, decode = soot),
         PidDef("ff9004", R.string.pid_ff9004_name, R.string.pid_ff9004_short, R.string.pid_ff9004_unit, 0.0, 10.0,
             request = "22042D", slow = true, decode = soot),
-        // статус прожига сажевого: 0 нет, 1 обычный, 2 принудительный (по данным CarScanner для SkyActiv-D)
+        // статус прожига сажевого (DID 0380): 0 нет прожига; 1 — активная регенерация (пост-инжекция);
+        // 2 — REG_REQ_A (запрос автоматической регенерации по FORScan: движение >15 км/ч, EOT>80 °C,
+        // PM_ACC_DSD/PM_GEN > ~5.6 г/л). На некоторых прошивках значение 2 сопровождает активную
+        // регенерацию, поэтому в RegenTracker оба трактуются как «ненулевой», но различаются в журнале.
         PidDef("ff9006", R.string.pid_ff9006_name, R.string.pid_ff9006_short, 0, 0.0, 2.0,
             request = "220380", slow = true,
             decode = { MazdaDecode.regenStatus(it) }),

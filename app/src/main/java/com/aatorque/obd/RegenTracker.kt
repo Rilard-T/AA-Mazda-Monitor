@@ -97,7 +97,12 @@ class RegenTracker internal constructor(
         val now = clock()
         val newSession = statusSeenAt == 0L || now - statusSeenAt > 60_000
         statusSeenAt = now
-        if (lastStatus != s) Timber.i("Статус прожига: %s -> %s", lastStatus, s)
+        if (lastStatus != s) Timber.i(
+            "Статус прожига: %s -> %s (%s); сажа %.2f г/л",
+            lastStatus, s,
+            when (s) { 0 -> "нет"; 1 -> "активная регенерация"; 2 -> "запрос REG_REQ_A"; else -> "?" },
+            lastSoot ?: 0.0,
+        )
         lastStatus = s
         if (!active) {
             if (s >= 1) {
@@ -200,12 +205,15 @@ class RegenTracker internal constructor(
         if (noCounter || stale) {
             log[log.lastIndex] = last.copy(state = RegenState.INTERRUPTED)
             endedAt = 0L
+            Timber.i("Прожиг: запись помечена прерванной (%s); счётчик не вырос за %d с после окончания",
+                if (noCounter) "счётчик" else "устарела", if (noCounter) 180 else 0)
         }
     }
 
     @Synchronized fun onCount(c: Int) {
         val prev = lastCount
         lastCount = c
+        if (prev != null && c != prev) Timber.i("Счётчик регенераций: %s -> %s (статус %s)", prev, c, lastStatus)
         if (prev != null && c > prev) {
             val now = clock()
             var km: Double? = null

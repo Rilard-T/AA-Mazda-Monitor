@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.Paint
 import android.graphics.RectF
+import android.os.SystemClock
+import com.aatorque.obd.MazdaPids
 import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.abs
@@ -21,6 +23,7 @@ import kotlin.math.sin
  * Если задана тема (theme), циферблат и стрелка рисуются картинками темы из старого интерфейса.
  */
 class NavPainter {
+    var appContext: android.content.Context? = null
     /** Тема из старого интерфейса; null - плоский вид. */
     var theme: NavThemeRes? = null
 
@@ -285,6 +288,112 @@ class NavPainter {
             if (th.tickRotation) c.rotate(deg + 90f, x, y)
             c.drawText(s, x, y + text.textSize * 0.35f, text)
             c.restore()
+        }
+    }
+
+    /** График (одиночный или совмещённый): линии по истории pid, сетка, легенда. */
+    fun graph(c: Canvas, area: RectF, g: GraphDef) {
+        val left = area.left + area.width() * 0.06f
+        val right = area.right - area.width() * 0.04f
+        val top = area.top + area.height() * 0.10f
+        val bottom = area.bottom - area.height() * 0.12f
+        if (right - left < 10f || bottom - top < 10f) return
+
+        // окно времени
+        val now = SystemClock.uptimeMillis()
+        val windowMs = g.windowMin * 60_000L
+        val cutoff = now - windowMs
+
+        // собрать точки по pid
+        val series = ArrayList<Pair<String, List<Pair<Long, Double>>>>()
+        for (pid in g.pids) {
+            val pts = NavData.history(pid).filter { it.first >= cutoff }
+            series.add(pid to pts)
+        }
+
+        // Y-диапазон
+        val allVals = series.flatMap { it.second.map { p -> p.second } }
+        var yMin: Double
+        var yMax: Double
+        if (g.autoScaleY && allVals.isNotEmpty()) {
+            yMin = allVals.minOrNull()!!
+            yMax = allVals.maxOrNull()!!
+            if (yMax - yMin < 1e-6) { yMin -= 1.0; yMax += 1.0 }
+            val pad = (yMax - yMin) * 0.1
+            yMin -= pad; yMax += pad
+        } else {
+            // из PidDef
+            val defs = g.pids.mapNotNull { MazdaPids.byId(it) }
+            yMin = defs.map { it.min }.minOrNull()?.toDouble() ?: 0.0
+            yMax = defs.map { it.max }.maxOrNull()?.toDouble() ?: 100.0
+            if (yMax <= yMin) { yMin = 0.0; yMax = 100.0 }
+        }
+
+        // сетка
+        if (g.grid) {
+            stroke.strokeWidth = 1f * pxScale
+            stroke.color = Color.argb(60, 170, 185, 220)
+            for (i in 0..4) {
+                val yy = top + (bottom - top) * i / 4f
+                c.drawLine(left, yy, right, yy, stroke)
+            }
+            for (i in 0..4) {
+                val xx = left + (right - left) * i / 4f
+                c.drawLine(xx, top, xx, bottom, stroke)
+            }
+        }
+        // рамка
+        stroke.strokeWidth = 1.5f * pxScale
+        stroke.color = Color.argb(120, 170, 185, 220)
+        c.drawRect(left, top, right, bottom, stroke)
+
+        // линии
+        for ((idx, pid) in g.pids.withIndex()) {
+            val pts = series[idx].second
+            if (pts.size < 2) continue
+            val color = if (idx < g.colors.size) g.colors[idx] else 0xFF3AA6FF.toInt()
+            stroke.color = color
+            stroke.strokeWidth = g.thickness * pxScale
+            stroke.strokeCap = Paint.Cap.ROUND
+            var prevX = 0f; var prevY = 0f; var first = true
+            for (p in pts) {
+                val t = ((p.first - cutoff).toFloat() / windowMs).coerceIn(0f, 1f)
+                val x = left + (right - left) * t
+                val frac = ((p.second - yMin) / (yMax - yMin)).coerceIn(0.0, 1.0).toFloat()
+                val y = bottom - (bottom - top) * frac
+                if (!first) c.drawLine(prevX, prevY, x, y, stroke)
+                prevX = x; prevY = y; first = false
+            }
+            stroke.strokeCap = Paint.Cap.BUTT
+        }
+
+        // заголовок
+        text.color = Color.WHITE
+        text.textSize = 16f * pxScale
+        text.textAlign = Paint.Align.LEFT
+        c.drawText(g.name, left, area.top + area.height() * 0.07f, text)
+        text.textSize = 11f * pxScale
+        text.color = Color.rgb(170, 185, 220)
+        c.drawText("${g.windowMin} мин", right, area.top + area.height() * 0.07f, text)
+        text.textAlign = Paint.Align.CENTER
+
+        // легенда (если >1)
+        if (g.pids.size > 1) {
+            var lx = left
+            val ly = area.bottom - area.height() * 0.04f
+            text.textSize = 12f * pxScale
+            text.textAlign = Paint.Align.LEFT
+            for ((idx, pid) in g.pids.withIndex()) {
+                val pd = MazdaPids.byId(pid)
+                val nm = if (appContext != null && pd != null) pd.short(appContext!!) else pid
+                val color = if (idx < g.colors.size) g.colors[idx] else 0xFF3AA6FF.toInt()
+                fill.color = color
+                c.drawCircle(lx + 6f * pxScale, ly - 4f * pxScale, 5f * pxScale, fill)
+                text.color = Color.rgb(200, 210, 240)
+                c.drawText(nm, lx + 16f * pxScale, ly, text)
+                lx += (text.measureText(nm) + 30f * pxScale)
+            }
+            text.textAlign = Paint.Align.CENTER
         }
     }
 

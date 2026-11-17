@@ -39,6 +39,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var fontName = ""
     private var ticksOn = true
     private var debugOn = false
+    private var graphs: ArrayList<GraphDef> = ArrayList()
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
@@ -78,13 +79,17 @@ class NavEditorActivity : AppCompatActivity() {
         const val M_DEBUG = 10
         const val M_FONT = 11
         const val M_COPY = 8
+        const val M_GRAPHS = 12
+        const val M_GRID = 13
+        const val M_SNAP = 14
+        const val M_ALIGN = 15
         const val M_RESET = 9
     }
 
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
-        return NavLayout(narrowAspect, map, themeName, fontName, ticksOn, debugOn)
+        return NavLayout(narrowAspect, map, ArrayList(graphs), themeName, fontName, ticksOn, debugOn)
     }
 
     private fun currentJson(): String = NavLayoutStore.toJson(currentLayout())
@@ -98,6 +103,7 @@ class NavEditorActivity : AppCompatActivity() {
         fontName = layout.font
         ticksOn = layout.ticks
         debugOn = layout.debug
+        graphs = ArrayList(layout.graphs)
         baseline = currentJson()
     }
 
@@ -133,6 +139,10 @@ class NavEditorActivity : AppCompatActivity() {
         menu.add(Menu.NONE, M_DEBUG, 9, getString(R.string.nav_debug)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_COPY, 7, getString(R.string.nav_copy)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_RESET, 8, getString(R.string.nav_reset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_GRAPHS, 9, "Графики").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_GRID, 10, "Сетка: " + if (editor.gridOn) "вкл" else "выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_SNAP, 11, "Привязка: " + if (editor.snapToGrid) "вкл" else "выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        menu.add(Menu.NONE, M_ALIGN, 12, "Выровнять").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         return true
     }
 
@@ -155,6 +165,10 @@ class NavEditorActivity : AppCompatActivity() {
             M_DEBUG -> toggleDebug()
             M_COPY -> confirmCopySensors()
             M_RESET -> reset()
+            M_GRAPHS -> manageGraphs()
+            M_GRID -> { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo() }
+            M_SNAP -> { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo() }
+            M_ALIGN -> alignSelected()
             else -> return super.onOptionsItemSelected(item)
         }
         return true
@@ -178,6 +192,8 @@ class NavEditorActivity : AppCompatActivity() {
             names.add(getString(R.string.nav_item_red))
             actions.add { chooseRedZone() }
         }
+        names.add("Границы виджета")
+        actions.add { chooseBorder() }
         names.add(getString(R.string.nav_delete))
         actions.add { deleteSelected() }
         AlertDialog.Builder(this)
@@ -560,6 +576,204 @@ class NavEditorActivity : AppCompatActivity() {
         baseline = currentJson()
         Toast.makeText(this, getString(R.string.nav_saved), Toast.LENGTH_SHORT).show()
         return true
+    }
+
+    /** Управление экранами-графиками: список, добавление, удаление, цвета. */
+    private fun manageGraphs() {
+        val names = graphs.map { it.name + " (" + it.pids.size + " датч.)" }.toTypedArray()
+        val items = names + "+ Добавить график"
+        AlertDialog.Builder(this)
+            .setTitle("Графики")
+            .setItems(items) { _, which ->
+                if (which == graphs.size) addGraph() else editGraph(which)
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun addGraph() {
+        val pids = MazdaPids.all
+        val checked = BooleanArray(pids.size)
+        AlertDialog.Builder(this)
+            .setTitle("Выберите 2–4 датчика")
+            .setMultiChoiceItems(Array(pids.size) { i ->
+                val pd = pids[i]
+                var name = pd.name(this)
+                val unit = pd.unit(this)
+                if (unit.isNotEmpty()) name += ", $unit"
+                name
+            }, checked) { _, which, isChecked -> checked[which] = isChecked }
+            .setPositiveButton("Далее") { _, _ ->
+                val sel = pids.filterIndexed { i, _ -> checked[i] }
+                if (sel.size < 2 || sel.size > 4) {
+                    Toast.makeText(this, "Нужно от 2 до 4 датчиков", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                finishAddGraph(sel.map { it.id })
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun finishAddGraph(pidIds: List<String>) {
+        val input = EditText(this)
+        input.hint = "Название графика"
+        input.setText("График ${graphs.size + 1}")
+        val windows = arrayOf("2", "5", "10", "30")
+        var windowSel = 1
+        val spinner = android.widget.Spinner(this)
+        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, windows)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinner.adapter = adapter
+        spinner.setSelection(windowSel)
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(24), dp(16), dp(24), dp(8))
+        box.addView(TextView(this).apply { text = "Название" })
+        box.addView(input)
+        box.addView(TextView(this).apply { text = "Окно, мин" })
+        box.addView(spinner)
+        AlertDialog.Builder(this)
+            .setTitle("Новый график")
+            .setView(box)
+            .setPositiveButton("Добавить") { _, _ ->
+                val name = input.text.toString().ifBlank { "График ${graphs.size + 1}" }
+                val w = windows[spinner.selectedItemPosition].toIntOrNull() ?: 5
+                val palette = intArrayOf(0xFF3AA6FF.toInt(), 0xFFFFBE3C.toInt(), 0xFF7CFF6B.toInt(), 0xFFFF5A4A.toInt())
+                val colors = pidIds.mapIndexed { i, _ -> palette[i % palette.size] }
+                graphs.add(GraphDef(
+                    id = "gr" + System.currentTimeMillis(),
+                    name = name,
+                    pids = pidIds,
+                    colors = colors,
+                    windowMin = w
+                ))
+                editor.invalidate()
+                updateInfo()
+                Toast.makeText(this, "График добавлен", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun editGraph(index: Int) {
+        val g = graphs[index]
+        val names = arrayOf("Переименовать", "Изменить цвета", "Удалить")
+        AlertDialog.Builder(this)
+            .setTitle(g.name)
+            .setItems(names) { _, which ->
+                when (which) {
+                    0 -> renameGraph(index)
+                    1 -> recolorGraph(index)
+                    2 -> { graphs.removeAt(index); editor.invalidate(); updateInfo() }
+                }
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun renameGraph(index: Int) {
+        val g = graphs[index]
+        val input = EditText(this)
+        input.setText(g.name)
+        AlertDialog.Builder(this)
+            .setTitle("Название")
+            .setView(input)
+            .setPositiveButton(getString(R.string.nav_apply)) { _, _ ->
+                val name = input.text.toString().ifBlank { g.name }
+                graphs[index] = g.copy(name = name)
+                editor.invalidate()
+                updateInfo()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun recolorGraph(index: Int) {
+        val g = graphs[index]
+        val pids = g.pids
+        if (pids.isEmpty()) return
+        chooseColorForPid(index, 0)
+    }
+
+    private fun chooseColorForPid(graphIndex: Int, pidIndex: Int) {
+        val g = graphs[graphIndex]
+        val pids = g.pids
+        if (pidIndex >= pids.size) {
+            editor.invalidate()
+            updateInfo()
+            Toast.makeText(this, "Цвета обновлены", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val palette = intArrayOf(0xFF3AA6FF.toInt(), 0xFFFFBE3C.toInt(), 0xFF7CFF6B.toInt(), 0xFFFF5A4A.toInt(), 0xFFCC66FF.toInt(), 0xFF00CCFF.toInt())
+        val colorNames = arrayOf("Синий", "Жёлтый", "Зелёный", "Красный", "Фиолетовый", "Голубой")
+        val pid = pids[pidIndex]
+        val name = MazdaPids.byId(pid)?.name(this) ?: pid
+        val cur = g.colors.getOrElse(pidIndex) { palette[pidIndex % palette.size] }
+        val curIdx = palette.indexOf(cur).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle("Цвет: $name")
+            .setSingleChoiceItems(colorNames, if (curIdx < 0) 0 else curIdx) { d, which ->
+                val newColors = ArrayList(g.colors)
+                while (newColors.size <= pidIndex) newColors.add(palette[newColors.size % palette.size])
+                newColors[pidIndex] = palette[which]
+                graphs[graphIndex] = g.copy(colors = newColors)
+                d.dismiss()
+                chooseColorForPid(graphIndex, pidIndex + 1)
+            }
+            .setNegativeButton("Готово") { d, _ ->
+                d.dismiss()
+                editor.invalidate()
+                updateInfo()
+            }
+            .show()
+    }
+
+    private fun chooseBorder() {
+        val sel = editor.selectedItem() ?: return
+        val options = arrayOf("Круг", "Квадрат", "Без рамки")
+        val vals = arrayOf("circle", "square", "none")
+        val cur = sel.border.ifEmpty { if (sel.kind == NavItem.GAUGE) "circle" else "square" }
+        val checked = vals.indexOf(cur).coerceAtLeast(0)
+        AlertDialog.Builder(this)
+            .setTitle("Границы виджета")
+            .setSingleChoiceItems(options, checked) { d, which ->
+                editor.replaceSelected(sel.copy(border = vals[which]))
+                editor.invalidate()
+                updateInfo()
+                d.dismiss()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun alignSelected() {
+        val sel = editor.selectedItem() ?: run {
+            Toast.makeText(this, getString(R.string.nav_touch_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val options = arrayOf("По левому краю", "По центру по горизонтали", "По центру по вертикали", "По правому краю")
+        AlertDialog.Builder(this)
+            .setTitle("Выровнять")
+            .setItems(options) { _, which ->
+                val cur = editor.selectedItem() ?: return@setItems
+                val nx = when (which) {
+                    0 -> 0f
+                    1 -> ((1f - cur.w) / 2f).coerceAtLeast(0f)
+                    2 -> cur.x
+                    3 -> (1f - cur.w).coerceAtLeast(0f)
+                    else -> cur.x
+                }
+                val ny = when (which) {
+                    2 -> ((1f - cur.h) / 2f).coerceAtLeast(0f)
+                    else -> cur.y
+                }
+                editor.replaceSelected(cur.copy(x = nx, y = ny))
+                editor.invalidate()
+                updateInfo()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
     }
 
     private fun reset() {

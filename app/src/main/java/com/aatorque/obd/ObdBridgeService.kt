@@ -363,6 +363,10 @@ class ObdBridgeService : Service() {
         /** Замер адаптера; null — адаптер не подключён. Вызывать только не из главного потока. */
         fun benchmark(): AdapterBenchmark? = current?.benchmark()
 
+        /** Разовая проверка пользовательского PID: null — нет связи с адаптером. Вызывать только не из главного потока. */
+        fun testPid(header: String, request: String, decode: (IntArray) -> Double?): Pair<Double?, String>? =
+            current?.testPid(header, request, decode)
+
         /** Переподключиться (например, после смены адаптера). */
         fun reconnect(context: Context) {
             reconnectFlag = true

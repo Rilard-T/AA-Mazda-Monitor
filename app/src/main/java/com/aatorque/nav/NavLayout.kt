@@ -5,12 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.abs
 
-/**
- * Элемент раскладки: прибор (GAUGE) или текстовое значение (INFO).
- * Положение и размер (x, y, w, h) заданы долями видимой области (0..1), а не пикселями,
- * поэтому раскладка не привязана к размеру и плотности конкретного экрана.
- * size - доля вписанного в ячейку круга для прибора.
- */
+/** Элемент раскладки: прибор (GAUGE) или текстовое значение (INFO). */
 data class NavItem(
     val id: String,
     val kind: String,
@@ -27,22 +22,38 @@ data class NavItem(
     val h: Float,
     val size: Float,
     /** Начало красной зоны (отсечка) в единицах шкалы; 0 или вне диапазона — зоны нет. */
-    val red: Float = 0f
+    val red: Float = 0f,
+    /** Вид границы виджета в редакторе: circle (по умолчанию для GAUGE) / square / none. */
+    val border: String = ""
 ) {
     companion object {
         const val GAUGE = "gauge"
         const val INFO = "info"
         const val MEDIA = "media"
+        const val GRAPH = "graph"
     }
 }
+
+/** График (одиночный или совмещённый): список pid, цвета, окно, толщина, сетка, автомасштаб. */
+data class GraphDef(
+    val id: String,
+    val name: String,
+    val pids: List<String>,
+    val colors: List<Int>,
+    val windowMin: Int = 5,
+    val thickness: Float = 3f,
+    val grid: Boolean = true,
+    val autoScaleY: Boolean = true
+)
 
 /** Набор элементов для одной формы области. */
 data class NavForm(val items: List<NavItem>)
 
-/** Раскладка: формы области ("wide" - широкая, "narrow" - узкая колонка) и порог узкой формы (ширина < высота * narrowAspect). */
+/** Раскладка: формы области, графики-экраны, параметры. */
 data class NavLayout(
     val narrowAspect: Float,
     val forms: Map<String, NavForm>,
+    val graphs: List<GraphDef> = emptyList(),
     val theme: String = "",
     val font: String = "",
     val ticks: Boolean = true,
@@ -52,7 +63,6 @@ data class NavLayout(
         forms[key] ?: forms[NavLayoutStore.WIDE] ?: NavLayoutStore.defaultLayout().forms.getValue(NavLayoutStore.WIDE)
 }
 
-/** Хранение раскладки: в памяти для отрисовки, в настройках (JSON) между запусками. */
 object NavLayoutStore {
     const val WIDE = "wide"
     const val NARROW = "narrow"
@@ -63,19 +73,15 @@ object NavLayoutStore {
     @Volatile var layout: NavLayout = defaultLayout()
         private set
 
-    /** Последняя пропорция области, которую сообщил Android Auto (ширина / высота); 0 - в машине ещё не запускались. */
     @Volatile var carAspect: Float = 0f
         private set
 
-    /** Параметры, которые читаются часто (приборы) и редко (значения). */
     @Volatile var fastPids: List<String> = emptyList()
         private set
     @Volatile var slowPids: List<String> = emptyList()
         private set
 
-    init {
-        install(layout)
-    }
+    init { install(layout) }
 
     private fun install(l: NavLayout) {
         val fast = LinkedHashSet<String>()
@@ -85,6 +91,8 @@ object NavLayoutStore {
                 if (item.kind == NavItem.GAUGE) fast.add(item.pid)
             }
         }
+        // графики тоже опрашиваем (slow)
+        for (g in l.graphs) for (p in g.pids) if (!fast.contains(p)) slow.add(p)
         for (form in l.forms.values) {
             for (item in form.items) {
                 if (item.kind != NavItem.GAUGE && item.kind != NavItem.MEDIA && !fast.contains(item.pid)) slow.add(item.pid)
@@ -95,27 +103,18 @@ object NavLayoutStore {
         layout = l
     }
 
-    /** Загрузить раскладку из настроек; при отсутствии или ошибке - стандартная. */
     fun load(context: Context) {
         val text = try {
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
-        } catch (e: Exception) {
-            null
-        }
+        } catch (e: Exception) { null }
         val parsed = if (text == null) null else parse(text)
         install(parsed ?: defaultLayout())
         val area = try {
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat(KEY_AREA, 0f)
-        } catch (e: Exception) {
-            0f
-        }
+        } catch (e: Exception) { 0f }
         carAspect = NavAspects.sanitize(area)
     }
 
-    /**
-     * Запомнить пропорцию видимой области из машины: редактор на телефоне показывает предпросмотр
-     * в тех же пропорциях. В настройки пишется только при заметном изменении, не каждый кадр.
-     */
     fun reportArea(context: Context, aspect: Float) {
         val a = NavAspects.sanitize(aspect)
         if (a <= 0f) return
@@ -124,27 +123,22 @@ object NavLayoutStore {
         try {
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit().putFloat(KEY_AREA, a).apply()
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) {}
     }
 
-    /** Сохранить раскладку и сразу применить. */
     fun save(context: Context, l: NavLayout) {
         try {
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit().putString(KEY, toJson(l)).apply()
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) {}
         install(l)
     }
 
-    /** Вернуть стандартную раскладку. */
     fun reset(context: Context) {
         try {
             context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit().remove(KEY).apply()
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) {}
         install(defaultLayout())
     }
 
@@ -169,11 +163,26 @@ object NavLayoutStore {
                 o.put("h", item.h.toDouble())
                 o.put("size", item.size.toDouble())
                 o.put("red", item.red.toDouble())
+                o.put("border", item.border)
                 arr.put(o)
             }
             forms.put(key, JSONObject().put("items", arr))
         }
-        return JSONObject().put("v", 1).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
+        val graphs = JSONArray()
+        for (g in l.graphs) {
+            val o = JSONObject()
+            o.put("id", g.id)
+            o.put("name", g.name)
+            val pids = JSONArray(); for (p in g.pids) pids.put(p); o.put("pids", pids)
+            val colors = JSONArray(); for (c in g.colors) colors.put(c); o.put("colors", colors)
+            o.put("window", g.windowMin)
+            o.put("thick", g.thickness.toDouble())
+            o.put("grid", g.grid)
+            o.put("auto", g.autoScaleY)
+            graphs.put(o)
+        }
+        return JSONObject().put("v", 2).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
+            .put("graphs", graphs)
             .put("theme", l.theme).put("font", l.font).put("ticks", l.ticks).put("debug", l.debug).toString()
     }
 
@@ -204,15 +213,11 @@ object NavLayoutStore {
                         w = o.getDouble("w").toFloat(),
                         h = o.getDouble("h").toFloat(),
                         size = o.optDouble("size", 0.9).toFloat(),
-                        red = o.optDouble("red", 0.0).toFloat()
+                        red = o.optDouble("red", 0.0).toFloat(),
+                        border = o.optString("border", "")
                     )
-                    // Старые раскладки: шкала оборотов была 0..6, а на циферблате темы 0..8.
-                    // Конвертируем только дефолтные (без красной зоны), чтобы не затирать ручной выбор.
                     var fixed = if (item.pid.equals("0c", true) && item.max == 6f && item.red <= item.min) item.copy(max = 8f) else item
-                    // у оборотов по умолчанию красная зона с 6000: выше отсечки
                     if (fixed.pid.equals("0c", true) && fixed.red <= fixed.min) fixed = fixed.copy(red = 6f)
-                    // Узкая текстовая форма показывает обороты обычным числом (2750), а не в тысячах (2,75 x1000).
-                    // Старые раскладки с «x1000» приводим к этому виду, не трогая приборы (GAUGE).
                     if (fixed.kind == NavItem.INFO && fixed.pid.equals("0c", true)
                         && (fixed.unit.equals("x1000", true) || fixed.scale == 0.001)) {
                         fixed = fixed.copy(unit = "об/мин", scale = 1.0, decimals = 0)
@@ -224,19 +229,45 @@ object NavLayoutStore {
             }
             val wide = forms[WIDE]
             if (wide == null || wide.items.isEmpty()) return null
+
+            val graphs = ArrayList<GraphDef>()
+            if (root.has("graphs")) {
+                val garr = root.getJSONArray("graphs")
+                for (i in 0 until garr.length()) {
+                    val o = garr.getJSONObject(i)
+                    val pids = ArrayList<String>()
+                    val pa = o.optJSONArray("pids")
+                    if (pa != null) for (j in 0 until pa.length()) pids.add(pa.getString(j))
+                    val colors = ArrayList<Int>()
+                    val ca = o.optJSONArray("colors")
+                    if (ca != null) for (j in 0 until ca.length()) colors.add(ca.getInt(j))
+                    if (colors.size < pids.size) {
+                        val palette = intArrayOf(0xFF3AA6FF.toInt(), 0xFFFFBE3C.toInt(), 0xFF7CFF6B.toInt(), 0xFFFF5A4A.toInt())
+                        while (colors.size < pids.size) colors.add(palette[colors.size % palette.size])
+                    }
+                    graphs.add(GraphDef(
+                        id = o.optString("id", "g$i"),
+                        name = o.optString("name", "График ${i + 1}"),
+                        pids = pids,
+                        colors = colors,
+                        windowMin = o.optInt("window", 5),
+                        thickness = o.optDouble("thick", 3.0).toFloat(),
+                        grid = o.optBoolean("grid", true),
+                        autoScaleY = o.optBoolean("auto", true)
+                    ))
+                }
+            }
+
             return NavLayout(
-                root.optDouble("narrowAspect", 1.15).toFloat(), forms,
-                root.optString("theme", ""), root.optString("font", ""), root.optBoolean("ticks", true), root.optBoolean("debug", false)
+                root.optDouble("narrowAspect", 1.15).toFloat(), forms, graphs,
+                root.optString("theme", ""), root.optString("font", ""),
+                root.optBoolean("ticks", true), root.optBoolean("debug", false)
             )
         } catch (e: Exception) {
             return null
         }
     }
 
-    /**
-     * Стандартная раскладка. Широкая область: три прибора в ряд и снизу четыре значения.
-     * Узкая колонка: приборы столбиком слева, значения списком справа.
-     */
     fun defaultLayout(): NavLayout {
         val footer = 0.16f
         val gh = 1f - footer
@@ -246,10 +277,10 @@ object NavLayoutStore {
         fun gauge(
             id: String, pid: String, label: String, unit: String, min: Float, max: Float, scale: Double,
             x: Float, y: Float, w: Float, h: Float, size: Float, red: Float = 0f
-        ) = NavItem(id, NavItem.GAUGE, pid, label, unit, min, max, scale, 0, x, y, w, h, size, red)
+        ) = NavItem(id, NavItem.GAUGE, pid, label, unit, min, max, scale, 0, x, y, w, h, size, red, "circle")
 
         fun info(id: String, pid: String, label: String, unit: String, decimals: Int, x: Float, y: Float, w: Float, h: Float) =
-            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, 1.0, decimals, x, y, w, h, 1f)
+            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, 1.0, decimals, x, y, w, h, 1f, 0f, "square")
 
         val wide = NavForm(
             listOf(
@@ -262,10 +293,9 @@ object NavLayoutStore {
                 info("i3", "ff9002", "После прожига", "км", 0, 3f * fourth, gh, fourth, footer)
             )
         )
-        // Узкая колонка: без приборов, только текст — в split-screen круги получаются слишком мелкими.
         val narrowRow = 1f / 7f
         fun narrowInfo(id: String, pid: String, label: String, unit: String, decimals: Int, row: Int, scale: Double = 1.0) =
-            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, scale, decimals, 0f, row * narrowRow, 1f, narrowRow, 1f)
+            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, scale, decimals, 0f, row * narrowRow, 1f, narrowRow, 1f, 0f, "square")
         val narrow = NavForm(
             listOf(
                 narrowInfo("i0", "0d", "Скорость", "км/ч", 0, 0),
@@ -277,6 +307,6 @@ object NavLayoutStore {
                 narrowInfo("i6", "ff9002", "После прожига", "км", 0, 6)
             )
         )
-        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), "", "")
+        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), emptyList(), "", "")
     }
 }

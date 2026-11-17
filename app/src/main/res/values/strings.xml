@@ -381,6 +381,12 @@
     <string name="obd_user_pid_delete_title">Delete the PID?</string>
     <string name="obd_user_pid_delete_message">“%1$s” will be removed from the sensor list.</string>
     <string name="obd_user_pid_test">Test live</string>
+    <string name="obd_user_pid_test_once">Check if it answers</string>
+    <string name="obd_user_pid_test_once_title">Answer check: %1$s</string>
+    <string name="obd_user_pid_test_once_wait">Querying the unit…</string>
+    <string name="obd_user_pid_test_once_yes">Sensor answers: yes. Value: %1$s</string>
+    <string name="obd_user_pid_test_once_no">Sensor does not answer: no data returned</string>
+    <string name="obd_user_pid_test_once_no_link">No adapter connection</string>
     <string name="obd_user_pid_test_title">Test: %1$s</string>
     <string name="obd_user_pid_test_wait">Waiting for the unit…</string>
     <string name="obd_user_pid_test_value">Value: %1$s</string>

@@ -15,6 +15,8 @@ import android.view.View
 import com.aatorque.obd.MazdaPids
 import kotlin.math.hypot
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Предпросмотр раскладки на телефоне с управлением касанием: тянуть элемент - переместить,
@@ -35,7 +37,12 @@ class NavEditorView(context: Context) : View(context) {
     /** Удержание пальца на элементе: Activity показывает меню элемента. */
     var onLongPressItem: ((NavItem) -> Unit)? = null
 
-    private val painter = NavPainter()
+    var gridOn: Boolean = true
+    var snapToGrid: Boolean = true
+    var gridCols: Int = 12
+    var gridRows: Int = 8
+
+    private val painter = NavPainter().apply { appContext = context.applicationContext }
     private val area = RectF()
     private val tmp = RectF()
     private val density = resources.displayMetrics.density
@@ -123,6 +130,19 @@ class NavEditorView(context: Context) : View(context) {
         computeArea()
         canvas.drawColor(Color.rgb(32, 32, 36))
         painter.background(canvas, area)
+        // сетка
+        if (gridOn) {
+            linePaint.color = Color.argb(50, 120, 140, 200)
+            linePaint.strokeWidth = 1f * density
+            for (i in 1 until gridCols) {
+                val x = area.left + area.width() * i / gridCols
+                canvas.drawLine(x, area.top, x, area.bottom, linePaint)
+            }
+            for (i in 1 until gridRows) {
+                val y = area.top + area.height() * i / gridRows
+                canvas.drawLine(area.left, y, area.right, y, linePaint)
+            }
+        }
         val items = forms[formKey] ?: return
         for (item in items) {
             if (item.kind == NavItem.GAUGE) {
@@ -133,16 +153,31 @@ class NavEditorView(context: Context) : View(context) {
             } else {
                 painter.info(canvas, area, item, sampleInfo(item))
             }
-            // тонкая рамка ячейки, чтобы было видно, за что тянуть
-            linePaint.color = Color.argb(80, 170, 185, 220)
+            // рамка ячейки
             itemRect(item, tmp)
-            canvas.drawRect(tmp, linePaint)
+            val border = item.border.ifEmpty { if (item.kind == NavItem.GAUGE) "circle" else "square" }
+            linePaint.color = Color.argb(80, 170, 185, 220)
+            linePaint.strokeWidth = 1.5f * density
+            when (border) {
+                "circle" -> {
+                    val r = min(tmp.width(), tmp.height()) / 2f
+                    canvas.drawCircle(tmp.centerX(), tmp.centerY(), r, linePaint)
+                }
+                "none" -> {}
+                else -> canvas.drawRect(tmp, linePaint)
+            }
         }
         val sel = selectedItem()
         if (sel != null) {
             linePaint.color = Color.rgb(255, 190, 60)
             itemRect(sel, tmp)
-            canvas.drawRect(tmp, linePaint)
+            val border = sel.border.ifEmpty { if (sel.kind == NavItem.GAUGE) "circle" else "square" }
+            if (border == "circle") {
+                val r = min(tmp.width(), tmp.height()) / 2f
+                canvas.drawCircle(tmp.centerX(), tmp.centerY(), r, linePaint)
+            } else if (border != "none") {
+                canvas.drawRect(tmp, linePaint)
+            }
             fillPaint.color = Color.rgb(255, 190, 60)
             canvas.drawCircle(tmp.right, tmp.bottom, HANDLE_DP * density, fillPaint)
         }
@@ -204,12 +239,26 @@ class NavEditorView(context: Context) : View(context) {
                     val idx = list?.indexOfFirst { it.id == sel.id } ?: -1
                     if (list != null && idx >= 0) {
                         if (mode == MODE_MOVE) {
-                            val nx = (sel.x + dx).coerceIn(0f, max(0f, 1f - sel.w))
-                            val ny = (sel.y + dy).coerceIn(0f, max(0f, 1f - sel.h))
+                            var nx = (sel.x + dx).coerceIn(0f, max(0f, 1f - sel.w))
+                            var ny = (sel.y + dy).coerceIn(0f, max(0f, 1f - sel.h))
+                            if (snapToGrid) {
+                                val gx = 1f / gridCols; val gy = 1f / gridRows
+                                nx = (nx / gx).roundToInt() * gx
+                                ny = (ny / gy).roundToInt() * gy
+                                nx = nx.coerceIn(0f, max(0f, 1f - sel.w))
+                                ny = ny.coerceIn(0f, max(0f, 1f - sel.h))
+                            }
                             list[idx] = sel.copy(x = nx, y = ny)
                         } else {
-                            val nw = (sel.w + dx).coerceIn(MIN_SIZE, max(MIN_SIZE, 1f - sel.x))
-                            val nh = (sel.h + dy).coerceIn(MIN_SIZE, max(MIN_SIZE, 1f - sel.y))
+                            var nw = (sel.w + dx).coerceIn(MIN_SIZE, max(MIN_SIZE, 1f - sel.x))
+                            var nh = (sel.h + dy).coerceIn(MIN_SIZE, max(MIN_SIZE, 1f - sel.y))
+                            if (snapToGrid) {
+                                val gx = 1f / gridCols; val gy = 1f / gridRows
+                                nw = (nw / gx).roundToInt() * gx
+                                nh = (nh / gy).roundToInt() * gy
+                                if (nw < MIN_SIZE) nw = gx
+                                if (nh < MIN_SIZE) nh = gy
+                            }
                             list[idx] = sel.copy(w = nw, h = nh)
                         }
                         invalidate()

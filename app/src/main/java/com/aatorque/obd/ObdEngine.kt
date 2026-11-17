@@ -219,6 +219,28 @@ class ObdEngine(
         )
     }
 
+    /**
+     * Разовая проверка пользовательского PID: принудительно запрашивает блок и возвращает
+     * значение (или null, если блок не ответил) вместе с сырым ответом адаптера.
+     * Используется на экране «Свои датчики», чтобы сразу увидеть, отвечает ли датчик.
+     */
+    @Synchronized
+    fun testPid(header: String, request: String, decode: (IntArray) -> Double?): Pair<Double?, String> {
+        val p = PidDef(
+            id = "utest",
+            min = 0.0,
+            max = 0.0,
+            header = header,
+            request = request,
+            decode = decode,
+        )
+        return try {
+            fetch(p) to lastRaw
+        } catch (e: IOException) {
+            null to (e.message ?: "")
+        }
+    }
+
     /** Ответ адаптера — не ошибка и не «нет данных». */
     private fun looksLikeAnswer(text: String): Boolean {
         val t = text.replace(">", "").trim()
@@ -240,7 +262,12 @@ class ObdEngine(
     @Synchronized
     fun read(p: PidDef, force: Boolean = false): Double? {
         val now = System.currentTimeMillis()
-        val ttl = if (p.slow) slowMs() else fastMs()
+        // Масло (01 5C) отвечает редко — держим кэш дольше, чем у прочих быстрых датчиков.
+        val ttl = when {
+            p.id == "5c" -> 5_000L
+            p.slow -> slowMs()
+            else -> fastMs()
+        }
         if (!force) cache[p.id]?.let { if (now - it.t < ttl) return it.v }
         var failed = false
         var v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
@@ -257,7 +284,9 @@ class ObdEngine(
         } else if (p.slow && p.virtual == null) {
             warnMiss(p, t)
             val g = lastGood[p.id]
-            if (g != null && t - g.t < HOLD_SLOW_MS) shown = g.v
+            // масло (5c) отвечает редко — показываем последнее удачное значение дольше прочих медленных датчиков
+            val hold = if (p.id == "5c") 60_000L else HOLD_SLOW_MS
+            if (g != null && t - g.t < hold) shown = g.v
         } else if (p.virtual == null && (p.id == "7c" || p.id == "7a")) {
             warnMiss(p, t)   // диагностика 7C/7A: сырой ответ блока
         }
@@ -287,6 +316,12 @@ class ObdEngine(
         if (useCount && text.contains('?')) {      // адаптер не понял сокращённую форму — работаем без неё
             useCount = false
             text = send(p.header, req, 1500)
+        }
+        // Адаптер иногда отвечает «CAN ERROR»/«NO DATA» на первый запрос (особенно для АКПП
+        // и медленных датчиков) — один повтор, как при пустом ответе блока.
+        if (text.uppercase().contains("ERROR") || text.uppercase().contains("NO DATA")) {
+            text = send(p.header, if (useCount) req + "1" else req, 1500)
+            if (useCount && text.contains('?')) { useCount = false; text = send(p.header, req, 1500) }
         }
         lastRaw = text
         val b = parse(text, prefix) ?: return null

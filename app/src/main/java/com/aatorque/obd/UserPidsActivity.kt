@@ -194,14 +194,16 @@ class UserPidsFragment : PreferenceFragmentCompat() {
             .setTitle(pid.name)
             .setItems(
                 arrayOf(
+                    getString(R.string.obd_user_pid_test_once),
                     getString(R.string.obd_user_pid_test),
                     getString(R.string.obd_user_pid_edit),
                     getString(R.string.obd_user_pid_delete),
                 )
             ) { _, which ->
                 when (which) {
-                    0 -> liveTest(pid)
-                    1 -> editDialog(pid)
+                    0 -> availabilityTest(pid)
+                    1 -> liveTest(pid)
+                    2 -> editDialog(pid)
                     else -> confirmDelete(pid)
                 }
             }
@@ -235,6 +237,33 @@ class UserPidsFragment : PreferenceFragmentCompat() {
             }
         }
         ui.post(tick)
+    }
+
+    /** Разовая проверка: отвечает ли блок на этот PID (принудительный запрос мимо кэша). */
+    private fun availabilityTest(pid: UserPid) {
+        val ctx = context ?: return
+        val dialog = AlertDialog.Builder(ctx)
+            .setTitle(getString(R.string.obd_user_pid_test_once_title, pid.name))
+            .setMessage(getString(R.string.obd_user_pid_test_once_wait))
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+        io.execute {
+            val res = ObdBridgeService.testPid(pid.header, pid.modeAndPid) { bytes ->
+                UserPidFormula.evaluate(pid.equation, bytes)
+            }
+            val msg = if (res == null) {
+                ctx.getString(R.string.obd_user_pid_test_once_no_link)
+            } else {
+                val (value, _) = res
+                if (value != null) {
+                    val unit = pid.unit.takeIf { it.isNotBlank() }?.let { " " + it } ?: ""
+                    ctx.getString(R.string.obd_user_pid_test_once_yes, format(value) + unit)
+                } else {
+                    ctx.getString(R.string.obd_user_pid_test_once_no)
+                }
+            }
+            ui.post { if (dialog.isShowing) dialog.setMessage(msg) }
+        }
     }
 
     private fun confirmDelete(pid: UserPid) {
@@ -287,10 +316,41 @@ class UserPidsFragment : PreferenceFragmentCompat() {
             .setTitle(if (existing == null) R.string.obd_user_pid_add else R.string.obd_user_pid_edit_title)
             .setView(scroll)
             .setPositiveButton(R.string.obd_user_pid_save, null)
+            .setNeutralButton(R.string.obd_user_pid_test_once, null)
             .setNegativeButton(android.R.string.cancel, null)
             .create()
 
         dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL)?.setOnClickListener {
+                val pid = UserPidCodec.normalizePid(pidField.text.toString())
+                if (pid == null) {
+                    toast(R.string.obd_user_pid_err_pid)
+                    return@setOnClickListener
+                }
+                val equation = eqField.text.toString().trim()
+                UserPidFormula.validate(equation)?.let { error ->
+                    toast(ctx.getString(R.string.obd_user_pid_err_formula, error))
+                    return@setOnClickListener
+                }
+                val header = UserPidCodec.normalizeHeader(headerField.text.toString())
+                io.execute {
+                    val res = ObdBridgeService.testPid(header, pid) { bytes ->
+                        UserPidFormula.evaluate(equation, bytes)
+                    }
+                    val msg = if (res == null) {
+                        ctx.getString(R.string.obd_user_pid_test_once_no_link)
+                    } else {
+                        val (value, _) = res
+                        if (value != null) {
+                            val unit = unitField.text.toString().trim().takeIf { it.isNotBlank() }?.let { " " + it } ?: ""
+                            ctx.getString(R.string.obd_user_pid_test_once_yes, format(value) + unit)
+                        } else {
+                            ctx.getString(R.string.obd_user_pid_test_once_no)
+                        }
+                    }
+                    ui.post { toast(msg) }
+                }
+            }
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val name = nameField.text.toString().trim()
                 if (name.isEmpty()) {

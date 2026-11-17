@@ -61,6 +61,7 @@ class NavSession : Session() {
         } catch (e: Exception) {
             conn = null
         }
+        NavScreen.currentIndex = 0
         NavData.start()
         startMediaTracking()
 
@@ -179,13 +180,47 @@ class NavSession : Session() {
 }
 
 class NavScreen(carContext: CarContext) : Screen(carContext) {
+    companion object {
+        @Volatile var currentIndex: Int = 0
+    }
+
+    fun screenCount(): Int = 1 + NavLayoutStore.layout.graphs.size
+
+    private fun screenName(i: Int): String = if (i == 0) "Приборы" else NavLayoutStore.layout.graphs.getOrNull(i - 1)?.name ?: "График $i"
+
     override fun onGetTemplate(): Template {
         val exit = Action.Builder()
             .setTitle(carContext.getString(R.string.nav_exit))
             .setOnClickListener { carContext.finishCarApp() }
             .build()
+        val strip = ActionStrip.Builder()
+        val count = screenCount()
+        // Вариант A: первые 2 экрана кнопками, остальные через «⋯»
+        val buttonCount = if (count <= 3) count else 2
+        for (i in 0 until buttonCount) {
+            val idx = i
+            val btn = Action.Builder()
+                .setTitle(screenName(i).take(10))
+                .setOnClickListener {
+                    currentIndex = idx
+                    invalidate()
+                }
+                .build()
+            strip.addAction(btn)
+        }
+        if (count > buttonCount) {
+            val more = Action.Builder()
+                .setTitle("⋯")
+                .setOnClickListener {
+                    carContext.getCarService(androidx.car.app.ScreenManager::class.java)
+                        .push(NavScreensScreen(carContext, this@NavScreen))
+                }
+                .build()
+            strip.addAction(more)
+        }
+        strip.addAction(exit)
         return NavigationTemplate.Builder()
-            .setActionStrip(ActionStrip.Builder().addAction(exit).build())
+            .setActionStrip(strip.build())
             .build()
     }
 }
