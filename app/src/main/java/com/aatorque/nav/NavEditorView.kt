@@ -39,6 +39,7 @@ class NavEditorView(context: Context) : View(context) {
 
     var gridOn: Boolean = true
     var snapToGrid: Boolean = true
+    var previewGraph: GraphDef? = null
     var gridCols: Int = 12
     var gridRows: Int = 8
 
@@ -130,6 +131,13 @@ class NavEditorView(context: Context) : View(context) {
         computeArea()
         canvas.drawColor(Color.rgb(32, 32, 36))
         painter.background(canvas, area)
+        val pg = previewGraph
+        if (pg != null) {
+            painter.graph(canvas, area, pg)
+            linePaint.color = Color.GRAY
+            canvas.drawRect(area, linePaint)
+            return
+        }
         // сетка
         if (gridOn) {
             linePaint.color = Color.argb(50, 120, 140, 200)

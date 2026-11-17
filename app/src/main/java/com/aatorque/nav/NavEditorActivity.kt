@@ -9,9 +9,12 @@ import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -33,7 +36,8 @@ class NavEditorActivity : AppCompatActivity() {
     private val forms = HashMap<String, ArrayList<NavItem>>()
     private var narrowAspect = 1.15f
     private var formKey = NavLayoutStore.WIDE
-    private var aspectSource = NavAspectSource.AUTO
+    private var aspectSource = NavAspectSource.LANDSCAPE
+    private var previewIndex = -1
     private var baseline = ""
     private var themeName = ""
     private var fontName = ""
@@ -43,6 +47,7 @@ class NavEditorActivity : AppCompatActivity() {
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
+    private lateinit var previewSwitch: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +56,7 @@ class NavEditorActivity : AppCompatActivity() {
         NavLayoutStore.load(this)
         loadFromStore()
         setContentView(buildUi())
+        updatePreviewSwitch()
         applyForm()
         applyTheme()
         applyFont()
@@ -118,6 +124,12 @@ class NavEditorActivity : AppCompatActivity() {
         editor.onLongPressItem = { item -> showItemMenu(item) }
         root.addView(editor, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
+        previewSwitch = Button(this)
+        previewSwitch.textSize = 12f
+        previewSwitch.setPadding(dp(12), dp(4), dp(12), dp(4))
+        previewSwitch.setOnClickListener { togglePreview() }
+        root.addView(previewSwitch, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
         info = TextView(this)
         info.textSize = 12f
         info.maxLines = 3
@@ -166,8 +178,8 @@ class NavEditorActivity : AppCompatActivity() {
             M_COPY -> confirmCopySensors()
             M_RESET -> reset()
             M_GRAPHS -> manageGraphs()
-            M_GRID -> { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo() }
-            M_SNAP -> { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo() }
+            M_GRID -> { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo(); invalidateOptionsMenu() }
+            M_SNAP -> { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo(); invalidateOptionsMenu() }
             M_ALIGN -> alignSelected()
             else -> return super.onOptionsItemSelected(item)
         }
@@ -310,7 +322,32 @@ class NavEditorActivity : AppCompatActivity() {
         editor.formKey = formKey
         editor.selectedId = null
         editor.aspect = currentAspect()
+        editor.previewGraph = if (previewIndex >= 0) graphs.getOrNull(previewIndex) else null
         updateInfo()
+        updatePreviewSwitch()
+    }
+
+    private fun togglePreview() {
+        if (graphs.isEmpty()) {
+            Toast.makeText(this, "Сначала добавьте график (меню ⋯ → Графики)", Toast.LENGTH_SHORT).show()
+            return
+        }
+        previewIndex++
+        if (previewIndex >= graphs.size) previewIndex = -1
+        editor.previewGraph = if (previewIndex >= 0) graphs.getOrNull(previewIndex) else null
+        editor.invalidate()
+        updateInfo()
+        updatePreviewSwitch()
+    }
+
+    private fun updatePreviewSwitch() {
+        if (!::previewSwitch.isInitialized) return
+        val label = if (previewIndex < 0) {
+            "Предпросмотр: приборы"
+        } else {
+            "Предпросмотр: " + (graphs.getOrNull(previewIndex)?.name ?: "график")
+        }
+        previewSwitch.text = label
     }
 
     /**
@@ -326,19 +363,16 @@ class NavEditorActivity : AppCompatActivity() {
         return if (a > 0f) a else NavAspects.DEFAULT
     }
 
-    /** Переключить источник пропорций: авто → из машины → экран телефона в альбоме → в портрете. */
+    /** Переключить пропорции предпросмотра: телефон альбом ↔ телефон портрет. */
     private fun cycleAspects() {
-        val all = NavAspectSource.values()
-        aspectSource = all[(aspectSource.ordinal + 1) % all.size]
+        aspectSource = if (aspectSource == NavAspectSource.LANDSCAPE) NavAspectSource.PORTRAIT else NavAspectSource.LANDSCAPE
         editor.aspect = currentAspect()
         updateInfo()
     }
 
     private fun aspectLabel(): String = when (aspectSource) {
-        NavAspectSource.AUTO -> getString(R.string.nav_aspect_auto)
-        NavAspectSource.CAR -> getString(R.string.nav_aspect_car)
-        NavAspectSource.LANDSCAPE -> getString(R.string.nav_aspect_landscape)
         NavAspectSource.PORTRAIT -> getString(R.string.nav_aspect_portrait)
+        else -> getString(R.string.nav_aspect_landscape)
     }
 
     private fun updateInfo() {
@@ -650,6 +684,7 @@ class NavEditorActivity : AppCompatActivity() {
                 ))
                 editor.invalidate()
                 updateInfo()
+                updatePreviewSwitch()
                 Toast.makeText(this, "График добавлен", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
@@ -665,7 +700,7 @@ class NavEditorActivity : AppCompatActivity() {
                 when (which) {
                     0 -> renameGraph(index)
                     1 -> recolorGraph(index)
-                    2 -> { graphs.removeAt(index); editor.invalidate(); updateInfo() }
+                    2 -> { graphs.removeAt(index); if (previewIndex >= graphs.size) previewIndex = graphs.size - 1; editor.previewGraph = if (previewIndex >= 0) graphs.getOrNull(previewIndex) else null; editor.invalidate(); updateInfo(); updatePreviewSwitch() }
                 }
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
@@ -684,6 +719,7 @@ class NavEditorActivity : AppCompatActivity() {
                 graphs[index] = g.copy(name = name)
                 editor.invalidate()
                 updateInfo()
+                updatePreviewSwitch()
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
@@ -693,39 +729,56 @@ class NavEditorActivity : AppCompatActivity() {
         val g = graphs[index]
         val pids = g.pids
         if (pids.isEmpty()) return
-        chooseColorForPid(index, 0)
-    }
-
-    private fun chooseColorForPid(graphIndex: Int, pidIndex: Int) {
-        val g = graphs[graphIndex]
-        val pids = g.pids
-        if (pidIndex >= pids.size) {
-            editor.invalidate()
-            updateInfo()
-            Toast.makeText(this, "Цвета обновлены", Toast.LENGTH_SHORT).show()
-            return
-        }
         val palette = intArrayOf(0xFF3AA6FF.toInt(), 0xFFFFBE3C.toInt(), 0xFF7CFF6B.toInt(), 0xFFFF5A4A.toInt(), 0xFFCC66FF.toInt(), 0xFF00CCFF.toInt())
         val colorNames = arrayOf("Синий", "Жёлтый", "Зелёный", "Красный", "Фиолетовый", "Голубой")
-        val pid = pids[pidIndex]
-        val name = MazdaPids.byId(pid)?.name(this) ?: pid
-        val cur = g.colors.getOrElse(pidIndex) { palette[pidIndex % palette.size] }
-        val curIdx = palette.indexOf(cur).coerceAtLeast(0)
+        // Нормализуем список цветов под количество датчиков.
+        val colors = ArrayList<Int>()
+        for (i in pids.indices) colors.add(g.colors.getOrElse(i) { palette[i % palette.size] })
+
+        val box = LinearLayout(this)
+        box.orientation = LinearLayout.VERTICAL
+        box.setPadding(dp(20), dp(12), dp(20), dp(8))
+        val spinners = ArrayList<Spinner>()
+        for (i in pids.indices) {
+            val pid = pids[i]
+            val name = MazdaPids.byId(pid)?.name(this) ?: pid
+            val row = LinearLayout(this)
+            row.orientation = LinearLayout.HORIZONTAL
+            row.gravity = android.view.Gravity.CENTER_VERTICAL
+            val tv = TextView(this)
+            tv.text = name
+            tv.setPadding(0, 0, dp(8), 0)
+            val lpText = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            row.addView(tv, lpText)
+            val spinner = Spinner(this)
+            val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, colorNames)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            spinner.adapter = adapter
+            val curIdx = palette.indexOf(colors[i]).let { if (it < 0) i % palette.size else it }
+            spinner.setSelection(curIdx.coerceIn(0, palette.size - 1))
+            spinners.add(spinner)
+            val lpSpinner = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            row.addView(spinner, lpSpinner)
+            box.addView(row, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            ).apply { bottomMargin = dp(6) })
+        }
+
         AlertDialog.Builder(this)
-            .setTitle("Цвет: $name")
-            .setSingleChoiceItems(colorNames, if (curIdx < 0) 0 else curIdx) { d, which ->
-                val newColors = ArrayList(g.colors)
-                while (newColors.size <= pidIndex) newColors.add(palette[newColors.size % palette.size])
-                newColors[pidIndex] = palette[which]
-                graphs[graphIndex] = g.copy(colors = newColors)
-                d.dismiss()
-                chooseColorForPid(graphIndex, pidIndex + 1)
-            }
-            .setNegativeButton("Готово") { d, _ ->
-                d.dismiss()
+            .setTitle("Цвета графика")
+            .setView(box)
+            .setPositiveButton("Применить") { _, _ ->
+                val newColors = spinners.map { spinner -> palette[spinner.selectedItemPosition] }
+                graphs[index] = g.copy(colors = newColors)
                 editor.invalidate()
                 updateInfo()
+                Toast.makeText(this, "Цвета обновлены", Toast.LENGTH_SHORT).show()
             }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
     }
 
