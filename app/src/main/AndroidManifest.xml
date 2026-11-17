@@ -105,6 +105,11 @@
             android:label="@string/obd_check_title"
             android:exported="false"/>
         <activity
+            android:name="com.aatorque.obd.UserPidsActivity"
+            android:theme="@style/Theme.App.Settings"
+            android:label="@string/obd_user_pids_title"
+            android:exported="false"/>
+        <activity
                 android:name="com.aatorque.obd.ObdExperimentalActivity"
                 android:theme="@style/Theme.App.Settings"
                 android:label="@string/obd_exp_title"

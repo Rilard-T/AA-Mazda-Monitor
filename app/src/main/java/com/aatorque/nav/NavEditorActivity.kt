@@ -349,7 +349,7 @@ class NavEditorActivity : AppCompatActivity() {
         val rpmGauge = rpm && old.kind == NavItem.GAUGE
         return old.copy(
             pid = pd.id,
-            label = getString(pd.shortRes),
+            label = pd.short(this),
             unit = if (rpmGauge) "x1000" else unitOf(pd),
             min = if (rpmGauge) 0f else pd.min.toFloat(),
             max = if (rpmGauge) 8f else pd.max.toFloat(),
@@ -358,12 +358,12 @@ class NavEditorActivity : AppCompatActivity() {
         )
     }
 
-    /** Единицы из ресурсов: 0 означает, что единиц у датчика нет. */
-    private fun unitOf(pd: PidDef): String = if (pd.unitRes != 0) getString(pd.unitRes) else ""
+    /** Единицы датчика: пустая строка означает, что их нет. */
+    private fun unitOf(pd: PidDef): String = pd.unit(this)
 
     private fun sensorNames(pids: List<PidDef>): Array<String> = Array(pids.size) { i ->
         val p = pids[i]
-        var name = getString(p.nameRes)
+        var name = p.name(this)
         if (PidProbe.isMissing(p.id)) name += " · " + getString(R.string.nav_no_answer)
         val unit = unitOf(p)
         if (unit.isEmpty()) name else name + ", " + unit
@@ -409,7 +409,7 @@ class NavEditorActivity : AppCompatActivity() {
         var n = 0
         while (forms.values.any { l -> l.any { it.id == prefix + n } }) n++
         val id = prefix + n
-        val label = getString(pd.shortRes)
+        val label = pd.short(this)
         val unit = unitOf(pd)
         val base = if (kind == NavItem.GAUGE) {
             NavItem(id, kind, pd.id, label, unit, 0f, 1f, 1.0, 0, 0.35f, 0.25f, 0.3f, 0.5f, 0.9f)

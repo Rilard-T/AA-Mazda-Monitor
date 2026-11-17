@@ -175,6 +175,60 @@ class ObdEngine(
         null
     }
 
+    /**
+     * Замер адаптера для экрана проверки датчиков: версия, протокол и задержка ответа.
+     * Таймауты — те же, что в обычном опросе (1500 мс на датчик): иначе замер показывал бы
+     * не реальную скорость работы, а терпение бенчмарка. Занимает несколько секунд,
+     * на это время опрос датчиков приостанавливается.
+     */
+    @Synchronized
+    fun benchmark(): AdapterBenchmark {
+        fun at(cmd: String, timeout: Long): String =
+            try { link.command(cmd, timeout) } catch (e: IOException) { "" }
+
+        val adapter = at("ATI", 3000).replace(">", "").trim()
+        val protocol = at("ATDP", 2000).replace(">", "").trim()
+            .removePrefix("AUTO,").removePrefix("auto,").trim()
+        // Проверяем только тот режим адаптации, с которым работаем: чужой режим
+        // оставил бы адаптер в другом состоянии после замера.
+        val adaptive = at(if (useCount) "ATAT2" else "ATAT1", 1500).uppercase().contains("OK")
+
+        val samples = ArrayList<Long>()
+        for (pid in listOf("010C", "0100")) {          // обороты; если блок молчит — просто факт ответа
+            if (samples.isNotEmpty()) break
+            for (i in 0 until 8) {
+                if (closed) break
+                val t0 = System.nanoTime()
+                val text = try { send("7E0", pid, 1500) } catch (e: IOException) { "" }
+                val ms = (System.nanoTime() - t0) / 1_000_000
+                if (looksLikeAnswer(text)) samples.add(ms.coerceAtLeast(1))
+            }
+        }
+        val min = samples.minOrNull() ?: 0L
+        val max = samples.maxOrNull() ?: 0L
+        val avg = if (samples.isEmpty()) 0L else samples.sum() / samples.size
+        return AdapterBenchmark(
+            adapter = adapter.ifBlank { "—" },
+            protocol = protocol.ifBlank { "—" },
+            minMs = min,
+            avgMs = avg,
+            maxMs = max,
+            samples = samples.size,
+            adaptiveTiming = adaptive,
+            supported = if (supported.isEmpty()) -1 else supported.size,
+        )
+    }
+
+    /** Ответ адаптера — не ошибка и не «нет данных». */
+    private fun looksLikeAnswer(text: String): Boolean {
+        val t = text.replace(">", "").trim()
+        if (t.isEmpty()) return false
+        val upper = t.uppercase()
+        if (upper.contains("NO DATA") || upper.contains("UNABLE") || upper.contains("ERROR")) return false
+        if (t.contains('?')) return false
+        return t.any { it.isDigit() } && Regex("^[0-9A-Fa-f\\s]+").containsMatchIn(t)
+    }
+
     fun listIds(): Array<String> = MazdaPids.all
         .filter { !it.isStandard || supported.isEmpty() || supported.contains(it.stdPid) }
         .map { it.id }.toTypedArray()

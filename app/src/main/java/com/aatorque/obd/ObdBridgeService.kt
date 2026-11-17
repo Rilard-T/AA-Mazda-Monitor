@@ -360,6 +360,9 @@ class ObdBridgeService : Service() {
         /** Зажигание: true — блок отвечает, false — молчит, null — связи с адаптером нет. */
         fun ignitionOn(): Boolean? = current?.ignitionOn()
 
+        /** Замер адаптера; null — адаптер не подключён. Вызывать только не из главного потока. */
+        fun benchmark(): AdapterBenchmark? = current?.benchmark()
+
         /** Переподключиться (например, после смены адаптера). */
         fun reconnect(context: Context) {
             reconnectFlag = true

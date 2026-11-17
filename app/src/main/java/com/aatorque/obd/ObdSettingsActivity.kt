@@ -317,6 +317,13 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         }
         action(
             app,
+            getString(R.string.obd_user_pids_title),
+            getString(R.string.obd_user_pids_action_summary)
+        ) {
+            startActivity(Intent(ctx, UserPidsActivity::class.java))
+        }
+        action(
+            app,
             getString(R.string.obd_action_experimental),
             getString(R.string.obd_action_experimental_summary)
         ) {

@@ -10,9 +10,9 @@ typealias Decoder = (IntArray) -> Double?
 /** Описание параметра. Либо запрос к блоку (request), либо расчётный (virtual). */
 data class PidDef(
     val id: String,             // hex-подобный идентификатор для интерфейса в стиле Torque
-    @StringRes val nameRes: Int,   // без запятых: они разделители в строке информации
-    @StringRes val shortRes: Int,
-    @StringRes val unitRes: Int,   // 0 — единиц нет
+    @StringRes val nameRes: Int = 0,   // без запятых: они разделители в строке информации
+    @StringRes val shortRes: Int = 0,
+    @StringRes val unitRes: Int = 0,   // 0 — единиц нет
     val min: Double,
     val max: Double,
     val header: String = "7E0", // 7E0 — двигатель, 7E1 — АКПП
@@ -20,18 +20,42 @@ data class PidDef(
     val slow: Boolean = false,  // медленные параметры кэшируются дольше
     val decode: Decoder? = null,
     val virtual: ((ObdEngine) -> Double?)? = null,
+    // Подписи пользовательских PID: у них нет строковых ресурсов, потому что название вводит сам
+    // пользователь. Для встроенных датчиков остаются nameRes/shortRes/unitRes.
+    val label: String = "",
+    val shortLabel: String = "",
+    val unitLabel: String = "",
 ) {
     val isStandard: Boolean get() = request?.startsWith("01") == true
     val stdPid: Int get() = request?.takeIf { it.startsWith("01") }?.substring(2)?.toIntOrNull(16) ?: -1
+
+    /** Название датчика на языке телефона (или введённое пользователем). */
+    fun name(context: Context): String =
+        if (label.isNotEmpty()) label else context.getString(nameRes)
+
+    /** Короткое имя для приборов и шкал; у пользовательских PID его может не быть. */
+    fun short(context: Context): String = when {
+        shortLabel.isNotEmpty() -> shortLabel
+        shortRes != 0 -> context.getString(shortRes)
+        else -> name(context)
+    }
+
+    /** Единицы измерения; пустая строка — единиц нет. */
+    fun unit(context: Context): String = when {
+        unitLabel.isNotEmpty() -> unitLabel
+        unitRes != 0 -> context.getString(unitRes)
+        else -> ""
+    }
+
     /**
      * Формат строки: «Название,Кратко,Единицы,Максимум,Минимум,Масштаб» (как в Torque).
      * Названия берутся из ресурсов, поэтому подписи следуют языку телефона.
      */
     fun info(context: Context): String = String.format(
         Locale.US, "%s,%s,%s,%s,%s,1.0",
-        context.getString(nameRes),
-        context.getString(shortRes),
-        if (unitRes != 0) context.getString(unitRes) else "",
+        name(context),
+        short(context),
+        unit(context),
         max, min
     )
 }
@@ -42,7 +66,8 @@ private fun IntArray.u(i: Int): Int = if (i < size) this[i] else 0
 object MazdaPids {
     private val soot: Decoder = { MazdaDecode.soot(it) }
 
-    val all: List<PidDef> = listOf(
+    /** Встроенный каталог Mazda; пользовательские PID добавляются в [all] поверх него. */
+    private val builtin: List<PidDef> = listOf(
         // --- стандартные (режим 01, блок двигателя 7E0) ---
         PidDef("05", R.string.pid_05_name, R.string.pid_05_short, R.string.pid_05_unit, -40.0, 130.0,
             request = "0105", decode = { MazdaDecode.at(it.u(0)) }),
@@ -135,6 +160,25 @@ object MazdaPids {
             virtual = { e -> e.tracker.currentSootPeak() }),
     )
 
-    private val index = all.associateBy { it.id.lowercase() }
-    fun byId(id: String): PidDef? = index[id.lowercase()]
+    private var version = -1
+    private var combined: List<PidDef> = builtin
+    private var index: Map<String, PidDef> = builtin.associateBy { it.id.lowercase() }
+
+    /** Пересобирает каталог, если список пользовательских PID изменился. */
+    private fun refresh() {
+        val rev = UserPids.revision
+        if (rev == version) return
+        val extra = UserPids.defs()
+        combined = builtin + extra
+        index = combined.associateBy { it.id.lowercase() }
+        version = rev
+    }
+
+    /** Все датчики: встроенные Mazda и добавленные пользователем. */
+    val all: List<PidDef> get() = synchronized(this) { refresh(); combined }
+
+    fun byId(id: String): PidDef? = synchronized(this) {
+        refresh()
+        index[id.lowercase()]
+    }
 }

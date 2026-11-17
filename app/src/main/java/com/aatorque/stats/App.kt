@@ -2,6 +2,7 @@ package com.aatorque.stats
 
 import android.app.Application
 import android.content.Context
+import com.aatorque.obd.UserPids
 import org.acra.config.mailSender
 import org.acra.config.toast
 import org.acra.data.StringFormat
@@ -17,6 +18,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Timber.plant(logTree)
+        UserPids.load(this)      // свои датчики нужны в каталоге до первого опроса
         fixAndroid14Perms()
     }
     
