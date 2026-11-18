@@ -14,7 +14,6 @@ def versionMajor = props.getProperty("majorVersion") as Integer
 def versionMinor = props.getProperty("minorVersion") as Integer
 def versionPatch = props.getProperty("patchVersion") as Integer
 def buildNumber = (props.getProperty("buildNumber") ?: "0").toString().trim()
-def acraVersion = '5.11.3'
 def ghOwner = "Rilard-T"
 def ghPackage = "AA-Mazda-Monitor"
 
@@ -141,8 +140,6 @@ dependencies {
     implementation 'androidx.databinding:databinding-runtime:8.7.3'
     // implementation 'com.google.dagger:hilt-android:2.48'
     //  kapt 'com.google.dagger:hilt-compiler:2.48'
-    implementation "ch.acra:acra-mail:$acraVersion"
-    implementation "ch.acra:acra-toast:$acraVersion"
     implementation 'com.github.martin-stone:hsv-alpha-color-picker-android:3.1.0'
 
 
