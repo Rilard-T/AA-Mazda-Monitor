@@ -3,9 +3,11 @@ package com.aatorque.prefs
 import android.content.Context
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.core.Serializer
 import androidx.datastore.dataStore
 import androidx.datastore.preferences.protobuf.InvalidProtocolBufferException
+import java.util.concurrent.ConcurrentHashMap
 import com.aatorque.datastore.Display
 import com.aatorque.datastore.Screen
 import com.aatorque.datastore.UserPreference
@@ -110,4 +112,17 @@ val Context.dataStore: DataStore<UserPreference> by dataStore(
     fileName = "user_prefs.pb",
     serializer = UserPreferenceSerializer
 )
+
+private val dataStoreCache = ConcurrentHashMap<String, DataStore<UserPreference>>()
+
+/** DataStore для активного профиля приложения (по автомобилю). */
+fun userDataStore(context: Context): DataStore<UserPreference> {
+    val name = com.aatorque.prefs.AppProfiles.userPrefsFileName(context)
+    return dataStoreCache.getOrPut(name) {
+        DataStoreFactory.create(
+            serializer = UserPreferenceSerializer,
+            produceFile = { context.applicationContext.filesDir.resolve(name) }
+        )
+    }
+}
 

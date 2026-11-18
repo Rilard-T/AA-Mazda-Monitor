@@ -34,7 +34,7 @@ class ObdBridgeService : Service() {
     @Volatile private var running = false
     @Volatile private var isForeground = false
     private var worker: Thread? = null
-    private val prefs by lazy { getSharedPreferences("obd_bridge", MODE_PRIVATE) }
+    private val prefs get() = getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(applicationContext), MODE_PRIVATE)
 
     /**
      * Binder, у которого queryLocalInterface отдаёт наш объект: ITorqueService.Stub.asInterface()
@@ -359,6 +359,13 @@ class ObdBridgeService : Service() {
 
         /** Зажигание: true — блок отвечает, false — молчит, null — связи с адаптером нет. */
         fun ignitionOn(): Boolean? = current?.ignitionOn()
+
+        /** Замер адаптера; null — адаптер не подключён. Вызывать только не из главного потока. */
+        fun benchmark(): AdapterBenchmark? = current?.benchmark()
+
+        /** Разовая проверка пользовательского PID: null — нет связи с адаптером. Вызывать только не из главного потока. */
+        fun testPid(header: String, request: String, decode: (IntArray) -> Double?): Pair<Double?, String>? =
+            current?.testPid(header, request, decode)
 
         /** Переподключиться (например, после смены адаптера). */
         fun reconnect(context: Context) {

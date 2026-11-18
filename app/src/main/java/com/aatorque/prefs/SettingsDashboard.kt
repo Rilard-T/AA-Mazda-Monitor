@@ -50,7 +50,7 @@ class SettingsDashboard : PreferenceFragmentCompat() {
                         mainCat.title = null
                         val dbIndex = dashboardIndex()
                         lifecycleScope.launch {
-                            requireContext().dataStore.data.collect { userPreference ->
+                            userDataStore(requireContext()).data.collect { userPreference ->
                                 val screen = userPreference.getScreens(dbIndex)
                                 performanceTitle.text = screen.title
                                 performanceTitle.title = resources.getString(R.string.pref_title_performance, dbIndex + 1)
@@ -112,7 +112,7 @@ class SettingsDashboard : PreferenceFragmentCompat() {
         performanceTitle.summaryProvider = EditTextPreference.SimpleSummaryProvider.getInstance()
         performanceTitle.setOnPreferenceChangeListener { _, newValue ->
             lifecycleScope.launch {
-                requireContext().dataStore.updateData {
+                userDataStore(requireContext()).updateData {
                     val screen =
                         it.getScreens(dashboardIndex()).toBuilder().setTitle(newValue as String)
                     return@updateData it.toBuilder().setScreens(dashboardIndex(), screen).build()

@@ -32,7 +32,7 @@ class ObdCheckActivity : AppCompatActivity() {
         }
         // Сам экран показывается только один раз — после первого успешного подключения; дальше он
         // открывается из «Подключение к OBD».
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+        getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(applicationContext), MODE_PRIVATE).edit()
             .putBoolean(KEY_SHOWN, true)
             .remove(KEY_PENDING)
             .apply()
@@ -44,7 +44,6 @@ class ObdCheckActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val PREFS = "obd_bridge"
         private const val KEY_SHOWN = "sensor_check_shown"
         private const val KEY_PENDING = "sensor_check_pending"
     }
@@ -56,10 +55,10 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
     @Volatile private var busy = false
     private var statusPref: Preference? = null
     private var ignitionPref: Preference? = null
-    private val rows = HashMap<String, Preference>()
+    private val rows = LinkedHashMap<String, Preference>()
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        preferenceManager.sharedPreferencesName = "obd_bridge"
+        preferenceManager.sharedPreferencesName = com.aatorque.prefs.AppProfiles.obdPrefsName(requireContext())
         val ctx = requireContext()
         val screen = preferenceManager.createPreferenceScreen(ctx)
         preferenceScreen = screen
@@ -109,7 +108,7 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
                 else -> engine
             }
             val p = Preference(ctx)
-            p.title = getString(pid.nameRes)
+            p.title = pid.name(ctx)
             p.summary = getString(R.string.obd_check_waiting)
             p.isSelectable = false
             cat.addPreference(p)
@@ -122,7 +121,7 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
         val num = if (Math.abs(v - Math.round(v).toDouble()) < 0.05)
             String.format(Locale.US, "%.0f", v)
         else String.format(Locale.US, "%.2f", v)
-        val unit = if (pid.unitRes != 0) " " + getString(pid.unitRes) else ""
+        val unit = pid.unit(requireContext()).let { if (it.isEmpty()) "" else " " + it }
         return getString(R.string.obd_check_answer, num + unit)
     }
 

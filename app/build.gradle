@@ -13,6 +13,7 @@ props.load(new FileInputStream("$project.rootDir/version.properties"))
 def versionMajor = props.getProperty("majorVersion") as Integer
 def versionMinor = props.getProperty("minorVersion") as Integer
 def versionPatch = props.getProperty("patchVersion") as Integer
+def buildNumber = (props.getProperty("buildNumber") ?: "0").toString().trim()
 def acraVersion = '5.11.3'
 def ghOwner = "Rilard-T"
 def ghPackage = "AA-Mazda-Monitor"
@@ -22,11 +23,12 @@ android {
     namespace "com.aatorque.stats"
     compileSdk 34
     defaultConfig {
-        applicationId "com.aamazda.monitor"
+        applicationId "com.aamazda.monitor.beta"
         minSdkVersion 28
         targetSdkVersion 34
         versionCode versionMajor * 100000 + versionMinor * 1000 + versionPatch
         versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+        buildConfigField "int", "BUILD_NUMBER", "${buildNumber.isEmpty() ? 0 : buildNumber}"
         vectorDrawables {
             useSupportLibrary true
         }
@@ -35,6 +37,7 @@ android {
     }
     applicationVariants.configureEach {
         buildConfigField "String", "RELEASE_URL", "\"https://github.com/${ghOwner}/${ghPackage}/releases/latest\""
+        buildConfigField "boolean", "OTA_ENABLED", "false"
         buildConfigField "String", "REPO_URL", "\"https://github.com/${ghOwner}/${ghPackage}\""
     }
     signingConfigs {
@@ -104,7 +107,8 @@ dependencies {
     // Replaced with updated SDK from "https://github.com/cupral/aauto-sdk.git" (as git-submodule)
     //implementation 'com.github.martoreto:aauto-sdk:v4.7'
     implementation project(path: ':speedviewlib', configuration: 'default')
-    implementation files('../lib/aauto.aar')
+    implementation "androidx.car.app:app:1.7.0"
+    implementation "androidx.car.app:app-projected:1.7.0"
 
     implementation 'com.jjoe64:graphview:4.2.2'
     implementation 'com.github.christophesmet:android_maskable_layout:v1.3.1'

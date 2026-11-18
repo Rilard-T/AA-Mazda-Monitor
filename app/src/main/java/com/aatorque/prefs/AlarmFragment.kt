@@ -313,7 +313,7 @@ fun MainView(
 
 
     LaunchedEffect(Unit) {
-        context.dataStore.data.map {
+        userDataStore(context).data.map {
             getCurrentDisplay(it).first.alarmsList
         }.collect {
             model.uiState.clear()
@@ -323,7 +323,7 @@ fun MainView(
     DisposableEffect(Unit) {
         onDispose {
              CoroutineScope(Dispatchers.IO).launch {
-                context.dataStore.updateData { currentSettings ->
+                userDataStore(context).updateData { currentSettings ->
                     return@updateData currentSettings.toBuilder().also { set1 ->
                         val toUpdate = getCurrentDisplay(set1)
                         val display = toUpdate.first.toBuilder()
