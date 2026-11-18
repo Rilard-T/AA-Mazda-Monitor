@@ -55,6 +55,7 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
     @Volatile private var busy = false
     private var statusPref: Preference? = null
     private var ignitionPref: Preference? = null
+
     private val rows = LinkedHashMap<String, Preference>()
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -97,6 +98,15 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
         }
         st.addPreference(connect)
 
+        // --- адаптер: замер задержки ---
+        val adapter = category(getString(R.string.obd_check_cat_adapter))
+        val bench = Preference(ctx)
+        bench.title = getString(R.string.obd_check_benchmark)
+        bench.summary = getString(R.string.obd_check_benchmark_hint)
+        bench.setOnPreferenceClickListener { startBenchmark(); true }
+        adapter.addPreference(bench)
+        benchPref = bench
+
         // --- датчики по блокам ---
         val engine = category(getString(R.string.obd_check_cat_engine))
         val trans = category(getString(R.string.obd_check_cat_trans))
@@ -123,6 +133,40 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
         else String.format(Locale.US, "%.2f", v)
         val unit = pid.unit(requireContext()).let { if (it.isEmpty()) "" else " " + it }
         return getString(R.string.obd_check_answer, num + unit)
+    }
+
+    /**
+     * Замер адаптера: несколько запросов с обычным таймаутом приложения.
+     * Идёт в фоновом потоке: на время замера опрос датчиков приостанавливается.
+     */
+    private fun startBenchmark() {
+        if (benchBusy) return
+        benchBusy = true
+        benchPref?.summary = getString(R.string.obd_check_benchmark_running)
+        io.execute {
+            val result = ObdBridgeService.benchmark()
+            ui.post {
+                benchBusy = false
+                if (isAdded) benchPref?.summary = describe(result)
+            }
+        }
+    }
+
+    private fun describe(b: AdapterBenchmark?): String {
+        if (b == null) return getString(R.string.obd_check_no_link)
+        if (b.samples == 0) return getString(R.string.obd_check_benchmark_no_answer, b.adapter, b.protocol)
+        val quality = getString(
+            when (b.quality) {
+                AdapterBenchmark.Quality.EXCELLENT -> R.string.obd_bench_quality_excellent
+                AdapterBenchmark.Quality.GOOD -> R.string.obd_bench_quality_good
+                AdapterBenchmark.Quality.MODERATE -> R.string.obd_bench_quality_moderate
+                AdapterBenchmark.Quality.SLOW -> R.string.obd_bench_quality_slow
+            }
+        )
+        return getString(
+            R.string.obd_check_benchmark_result,
+            b.adapter, b.protocol, b.avgMs, b.minMs, b.maxMs, b.hz, quality
+        )
     }
 
     private val tick = object : Runnable {
