@@ -87,6 +87,7 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
     private val io = Executors.newSingleThreadExecutor()
     private var statusPref: Preference? = null
     private var valuesPref: Preference? = null
+    private var probePref: Preference? = null
     private var adapterPref: ListPreference? = null
     private val classicPrefs = mutableListOf<Preference>()
     private val blePrefs = mutableListOf<Preference>()
@@ -131,6 +132,12 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         values.isSelectable = false
         st.addPreference(values)
         valuesPref = values
+        val probe = Preference(ctx)
+        probe.title = getString(R.string.obd_pref_probe)
+        probe.summary = getString(R.string.obd_probe_in_progress)
+        probe.isSelectable = false
+        st.addPreference(probe)
+        probePref = probe
 
         // --- подключение ---
         val con = category(getString(R.string.obd_cat_connection))
@@ -310,6 +317,13 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         }
         action(
             app,
+            getString(R.string.obd_user_pids_title),
+            getString(R.string.obd_user_pids_action_summary)
+        ) {
+            startActivity(Intent(ctx, UserPidsActivity::class.java))
+        }
+        action(
+            app,
             getString(R.string.obd_action_experimental),
             getString(R.string.obd_action_experimental_summary)
         ) {
@@ -412,6 +426,7 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
             val ctx = context
             if (ctx != null) {
                 statusPref?.summary = ObdBridgeService.statusText(ctx)
+                probePref?.summary = probeSummary(ctx)
                 // Служба подключилась впервые — показываем проверку датчиков: пустой список до
                 // подключения пользователю ничего не сообщает.
                 val obdPrefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
@@ -432,6 +447,18 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
             }
             ui.postDelayed(this, 2000)
         }
+    }
+
+    /** Сколько нестандартных датчиков ответило и какие промолчали (результат PidProbe). */
+    private fun probeSummary(ctx: Context): String {
+        val probeIds = MazdaPids.all
+            .filter { it.virtual == null && it.request != null && !it.isStandard }
+            .map { it.id }
+            .toSet()
+        if (!PidProbe.done) return ctx.getString(R.string.obd_probe_in_progress)
+        val missing = PidProbe.missingIds().filter { it in probeIds }
+        return if (missing.isEmpty()) ctx.getString(R.string.obd_probe_all, probeIds.size)
+        else ctx.getString(R.string.obd_probe_some, probeIds.size - missing.size, probeIds.size, missing.sorted().joinToString(", "))
     }
 
     private companion object {

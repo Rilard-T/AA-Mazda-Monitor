@@ -5,6 +5,20 @@
 
 Обновление всегда ставится поверх предыдущей версии без удаления: подпись не меняется.
 
+## 0.8.9
+
+Технические подробности; для пользователя — `docs/release-notes-0.8.9.md`.
+
+- Новые PID SkyActiv-D: ff9015–ff901b (сажа 22042B, перепад DPF 22F47A, EGR A/B 22F469, заслонка впуска 22F411, пробег 22DD01, SOC АКБ 224028). Декодеры в `MazdaDecode` (`dpfDiffPressure`, `egrA/B`, `intakeShutter`, `totalDistance`, `batterySoc`).
+- `5c` (температура масла) помечен `slow = true`.
+- `PidDef`: поля `label/shortLabel/unitLabel` для пользовательских PID; методы `name/short/unit(context)`; `MazdaPids.builtin` + `all` с пользовательскими; `MazdaPids.reloadUser()`.
+- `PidProbe.kt`: опрос всех PID при подключении, пометка «нет ответа».
+- `AdapterBenchmark.kt`: измерение скорости ответа, оценка качества.
+- `PidDecoding`: ISO-TP fallback (`isoTp`/`isoTpPayload`) для адаптеров, сохраняющих служебные байты.
+- `UserPids.kt`, `UserPidFormula.kt`, `UserPidsActivity.kt`: хранение, формулы, UI пользовательских PID.
+- `StatsService`: флаг `pidsStale` для обновления кэша списка PID.
+- `RegenTracker`: улучшенное логирование интервалов прожига.
+
 ## 0.8.8
 
 Технические подробности; для пользователя — `docs/release-notes-0.8.8.md`.
