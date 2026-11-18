@@ -42,6 +42,11 @@
         android:hardwareAccelerated="true">
 
         <activity
+            android:name="com.aatorque.prefs.ProfilesActivity"
+            android:theme="@style/Theme.App.Settings"
+            android:label="@string/profile_settings_cat"
+            android:exported="false"/>
+        <activity
             android:name="com.aatorque.prefs.SettingsActivity"
             android:theme="@style/Theme.App.Settings"
             android:exported="true"

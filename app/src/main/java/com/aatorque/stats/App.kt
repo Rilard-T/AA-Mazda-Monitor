@@ -18,6 +18,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Timber.plant(logTree)
+        com.aatorque.prefs.AppProfiles.migrate(this)
         UserPids.load(this)      // свои датчики нужны в каталоге до первого опроса
         fixAndroid14Perms()
     }

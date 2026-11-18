@@ -31,7 +31,7 @@ class DashboardPreviewFragment: Fragment() {
     ): View? {
         val view = inflater.inflate(R.layout.fragment_dashboard_preview, container, false)
         val data = runBlocking {
-            requireContext().dataStore.data.first()
+            userDataStore(requireContext()).data.first()
         }
         inflater.context.setTheme(mapTheme(requireContext(), data.selectedTheme))
         forceRotate(true)

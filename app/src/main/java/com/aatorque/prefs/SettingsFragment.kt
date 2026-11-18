@@ -19,6 +19,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
             startActivity(Intent(requireContext(), com.aatorque.nav.NavEditorActivity::class.java))
             true
         }
+        findPreference<Preference>("profile_manager")?.setOnPreferenceClickListener {
+            startActivity(Intent(requireContext(), ProfilesActivity::class.java))
+            true
+        }
         findPreference<Preference>("media_access")?.setOnPreferenceClickListener {
             if (!NotiService.isNotificationAccessEnabled(requireContext())) {
                 startActivity(

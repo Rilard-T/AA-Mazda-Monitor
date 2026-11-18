@@ -31,7 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aatorque.datastore.UserPreference
 import com.aatorque.prefs.SettingsViewModel
-import com.aatorque.prefs.dataStore
+import com.aatorque.prefs.userDataStore
 import com.aatorque.stats.databinding.FragmentDashboardBinding
 import com.aatorque.utils.CountDownLatch
 import kotlinx.coroutines.flow.Flow
@@ -103,7 +103,7 @@ open class DashboardFragment : AlbumArt() {
         val registerWithView = { call: suspend (Flow<UserPreference>) -> Unit ->
             lifecycleScope.launch {
                 viewReady.await()
-                call(context.dataStore.data)
+                call(userDataStore(context).data)
             }
         }
         registerWithView {
@@ -331,7 +331,7 @@ open class DashboardFragment : AlbumArt() {
         ).alpha(0f).setListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
                 lifecycleScope.launch {
-                    requireContext().dataStore.updateData {
+                    userDataStore(requireContext()).updateData {
                             currentSettings ->
                         currentSettings.toBuilder().setCurrentScreen(
                             (currentSettings.screensCount +
@@ -368,7 +368,7 @@ open class DashboardFragment : AlbumArt() {
                     }
                 )
                 lifecycleScope.launch {
-                    context?.dataStore?.updateData { currentSettings ->
+                    context?.let { userDataStore(it) }?.updateData { currentSettings ->
                         currentSettings.toBuilder().setShowChart(showChart).build()
                     }
                 }

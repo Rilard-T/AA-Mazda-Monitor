@@ -66,7 +66,6 @@ data class NavLayout(
 object NavLayoutStore {
     const val WIDE = "wide"
     const val NARROW = "narrow"
-    private const val PREFS = "nav_layout"
     private const val KEY = "layout_json"
     private const val KEY_AREA = "area_aspect"
 
@@ -105,12 +104,12 @@ object NavLayoutStore {
 
     fun load(context: Context) {
         val text = try {
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
+            context.applicationContext.getSharedPreferences(com.aatorque.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE).getString(KEY, null)
         } catch (e: Exception) { null }
         val parsed = if (text == null) null else parse(text)
         install(parsed ?: defaultLayout())
         val area = try {
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat(KEY_AREA, 0f)
+            context.applicationContext.getSharedPreferences(com.aatorque.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE).getFloat(KEY_AREA, 0f)
         } catch (e: Exception) { 0f }
         carAspect = NavAspects.sanitize(area)
     }
@@ -121,14 +120,14 @@ object NavLayoutStore {
         if (abs(a - carAspect) < 0.02f) return
         carAspect = a
         try {
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            context.applicationContext.getSharedPreferences(com.aatorque.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE)
                 .edit().putFloat(KEY_AREA, a).apply()
         } catch (e: Exception) {}
     }
 
     fun save(context: Context, l: NavLayout) {
         try {
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            context.applicationContext.getSharedPreferences(com.aatorque.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE)
                 .edit().putString(KEY, toJson(l)).apply()
         } catch (e: Exception) {}
         install(l)
@@ -136,7 +135,7 @@ object NavLayoutStore {
 
     fun reset(context: Context) {
         try {
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            context.applicationContext.getSharedPreferences(com.aatorque.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE)
                 .edit().remove(KEY).apply()
         } catch (e: Exception) {}
         install(defaultLayout())

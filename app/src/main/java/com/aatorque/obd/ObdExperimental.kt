@@ -50,9 +50,9 @@ class ObdExperimentalFragment : PreferenceFragmentCompat() {
     private lateinit var tracker: RegenTracker
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        preferenceManager.sharedPreferencesName = "obd_bridge"
+        preferenceManager.sharedPreferencesName = com.aatorque.prefs.AppProfiles.obdPrefsName(requireContext())
         val ctx = requireContext()
-        val prefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(ctx), Context.MODE_PRIVATE)
         tracker = RegenTracker.get(prefs)
         val screen = preferenceManager.createPreferenceScreen(ctx)
         preferenceScreen = screen

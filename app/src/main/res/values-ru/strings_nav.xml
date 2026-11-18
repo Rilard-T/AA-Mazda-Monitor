@@ -71,4 +71,18 @@
     <string name="nav_item_red">Красная зона…</string>
     <string name="nav_red_hint">Красная зона начинается с (0 — выключить):</string>
     <string name="nav_red_invalid">Значение должно быть внутри шкалы (или 0, чтобы выключить)</string>
+    <string name="profile_settings_cat">Профили автомобилей</string>
+    <string name="profile_active">Активный профиль</string>
+    <string name="profile_create">Создать профиль</string>
+    <string name="profile_rename">Переименовать профиль</string>
+    <string name="profile_delete">Удалить профиль</string>
+    <string name="profile_name_hint">Имя профиля</string>
+    <string name="profile_created">Профиль создан</string>
+    <string name="profile_deleted">Профиль удалён</string>
+    <string name="profile_renamed">Переименовано</string>
+    <string name="profile_switch_restart">Профиль изменён. Перезапустить приложение для применения?</string>
+    <string name="profile_cannot_delete_active">Нельзя удалить активный профиль</string>
+    <string name="profile_cannot_delete_last">Должен остаться хотя бы один профиль</string>
+    <string name="profile_restart">Перезапустить</string>
+    <string name="profile_later">Позже</string>
 </resources>

@@ -34,7 +34,7 @@ class ObdBridgeService : Service() {
     @Volatile private var running = false
     @Volatile private var isForeground = false
     private var worker: Thread? = null
-    private val prefs by lazy { getSharedPreferences("obd_bridge", MODE_PRIVATE) }
+    private val prefs get() = getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(applicationContext), MODE_PRIVATE)
 
     /**
      * Binder, у которого queryLocalInterface отдаёт наш объект: ITorqueService.Stub.asInterface()

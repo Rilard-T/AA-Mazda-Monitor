@@ -98,9 +98,9 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
     @Volatile private var busy = false
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        preferenceManager.sharedPreferencesName = "obd_bridge"
+        preferenceManager.sharedPreferencesName = com.aatorque.prefs.AppProfiles.obdPrefsName(requireContext())
         val ctx = requireContext()
-        val prefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+        val prefs = ctx.getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(ctx), Context.MODE_PRIVATE)
         val screen = preferenceManager.createPreferenceScreen(ctx)
         preferenceScreen = screen
 
@@ -367,7 +367,7 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
     private fun fillBle(list: List<BleScanner.Found>) {
         val pref = blePref ?: return
         val ctx = context ?: return
-        val saved = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+        val saved = ctx.getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(ctx), Context.MODE_PRIVATE)
             .getString("ble_mac", null)?.takeIf { it.isNotBlank() }
         val names = mutableListOf(getString(R.string.obd_ble_none_selected))
         val vals = mutableListOf("")
@@ -429,7 +429,7 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
                 probePref?.summary = probeSummary(ctx)
                 // Служба подключилась впервые — показываем проверку датчиков: пустой список до
                 // подключения пользователю ничего не сообщает.
-                val obdPrefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+                val obdPrefs = ctx.getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(ctx), Context.MODE_PRIVATE)
                 if (obdPrefs.getBoolean("sensor_check_pending", false)) {
                     obdPrefs.edit().putBoolean("sensor_check_pending", false).apply()
                     startActivity(Intent(ctx, ObdCheckActivity::class.java))

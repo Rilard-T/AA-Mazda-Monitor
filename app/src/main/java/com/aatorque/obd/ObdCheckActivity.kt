@@ -32,7 +32,7 @@ class ObdCheckActivity : AppCompatActivity() {
         }
         // Сам экран показывается только один раз — после первого успешного подключения; дальше он
         // открывается из «Подключение к OBD».
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+        getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(applicationContext), MODE_PRIVATE).edit()
             .putBoolean(KEY_SHOWN, true)
             .remove(KEY_PENDING)
             .apply()
@@ -44,7 +44,6 @@ class ObdCheckActivity : AppCompatActivity() {
     }
 
     companion object {
-        private const val PREFS = "obd_bridge"
         private const val KEY_SHOWN = "sensor_check_shown"
         private const val KEY_PENDING = "sensor_check_pending"
     }
@@ -61,7 +60,7 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
     private val rows = LinkedHashMap<String, Preference>()
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        preferenceManager.sharedPreferencesName = "obd_bridge"
+        preferenceManager.sharedPreferencesName = com.aatorque.prefs.AppProfiles.obdPrefsName(requireContext())
         val ctx = requireContext()
         val screen = preferenceManager.createPreferenceScreen(ctx)
         preferenceScreen = screen

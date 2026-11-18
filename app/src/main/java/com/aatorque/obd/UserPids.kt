@@ -44,7 +44,6 @@ data class UserPid(
  */
 object UserPids {
 
-    private const val PREFS = "user_pids"
     private const val KEY_LIST = "list"
 
     /** Больше датчиков не нужно: каждый из них — отдельный запрос к блоку. */
@@ -59,7 +58,7 @@ object UserPids {
 
     /** Загружает список при старте приложения: каталог PID должен быть готов до первого опроса. */
     fun load(context: Context) {
-        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val p = context.getSharedPreferences(com.aatorque.prefs.AppProfiles.userPidsPrefsName(context), Context.MODE_PRIVATE)
         prefs = p
         items = UserPidCodec.decode(p.getString(KEY_LIST, null))
         rebuild()
@@ -76,7 +75,7 @@ object UserPids {
      * повторный импорт CSV обновляет формулы, а не плодит дубликаты.
      */
     fun put(context: Context, pid: UserPid): Boolean {
-        val p = prefs ?: context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).also { prefs = it }
+        val p = prefs ?: context.getSharedPreferences(com.aatorque.prefs.AppProfiles.userPidsPrefsName(context), Context.MODE_PRIVATE).also { prefs = it }
         val old = items.firstOrNull { it.key.equals(pid.key, ignoreCase = true) }
         if (old == pid) return false
         items = (items.filterNot { it.key.equals(pid.key, ignoreCase = true) } + pid).take(MAX)
@@ -88,7 +87,7 @@ object UserPids {
     /** Импорт CSV: датчики добавляются пачкой, уже известные обновляются. */
     fun putAll(context: Context, pids: List<UserPid>): Int {
         if (pids.isEmpty()) return 0
-        val p = prefs ?: context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).also { prefs = it }
+        val p = prefs ?: context.getSharedPreferences(com.aatorque.prefs.AppProfiles.userPidsPrefsName(context), Context.MODE_PRIVATE).also { prefs = it }
         val byKey = LinkedHashMap<String, UserPid>()
         items.forEach { byKey[it.key] = it }
         pids.forEach { byKey[it.key] = it }
@@ -99,7 +98,7 @@ object UserPids {
     }
 
     fun remove(context: Context, key: String) {
-        val p = prefs ?: context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).also { prefs = it }
+        val p = prefs ?: context.getSharedPreferences(com.aatorque.prefs.AppProfiles.userPidsPrefsName(context), Context.MODE_PRIVATE).also { prefs = it }
         val next = items.filterNot { it.key.equals(key, ignoreCase = true) }
         if (next.size == items.size) return
         items = next

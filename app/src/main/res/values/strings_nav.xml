@@ -71,4 +71,18 @@
     <string name="nav_item_red">Red zone…</string>
     <string name="nav_red_hint">Red zone starts at (0 — off):</string>
     <string name="nav_red_invalid">Value must be inside the scale (or 0 to turn off)</string>
+    <string name="profile_settings_cat">Car profiles</string>
+    <string name="profile_active">Active profile</string>
+    <string name="profile_create">Create profile</string>
+    <string name="profile_rename">Rename profile</string>
+    <string name="profile_delete">Delete profile</string>
+    <string name="profile_name_hint">Profile name</string>
+    <string name="profile_created">Profile created</string>
+    <string name="profile_deleted">Profile deleted</string>
+    <string name="profile_renamed">Renamed</string>
+    <string name="profile_switch_restart">Profile changed. Restart the app to apply?</string>
+    <string name="profile_cannot_delete_active">Cannot delete the active profile</string>
+    <string name="profile_cannot_delete_last">At least one profile must remain</string>
+    <string name="profile_restart">Restart</string>
+    <string name="profile_later">Later</string>
 </resources>

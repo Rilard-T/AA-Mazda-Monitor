@@ -4,6 +4,16 @@
 
     <PreferenceCategory
         android:singleLineTitle="false"
+        android:title="@string/profile_settings_cat">
+        <Preference
+            android:key="profile_manager"
+            android:persistent="false"
+            android:title="@string/profile_active"
+            android:summary="" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
         android:title="@string/nav_settings_cat"
         android:key="navCat">
         <Preference
