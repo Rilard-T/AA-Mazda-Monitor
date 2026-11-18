@@ -86,11 +86,6 @@ class ObdEngine(
         lastAnswerAt = System.currentTimeMillis()   // блок ответил на 0100 — зажигание включено
         readId("33")                                       // барометр нужен для расчёта наддува
         bg = Thread(::backgroundLoop, "obd-regen").also { it.isDaemon = true; it.start() }
-        // Torque-стиль: сразу после подключения проверяем, на какие нестандартные датчики блок отвечает.
-        // Результат прошлого опроса показываем сразу, затем обновляем его.
-        PidProbe.load(prefs)
-        PidProbe.begin()
-        Thread(::probePids, "obd-probe").apply { isDaemon = true; start() }
     }
 
     fun close() {
@@ -152,105 +147,6 @@ class ObdEngine(
         }
     }
 
-    /** Опрос нестандартных датчиков: ответ есть — датчик доступен, нет — помечаем в [PidProbe]. */
-    private fun probePids() {
-        for (p in MazdaPids.all) {
-            if (closed) return
-            if (p.virtual != null || p.request == null || p.isStandard) continue
-            val answered = probeOne(p) ?: continue
-            PidProbe.onAnswer(p.id, answered)
-            try { Thread.sleep(150) } catch (_: InterruptedException) { return }
-        }
-        PidProbe.finish()
-        PidProbe.save(prefs)
-        Timber.i("Опрос датчиков: без ответа: %s", PidProbe.missingIds().sorted().joinToString(","))
-    }
-
-    /** Один запрос мимо кэша; null — оборвалась связь, ответ неизвестен. */
-    @Synchronized
-    private fun probeOne(p: PidDef): Boolean? = try {
-        fetch(p) != null
-    } catch (e: IOException) {
-        failures++
-        null
-    }
-
-    /**
-     * Замер адаптера для экрана проверки датчиков: версия, протокол и задержка ответа.
-     * Таймауты — те же, что в обычном опросе (1500 мс на датчик): иначе замер показывал бы
-     * не реальную скорость работы, а терпение бенчмарка. Занимает несколько секунд,
-     * на это время опрос датчиков приостанавливается.
-     */
-    @Synchronized
-    fun benchmark(): AdapterBenchmark {
-        fun at(cmd: String, timeout: Long): String =
-            try { link.command(cmd, timeout) } catch (e: IOException) { "" }
-
-        val adapter = at("ATI", 3000).replace(">", "").trim()
-        val protocol = at("ATDP", 2000).replace(">", "").trim()
-            .removePrefix("AUTO,").removePrefix("auto,").trim()
-        // Проверяем только тот режим адаптации, с которым работаем: чужой режим
-        // оставил бы адаптер в другом состоянии после замера.
-        val adaptive = at(if (useCount) "ATAT2" else "ATAT1", 1500).uppercase().contains("OK")
-
-        val samples = ArrayList<Long>()
-        for (pid in listOf("010C", "0100")) {          // обороты; если блок молчит — просто факт ответа
-            if (samples.isNotEmpty()) break
-            for (i in 0 until 8) {
-                if (closed) break
-                val t0 = System.nanoTime()
-                val text = try { send("7E0", pid, 1500) } catch (e: IOException) { "" }
-                val ms = (System.nanoTime() - t0) / 1_000_000
-                if (looksLikeAnswer(text)) samples.add(ms.coerceAtLeast(1))
-            }
-        }
-        val min = samples.minOrNull() ?: 0L
-        val max = samples.maxOrNull() ?: 0L
-        val avg = if (samples.isEmpty()) 0L else samples.sum() / samples.size
-        return AdapterBenchmark(
-            adapter = adapter.ifBlank { "—" },
-            protocol = protocol.ifBlank { "—" },
-            minMs = min,
-            avgMs = avg,
-            maxMs = max,
-            samples = samples.size,
-            adaptiveTiming = adaptive,
-            supported = if (supported.isEmpty()) -1 else supported.size,
-        )
-    }
-
-    /**
-     * Разовая проверка пользовательского PID: принудительно запрашивает блок и возвращает
-     * значение (или null, если блок не ответил) вместе с сырым ответом адаптера.
-     * Используется на экране «Свои датчики», чтобы сразу увидеть, отвечает ли датчик.
-     */
-    @Synchronized
-    fun testPid(header: String, request: String, decode: (IntArray) -> Double?): Pair<Double?, String> {
-        val p = PidDef(
-            id = "utest",
-            min = 0.0,
-            max = 0.0,
-            header = header,
-            request = request,
-            decode = decode,
-        )
-        return try {
-            fetch(p) to lastRaw
-        } catch (e: IOException) {
-            null to (e.message ?: "")
-        }
-    }
-
-    /** Ответ адаптера — не ошибка и не «нет данных». */
-    private fun looksLikeAnswer(text: String): Boolean {
-        val t = text.replace(">", "").trim()
-        if (t.isEmpty()) return false
-        val upper = t.uppercase()
-        if (upper.contains("NO DATA") || upper.contains("UNABLE") || upper.contains("ERROR")) return false
-        if (t.contains('?')) return false
-        return t.any { it.isDigit() } && Regex("^[0-9A-Fa-f\\s]+").containsMatchIn(t)
-    }
-
     fun listIds(): Array<String> = MazdaPids.all
         .filter { !it.isStandard || supported.isEmpty() || supported.contains(it.stdPid) }
         .map { it.id }.toTypedArray()
@@ -262,17 +158,11 @@ class ObdEngine(
     @Synchronized
     fun read(p: PidDef, force: Boolean = false): Double? {
         val now = System.currentTimeMillis()
-        // Масло (01 5C) отвечает редко — держим кэш дольше, чем у прочих быстрых датчиков.
-        val ttl = when {
-            p.id == "5c" -> 5_000L
-            p.slow -> slowMs()
-            else -> fastMs()
-        }
+        val ttl = if (p.slow) slowMs() else fastMs()
         if (!force) cache[p.id]?.let { if (now - it.t < ttl) return it.v }
         var failed = false
         var v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
-        // Медленные датчики и блок АКПП иногда молчат: один быстрый повтор.
-        if (v == null && !failed && p.virtual == null && (p.slow || p.header != "7E0")) {
+        if (v == null && !failed && p.virtual == null && p.header != "7E0") {   // блок АКПП иногда молчит: один быстрый повтор
             v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
         }
         if (failed) onFail() else onOk()
@@ -284,9 +174,7 @@ class ObdEngine(
         } else if (p.slow && p.virtual == null) {
             warnMiss(p, t)
             val g = lastGood[p.id]
-            // масло (5c) отвечает редко — показываем последнее удачное значение дольше прочих медленных датчиков
-            val hold = if (p.id == "5c") 60_000L else HOLD_SLOW_MS
-            if (g != null && t - g.t < hold) shown = g.v
+            if (g != null && t - g.t < HOLD_SLOW_MS) shown = g.v
         } else if (p.virtual == null && (p.id == "7c" || p.id == "7a")) {
             warnMiss(p, t)   // диагностика 7C/7A: сырой ответ блока
         }
@@ -316,12 +204,6 @@ class ObdEngine(
         if (useCount && text.contains('?')) {      // адаптер не понял сокращённую форму — работаем без неё
             useCount = false
             text = send(p.header, req, 1500)
-        }
-        // Адаптер иногда отвечает «CAN ERROR»/«NO DATA» на первый запрос (особенно для АКПП
-        // и медленных датчиков) — один повтор, как при пустом ответе блока.
-        if (text.uppercase().contains("ERROR") || text.uppercase().contains("NO DATA")) {
-            text = send(p.header, if (useCount) req + "1" else req, 1500)
-            if (useCount && text.contains('?')) { useCount = false; text = send(p.header, req, 1500) }
         }
         lastRaw = text
         val b = parse(text, prefix) ?: return null

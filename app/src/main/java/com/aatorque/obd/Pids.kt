@@ -10,9 +10,9 @@ typealias Decoder = (IntArray) -> Double?
 /** Описание параметра. Либо запрос к блоку (request), либо расчётный (virtual). */
 data class PidDef(
     val id: String,             // hex-подобный идентификатор для интерфейса в стиле Torque
-    @StringRes val nameRes: Int = 0,   // без запятых: они разделители в строке информации
-    @StringRes val shortRes: Int = 0,
-    @StringRes val unitRes: Int = 0,   // 0 — единиц нет
+    @StringRes val nameRes: Int,   // без запятых: они разделители в строке информации
+    @StringRes val shortRes: Int,
+    @StringRes val unitRes: Int,   // 0 — единиц нет
     val min: Double,
     val max: Double,
     val header: String = "7E0", // 7E0 — двигатель, 7E1 — АКПП
@@ -20,42 +20,18 @@ data class PidDef(
     val slow: Boolean = false,  // медленные параметры кэшируются дольше
     val decode: Decoder? = null,
     val virtual: ((ObdEngine) -> Double?)? = null,
-    // Подписи пользовательских PID: у них нет строковых ресурсов, потому что название вводит сам
-    // пользователь. Для встроенных датчиков остаются nameRes/shortRes/unitRes.
-    val label: String = "",
-    val shortLabel: String = "",
-    val unitLabel: String = "",
 ) {
     val isStandard: Boolean get() = request?.startsWith("01") == true
     val stdPid: Int get() = request?.takeIf { it.startsWith("01") }?.substring(2)?.toIntOrNull(16) ?: -1
-
-    /** Название датчика на языке телефона (или введённое пользователем). */
-    fun name(context: Context): String =
-        if (label.isNotEmpty()) label else context.getString(nameRes)
-
-    /** Короткое имя для приборов и шкал; у пользовательских PID его может не быть. */
-    fun short(context: Context): String = when {
-        shortLabel.isNotEmpty() -> shortLabel
-        shortRes != 0 -> context.getString(shortRes)
-        else -> name(context)
-    }
-
-    /** Единицы измерения; пустая строка — единиц нет. */
-    fun unit(context: Context): String = when {
-        unitLabel.isNotEmpty() -> unitLabel
-        unitRes != 0 -> context.getString(unitRes)
-        else -> ""
-    }
-
     /**
      * Формат строки: «Название,Кратко,Единицы,Максимум,Минимум,Масштаб» (как в Torque).
      * Названия берутся из ресурсов, поэтому подписи следуют языку телефона.
      */
     fun info(context: Context): String = String.format(
         Locale.US, "%s,%s,%s,%s,%s,1.0",
-        name(context),
-        short(context),
-        unit(context),
+        context.getString(nameRes),
+        context.getString(shortRes),
+        if (unitRes != 0) context.getString(unitRes) else "",
         max, min
     )
 }
@@ -66,8 +42,7 @@ private fun IntArray.u(i: Int): Int = if (i < size) this[i] else 0
 object MazdaPids {
     private val soot: Decoder = { MazdaDecode.soot(it) }
 
-    /** Встроенный каталог Mazda; пользовательские PID добавляются в [all] поверх него. */
-    private val builtin: List<PidDef> = listOf(
+    val all: List<PidDef> = listOf(
         // --- стандартные (режим 01, блок двигателя 7E0) ---
         PidDef("05", R.string.pid_05_name, R.string.pid_05_short, R.string.pid_05_unit, -40.0, 130.0,
             request = "0105", decode = { MazdaDecode.at(it.u(0)) }),
@@ -92,7 +67,7 @@ object MazdaPids {
         PidDef("0f", R.string.pid_0f_name, R.string.pid_0f_short, R.string.pid_0f_unit, -40.0, 100.0,
             request = "010F", decode = { MazdaDecode.at(it.u(0)) }),
         PidDef("5c", R.string.pid_5c_name, R.string.pid_5c_short, R.string.pid_5c_unit, -40.0, 150.0,
-            request = "015C", slow = true, decode = { MazdaDecode.at(it.u(0)) }),
+            request = "015C", decode = { MazdaDecode.at(it.u(0)) }),
         PidDef("2f", R.string.pid_2f_name, R.string.pid_2f_short, R.string.pid_2f_unit, 0.0, 100.0,
             request = "012F", slow = true, decode = { MazdaDecode.percent(it.u(0)) }),
         PidDef("42", R.string.pid_42_name, R.string.pid_42_short, R.string.pid_42_unit, 8.0, 16.0,
@@ -112,32 +87,13 @@ object MazdaPids {
             request = "22042C", slow = true, decode = soot),
         PidDef("ff9004", R.string.pid_ff9004_name, R.string.pid_ff9004_short, R.string.pid_ff9004_unit, 0.0, 10.0,
             request = "22042D", slow = true, decode = soot),
-        // статус прожига сажевого (DID 0380): 0 нет прожига; 1 — активная регенерация (пост-инжекция);
-        // 2 — REG_REQ_A (запрос автоматической регенерации по FORScan: движение >15 км/ч, EOT>80 °C,
-        // PM_ACC_DSD/PM_GEN > ~5.6 г/л). На некоторых прошивках значение 2 сопровождает активную
-        // регенерацию, поэтому в RegenTracker оба трактуются как «ненулевой», но различаются в журнале.
+        // статус прожига сажевого: 0 нет, 1 обычный, 2 принудительный (по данным CarScanner для SkyActiv-D)
         PidDef("ff9006", R.string.pid_ff9006_name, R.string.pid_ff9006_short, 0, 0.0, 2.0,
             request = "220380", slow = true,
             decode = { MazdaDecode.regenStatus(it) }),
         PidDef("ff9005", R.string.pid_ff9005_name, R.string.pid_ff9005_short, R.string.pid_ff9005_unit, -40.0, 150.0,
             header = "7E1", request = "221E1C", slow = true,
             decode = { MazdaDecode.transTemp(it) }),
-
-        // --- SkyActiv-D: набор Torque Pro (проверено на Mazda2 1.5 S5-DPTS) ---
-        PidDef("ff9015", R.string.pid_ff9015_name, R.string.pid_ff9015_short, R.string.pid_ff9015_unit, 0.0, 10.0,
-            request = "22042B", slow = true, decode = soot),
-        PidDef("ff9016", R.string.pid_ff9016_name, R.string.pid_ff9016_short, R.string.pid_ff9016_unit, -20.0, 50.0,
-            request = "22F47A", slow = true, decode = { MazdaDecode.dpfDiffPressure(it) }),
-        PidDef("ff9017", R.string.pid_ff9017_name, R.string.pid_ff9017_short, R.string.pid_ff9017_unit, 0.0, 100.0,
-            request = "22F469", slow = true, decode = { MazdaDecode.egrA(it) }),
-        PidDef("ff9018", R.string.pid_ff9018_name, R.string.pid_ff9018_short, R.string.pid_ff9018_unit, 0.0, 100.0,
-            request = "22F469", slow = true, decode = { MazdaDecode.egrB(it) }),
-        PidDef("ff9019", R.string.pid_ff9019_name, R.string.pid_ff9019_short, R.string.pid_ff9019_unit, 0.0, 100.0,
-            request = "22F411", slow = true, decode = { MazdaDecode.intakeShutter(it) }),
-        PidDef("ff901a", R.string.pid_ff901a_name, R.string.pid_ff901a_short, R.string.pid_ff901a_unit, 0.0, 1000000.0,
-            request = "22DD01", slow = true, decode = { MazdaDecode.totalDistance(it) }),
-        PidDef("ff901b", R.string.pid_ff901b_name, R.string.pid_ff901b_short, R.string.pid_ff901b_unit, 0.0, 100.0,
-            request = "224028", slow = true, decode = { MazdaDecode.batterySoc(it) }),
 
         // --- расчётные ---
         // Процент считается от порога dpf_full_gl (настройка, г/л). Пока порог не задан, значение пустое.
@@ -163,25 +119,6 @@ object MazdaPids {
             virtual = { e -> e.tracker.currentSootPeak() }),
     )
 
-    private var version = -1
-    private var combined: List<PidDef> = builtin
-    private var index: Map<String, PidDef> = builtin.associateBy { it.id.lowercase() }
-
-    /** Пересобирает каталог, если список пользовательских PID изменился. */
-    private fun refresh() {
-        val rev = UserPids.revision
-        if (rev == version) return
-        val extra = UserPids.defs()
-        combined = builtin + extra
-        index = combined.associateBy { it.id.lowercase() }
-        version = rev
-    }
-
-    /** Все датчики: встроенные Mazda и добавленные пользователем. */
-    val all: List<PidDef> get() = synchronized(this) { refresh(); combined }
-
-    fun byId(id: String): PidDef? = synchronized(this) {
-        refresh()
-        index[id.lowercase()]
-    }
+    private val index = all.associateBy { it.id.lowercase() }
+    fun byId(id: String): PidDef? = index[id.lowercase()]
 }

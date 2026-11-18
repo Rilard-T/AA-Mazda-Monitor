@@ -2,6 +2,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
+        android:id="@+id/action_preview"
+        android:title="@string/action_preview"
+        android:icon="@drawable/baseline_preview_24"
+        app:showAsAction="ifRoom"/>
+    <item
         android:id="@+id/action_credits"
         android:title="@string/activity_credits_title"
         app:showAsAction="ifRoom"

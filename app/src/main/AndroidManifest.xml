@@ -3,8 +3,6 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="androidx.car.app.NAVIGATION_TEMPLATES" />
-    <uses-permission android:name="androidx.car.app.ACCESS_SURFACE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="com.google.android.gms.permission.CAR_VENDOR_EXTENSION" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
@@ -25,7 +23,7 @@
 
 
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" tools:ignore="CoarseFineLocation"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
@@ -42,11 +40,6 @@
         android:hardwareAccelerated="true">
 
         <activity
-            android:name="com.aatorque.prefs.ProfilesActivity"
-            android:theme="@style/Theme.App.Settings"
-            android:label="@string/profile_settings_cat"
-            android:exported="false"/>
-        <activity
             android:name="com.aatorque.prefs.SettingsActivity"
             android:theme="@style/Theme.App.Settings"
             android:exported="true"
@@ -60,6 +53,18 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name="com.aatorque.stats.CarService"
+            android:exported="true"
+            android:label="@string/app_car_service_name"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="com.google.android.gms.car.category.CATEGORY_PROJECTION" />
+                <category android:name="com.google.android.gms.car.category.CATEGORY_PROJECTION_OEM" />
+            </intent-filter>
+        </service>
         <service
             android:name=".StatsService"
             android:exported="false"
@@ -76,19 +81,6 @@
             </intent-filter>
         </service>
 
-        <service
-            android:name="com.aatorque.nav.NavCarAppService"
-            android:exported="true"
-            android:label="@string/app_name"
-            tools:ignore="ExportedService">
-            <intent-filter>
-                <action android:name="androidx.car.app.CarAppService" />
-                <category android:name="androidx.car.app.category.NAVIGATION" />
-            </intent-filter>
-        </service>
-        <meta-data
-            android:name="androidx.car.app.minCarApiLevel"
-            android:value="1" />
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
@@ -110,11 +102,6 @@
             android:label="@string/obd_check_title"
             android:exported="false"/>
         <activity
-            android:name="com.aatorque.obd.UserPidsActivity"
-            android:theme="@style/Theme.App.Settings"
-            android:label="@string/obd_user_pids_title"
-            android:exported="false"/>
-        <activity
                 android:name="com.aatorque.obd.ObdExperimentalActivity"
                 android:theme="@style/Theme.App.Settings"
                 android:label="@string/obd_exp_title"
@@ -128,12 +115,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/log_file_paths" />
         </provider>
-        <activity
-            android:name="com.aatorque.nav.NavEditorActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
-            android:theme="@style/Theme.App.Settings"
-            android:label="Раскладка приборов"
-            android:exported="false" />
     </application>
 
 </manifest>

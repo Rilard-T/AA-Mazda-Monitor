@@ -137,6 +137,11 @@ class SettingsActivity : AppCompatActivity(),
     override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
         // Handle item selection
         return when (item.itemId) {
+            R.id.action_preview -> {
+                launchFragment("preview", DashboardPreviewFragment())
+                true
+            }
+
             R.id.action_copy_logs -> {
                 logsToClipboard()
                 true
@@ -195,7 +200,7 @@ class SettingsActivity : AppCompatActivity(),
     private val exportFileLauncher = registerForActivityResult(ExportFileContract()) { uri: Uri? ->
         // This lambda will be executed when the activity result returns
         lifecycleScope.launch(Dispatchers.IO) {
-            val data = userDataStore(applicationContext).data.first()
+            val data = applicationContext.dataStore.data.first()
             val result = if (uri != null) {
                 contentResolver.openOutputStream(uri)?.use { outputStream ->
                     UserPreferenceSerializer.writeTo(data, outputStream)
@@ -213,7 +218,7 @@ class SettingsActivity : AppCompatActivity(),
 
     private val regenExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
-        val tracker = RegenTracker.get(getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(this@SettingsActivity), MODE_PRIVATE))
+        val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
         lifecycleScope.launch(Dispatchers.IO) {
             val ok = runCatching {
                 contentResolver.openOutputStream(uri)?.use { tracker.exportText().toByteArray(Charsets.UTF_8).let(it::write) } != null
@@ -230,7 +235,7 @@ class SettingsActivity : AppCompatActivity(),
 
     private val regenImportLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
-        val tracker = RegenTracker.get(getSharedPreferences(com.aatorque.prefs.AppProfiles.obdPrefsName(this@SettingsActivity), MODE_PRIVATE))
+        val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
         lifecycleScope.launch(Dispatchers.IO) {
             val count = runCatching {
                 contentResolver.openInputStream(uri)
@@ -252,7 +257,7 @@ class SettingsActivity : AppCompatActivity(),
             val inStream = contentResolver.openInputStream(uri)
             this@SettingsActivity.lifecycleScope.launch {
                 try {
-                    userDataStore(this@SettingsActivity.applicationContext).updateData {
+                    this@SettingsActivity.applicationContext.dataStore.updateData {
                         return@updateData UserPreference.parseFrom(inStream)
                     }
                 } catch (e: InvalidProtocolBufferException) {
@@ -375,12 +380,6 @@ class SettingsActivity : AppCompatActivity(),
 
     private fun checkUpdate(force: Boolean =false): Boolean {
         Timber.i("Checking for update")
-        if (!BuildConfig.OTA_ENABLED) {
-            if (force) runOnUiThread {
-                Toast.makeText(this, "Бета: обновление отключено", Toast.LENGTH_LONG).show()
-            }
-            return true
-        }
 
         var needsUpdate: Boolean? = null
         var checked = false
@@ -521,6 +520,7 @@ class SettingsActivity : AppCompatActivity(),
         private const val PERMISSION_CAR_VENDOR_EXTENSION =
             "com.google.android.gms.permission.CAR_VENDOR_EXTENSION"
         const val EXPORT_MIME = "application/octet-stream"
+        private const val OBD_PREFS = "obd_bridge"
     }
 }
 

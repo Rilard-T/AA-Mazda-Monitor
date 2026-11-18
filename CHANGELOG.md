@@ -5,35 +5,16 @@
 
 Обновление всегда ставится поверх предыдущей версии без удаления: подпись не меняется.
 
-## 0.8.9
-
-Технические подробности; для пользователя — `docs/release-notes-0.8.9.md`.
-
-- Новые PID SkyActiv-D: ff9015–ff901b (сажа 22042B, перепад DPF 22F47A, EGR A/B 22F469, заслонка впуска 22F411, пробег 22DD01, SOC АКБ 224028). Декодеры в `MazdaDecode` (`dpfDiffPressure`, `egrA/B`, `intakeShutter`, `totalDistance`, `batterySoc`).
-- `5c` (температура масла) помечен `slow = true`.
-- `PidDef`: поля `label/shortLabel/unitLabel` для пользовательских PID; методы `name/short/unit(context)`; `MazdaPids.builtin` + `all` с пользовательскими; `MazdaPids.reloadUser()`.
-- `PidProbe.kt`: опрос всех PID при подключении, пометка «нет ответа».
-- `AdapterBenchmark.kt`: измерение скорости ответа, оценка качества.
-- `PidDecoding`: ISO-TP fallback (`isoTp`/`isoTpPayload`) для адаптеров, сохраняющих служебные байты.
-- `UserPids.kt`, `UserPidFormula.kt`, `UserPidsActivity.kt`: хранение, формулы, UI пользовательских PID.
-- `StatsService`: флаг `pidsStale` для обновления кэша списка PID.
-- `RegenTracker`: улучшенное логирование интервалов прожига.
-
 ## 0.8.8
 
-Технические подробности; для пользователя — `docs/release-notes-0.8.8.md`.
-
-- `ObdBridgeService`: `START_NOT_STICKY`, `onTaskRemoved` → `stopSelf()`, остановка через `stopService()`; `MAX_CONNECT_ATTEMPTS = 5`, после лимита — `giveUp()`. Сбои связи считаются подряд: `okStreak`, сброс `failures` только после 3 успехов (иначе «мигающая» связь не даёт переподключения).
-- `ObdEngine`: `onOk/onFail`, `giveUp()`; опрос медленных датчиков и журнала прожигов вынесен в отдельный поток `obd-regen`.
-- `GaugeRefresher`: пакетный опрос — `getPIDValuesAsDouble` одним запросом на экран вместо обхода каждого датчика. `NumberFormat` теперь в полях экземпляра, а не общий статический (гонка между потоками). В `Elm327Link` — отдельный поток-читатель с очередью, в `WifiLink` — `soTimeout`. `GlobalScope` заменён на `lifecycleScope`/`scope`.
-- Удалён `requestQuit`, убран `startObd()` из настроек, из манифеста удалены Torque `<queries>` и intent-filter.
-- Новый экран `ObdCheckActivity`/`ObdCheckFragment`: опрос всех `MazdaPids` через `ObdBridgeService.peek` каждые 2 с (без блокировки UI, `Executors.newSingleThreadExecutor`), группы по заголовкам 7E0 / 7E1 / расчётные. Флаг `sensor_check_pending` ставится службой после первого успешного `init()`, экран открывается один раз по этому флагу и отмечает `sensor_check_shown`; постоянный вход — «Подключение к OBD».
-- Проверка зажигания: `ObdEngine.lastAnswerAt` обновляется при каждом ответе ЭБУ (и при удачном `init()`), `ignitionOn()` = ответ был менее 15 с назад (`IGNITION_HOLD_MS`), `ObdBridgeService.ignitionOn()` возвращает `null` без подключения. Пока зажигание не включено, у датчиков «Ожидание…» вместо «Нет ответа».
-- `RegenTracker`: `STATUS_HOLD_MS` 10 с → 30 с для статуса 1/2; отдельный флаг `midSession` — подключение посреди прожига ждёт выдержку, но запись не создаёт; `System.currentTimeMillis()` заменён на инъекцию `clock` для тестов. `RegenTrackerTest`: 9 тестов и `FakePrefs` на `SharedPreferences` (выдержка статуса, импорт/экспорт, сажа, интервал).
-- Переименования своих классов: `TorqueService→ObdServiceClient`, `TorqueServiceWrapper→StatsService`, `TorqueData→GaugeData`, `TorqueRefresher→GaugeRefresher`, `TorqueGauge→GaugeFragment` (+`GaugeFragmentKt`), `TorqueChart→ChartFragment`, `TorqueDisplay→DisplayFragment`, `TorqueSpeedometer→SpeedometerView`; `CONNECTING_TORQUE→CONNECTING_SERVICE`, `startTorque→connect`, `torqueService→obdService`, `torqueConnection→serviceConnection`, `torqueRefresher→gaugeRefresher`, `torqueChart→chartFragment`, `torqueBind→boundService`. Обновлены `fragment_dashboard.xml`, `fragment_gauge.xml`, `chart_legend.xml`, манифест, `proguard-rules.pro`.
-- Намеренно оставлены для совместимости: префикс `torque_` в DataStore, AIDL `org.prowl.torque.remote.ITorqueService` и его DESCRIPTOR, GPL-кредиты — старые профили, плагины Torque и атрибуция.
-- Удалены неполные локали: `values-cs`, `values-de`, `values-el`, `values-es`, `values-fr`, `values-fr-rCA`, `values-it`, `values-nl`, `values-pl`, `values-pt`, `values-pt-rBR`, `values-sl`, `values-uk`, `values-zh-rHK`; остались `values` (английский) и `values-ru`.
-- `versionCode 8008`, подпись прежняя; в релиз прилагаются `app-release.apk` и `usage.txt`. Заметки релиза вынесены в `docs/release-notes-0.8.8.md`, workflow берёт файл текущей версии.
+- Служба больше не поднимается сама после выхода из приложения и закрытия Android Auto и не держит адаптер занятым; автоподключение — максимум 5 попыток.
+- Приборы обновляются одним пакетным запросом на экран вместо отдельного опроса каждого датчика.
+- Исправлены редкие застывания значений: форматирование чисел не делится между потоками, чтение с адаптера идёт через отдельный поток с очередью.
+- Настройки не запускают службу при открытии; подключение — по кнопке и при старте Android Auto.
+- Внутренние имена классов и сообщения журнала больше не путаются с приложением Torque; список датчиков, профили и журнал прожигов сохранены.
+- Прожиг считается начавшимся, когда статус блока (1 или 2) держится 30 секунд подряд, а не 10: случайные всплески статуса больше не включают флаг.
+- Проверка датчиков после первого успешного подключения (и в «Подключение к OBD»): опрос всех параметров с показом, какие блоки отвечают. Показывается состояние зажигания: «Нет ответа» выводится только при включённом зажигании, иначе — «Ожидание» и подсказка включить его.
+- Оставлены только полные локали — русская и английская; неполные переводы (de, es, fr, it, nl, pl, pt, cs, el, uk, sl, zh-rHK) удалены, вместо них английский текст.
 
 ## 0.8.7
 

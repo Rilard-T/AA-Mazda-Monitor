@@ -62,7 +62,7 @@ class StatsService: Service() {
     }
 
     fun loadPidInformation(force: Boolean = false, onComplete: ((PidInfo) -> Unit)? = null) {
-        if (pids != null && !force && !pidsStale) {
+        if (pids != null && !force) {
             onComplete?.invoke(pids!!)
             return
         }
@@ -70,7 +70,6 @@ class StatsService: Service() {
             val bg = ListPids(it) {
                 newPids ->
                 this.pids = newPids
-                pidsStale = false
                 onComplete?.invoke(newPids)
             }
             Thread(bg).start()
@@ -136,12 +135,6 @@ class StatsService: Service() {
     }
 
     companion object {
-        /**
-         * Пользователь добавил или удалил свои PID — кэш списка устарел.
-         * Без этого признака список в настройках дашборда оставался бы прежним до перезапуска.
-         */
-        @Volatile var pidsStale: Boolean = false
-
         fun runStartIntent(context: Context, conn: ServiceConnection): Boolean {
             Intent(context, StatsService::class.java).also { intent ->
                 return context.bindService(intent, conn, Context.BIND_AUTO_CREATE)

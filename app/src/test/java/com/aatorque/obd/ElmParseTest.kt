@@ -40,23 +40,4 @@ class ElmParseTest {
         val b = intArrayOf(0x07, 0x00, 0x00, 0x0F, 0x0A, 0x0F, 0x3C, 0x0F, 0x00)
         assertEquals(listOf(345.0, 350.0, 344.0), ElmParse.egtTemperatures(b))
     }
-
-    @Test
-    fun singleFrameWithBlockHeaderIsParsed() {
-        // Адаптер не убрал заголовок блока и служебный байт ISO-TP (03 — длина полезных данных).
-        assertEquals(listOf(0x32), ElmParse.bytes("7E8 03 41 0D 32", "410D")!!.toList())
-    }
-
-    @Test
-    fun rawIsoTpFramesAreAssembled() {
-        // Многосегментный ответ, разрезанный кадрами: префикс straddle-ит границу кадров,
-        // поэтому прямой поиск не находит его и работает резервный сборщик ISO-TP.
-        val raw = "7E8 10 0A 62 1E\n7E8 21 1C 12 34"
-        assertEquals(listOf(0x12, 0x34), ElmParse.bytes(raw, "621E1C")!!.toList())
-    }
-
-    @Test
-    fun rawFramesWithoutAnswerGivesNull() {
-        assertNull(ElmParse.bytes("7E8 03 41 0D 32", "620434"))
-    }
 }

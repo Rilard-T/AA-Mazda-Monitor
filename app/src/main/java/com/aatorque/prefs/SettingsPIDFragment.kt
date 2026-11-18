@@ -169,7 +169,7 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
         }
 
         lifecycleScope.launch {
-            userDataStore(requireContext()).data.map {
+            requireContext().dataStore.data.map {
                 val screen = it.getScreens(screen)
                 return@map if (isClock) screen.getGauges(index) else screen.getDisplays(index)
             }.collect{
@@ -276,7 +276,7 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
         }
         val context = requireContext()
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            userDataStore(context).updateData {
+            context.dataStore.updateData {
                     currentSettings ->
                 return@updateData currentSettings.toBuilder().let { set1 ->
                     var screenObj: Screen.Builder = try {
