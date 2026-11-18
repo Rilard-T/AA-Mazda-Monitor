@@ -160,7 +160,9 @@ internal object UserPidCodec {
 
     /** «22 04 2c» и «0x22042c» приводятся к «22042C»; меньше четырёх hex-цифр — не PID. */
     fun normalizePid(raw: String): String? {
-        val hex = raw.uppercase().replace(Regex("[^0-9A-F]"), "")
+        // Torque экспортирует PID как «0x224027» — снимаем префикс 0x до чистки.
+        val stripped = raw.trim().removePrefix("0x").removePrefix("0X")
+        val hex = stripped.uppercase().replace(Regex("[^0-9A-F]"), "")
         if (hex.length < 4 || hex.length % 2 != 0) return null
         return hex
     }

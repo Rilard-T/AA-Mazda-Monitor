@@ -29,6 +29,7 @@ object UserPidFormula {
             SimpleEntry<String, FunctionIfc>("SIGNED", SignedFunction()),
             SimpleEntry<String, FunctionIfc>("BIT", BitFunction()),
             SimpleEntry<String, FunctionIfc>("INT", IntFunction()),
+            SimpleEntry<String, FunctionIfc>("SHL", ShlFunction()),
         )
     }
 
@@ -53,7 +54,14 @@ object UserPidFormula {
     }
 
     private fun prepare(equation: String): String =
-        equation.trim().replace("[x×]".toRegex(), "*")
+        equation.trim()
+            .replace("[x×]".toRegex(), "*")
+            // Torque-синтаксис бита: {A:7} → BIT(A,7)
+            .replace(Regex("\\{([A-Pa-p]):(\\d+)\\}")) { "BIT(${it.groupValues[1].uppercase()},${it.groupValues[2]})" }
+            // Torque-константа в квадратных скобках: [33] → 33
+            .replace(Regex("\\[(\\d+)\\]")) { it.groupValues[1] }
+            // Torque-сдвиг влево: A<16 → SHL(A,16)
+            .replace(Regex("([A-Pa-p])<(\\d+)")) { "SHL(${it.groupValues[1].uppercase()},${it.groupValues[2]})" }
 
     /**
      * База для небольших встроенных функций: EvalEx 3.0.5 берёт описание параметров
@@ -109,6 +117,19 @@ object UserPidFormula {
             EvaluationValue(parameters[0].numberValue.toInt().toDouble(), expression.configuration.mathContext)
     }
 
+    /** SHL(x,n) — сдвиг влево на n бит (Torque пишет X<n). */
+    private class ShlFunction : SimpleFunction(listOf(def("x"), def("n"))) {
+        override fun evaluate(
+            expression: Expression,
+            functionToken: Token,
+            vararg parameters: EvaluationValue,
+        ): EvaluationValue {
+            val x = parameters[0].numberValue.toDouble()
+            val n = parameters[1].numberValue.toInt()
+            return EvaluationValue(x * (1 shl n).toDouble(), expression.configuration.mathContext)
+        }
+    }
+
 }
 
 /** Описание одного параметра встроенной функции. */
@@ -127,19 +148,24 @@ object UserPidCsv {
             val line = raw.trim()
             if (line.isEmpty() || line.startsWith("#")) continue
             val cols = splitRow(line)
-            if (cols.size < 4) continue
-            val first = cols[0].trim().lowercase()
-            if (first == "name" || first == "название") continue     // строка заголовка
-            val name = cols[0].trim()
-            val pid = UserPidCodec.normalizePid(cols.getOrNull(2).orEmpty()) ?: continue
-            val equation = cols.getOrNull(3)?.trim().orEmpty()
+            // markdown-таблица: убираем пустые крайние колонки от ведущих/замыкающих '|'
+            val trimmedCols = if (cols.size > 2 && cols.first().trim().isEmpty() && cols.last().trim().isEmpty()) cols.drop(1).dropLast(1) else cols
+            if (trimmedCols.size < 4) continue
+            // строка-разделитель markdown: | --- | --- |
+            if (trimmedCols.all { it.trim().matches(Regex("[-: ]+")) || it.trim().isEmpty() }) continue
+            val first = trimmedCols[0].trim().lowercase()
+            if (first == "name" || first == "название" || first == "shortname" || first.startsWith("name") || first.startsWith("short")) continue     // строка заголовка
+            // дальше работаем с trimmedCols
+            val name = trimmedCols[0].trim()
+            val pid = UserPidCodec.normalizePid(trimmedCols.getOrNull(2).orEmpty()) ?: continue
+            val equation = trimmedCols.getOrNull(3)?.trim().orEmpty()
             if (name.isEmpty() || equation.isEmpty()) continue
             if (UserPidFormula.validate(equation) != null) continue
-            val short = cols.getOrNull(1)?.trim().orEmpty().ifEmpty { name.take(12) }
-            val min = cols.getOrNull(4)?.trim()?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
-            val max = cols.getOrNull(5)?.trim()?.replace(',', '.')?.toDoubleOrNull() ?: 100.0
-            val unit = cols.getOrNull(6)?.trim().orEmpty()
-            val header = UserPidCodec.normalizeHeader(cols.getOrNull(7).orEmpty())
+            val short = trimmedCols.getOrNull(1)?.trim().orEmpty().ifEmpty { name.take(12) }
+            val min = trimmedCols.getOrNull(4)?.trim()?.replace(',', '.')?.toDoubleOrNull() ?: 0.0
+            val max = trimmedCols.getOrNull(5)?.trim()?.replace(',', '.')?.toDoubleOrNull() ?: 100.0
+            val unit = trimmedCols.getOrNull(6)?.trim().orEmpty()
+            val header = UserPidCodec.normalizeHeader(trimmedCols.getOrNull(7).orEmpty())
             out.add(
                 UserPid(
                     name = name,
@@ -158,7 +184,14 @@ object UserPidCsv {
 
     /** Раскладывает строку на поля с учётом кавычек и выбранного разделителя. */
     internal fun splitRow(line: String): List<String> {
-        val delimiter = if (line.count { it == ';' } > line.count { it == ',' }) ';' else ','
+        val pipeCount = line.count { it == '|' }
+        val semiCount = line.count { it == ';' }
+        val commaCount = line.count { it == ',' }
+        val delimiter = when {
+            pipeCount > semiCount && pipeCount > commaCount -> '|'
+            semiCount > commaCount -> ';'
+            else -> ','
+        }
         val fields = ArrayList<String>()
         val current = StringBuilder()
         var quoted = false
