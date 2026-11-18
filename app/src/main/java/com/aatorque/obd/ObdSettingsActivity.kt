@@ -89,6 +89,8 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
     private var valuesPref: Preference? = null
     private var probePref: Preference? = null
     private var adapterPref: ListPreference? = null
+    private var benchPref: Preference? = null
+    @Volatile private var benchBusy = false
     private val classicPrefs = mutableListOf<Preference>()
     private val blePrefs = mutableListOf<Preference>()
     private val wifiPrefs = mutableListOf<Preference>()
@@ -239,6 +241,15 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         wifiPrefs += wifiPort
 
         updateLinkPrefs(prefs.getString("link_type", "classic") ?: "classic")
+
+        // --- адаптер: замер задержки ---
+        val adapterCat = category(getString(R.string.obd_check_cat_adapter))
+        val bench = Preference(ctx)
+        bench.title = getString(R.string.obd_check_benchmark)
+        bench.summary = getString(R.string.obd_check_benchmark_hint)
+        bench.setOnPreferenceClickListener { startBenchmark(); true }
+        adapterCat.addPreference(bench)
+        benchPref = bench
 
         // --- опрос датчиков ---
         val poll = category(getString(R.string.obd_cat_polling))
@@ -402,6 +413,40 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         ad.entries = names.toTypedArray()
         ad.entryValues = vals.toTypedArray()
         if (ad.value == null) ad.value = ""
+    }
+
+    /**
+     * Замер адаптера: несколько запросов с обычным таймаутом приложения.
+     * Идёт в фоновом потоке: на время замера опрос датчиков приостанавливается.
+     */
+    private fun startBenchmark() {
+        if (benchBusy) return
+        benchBusy = true
+        benchPref?.summary = getString(R.string.obd_check_benchmark_running)
+        io.execute {
+            val result = ObdBridgeService.benchmark()
+            ui.post {
+                benchBusy = false
+                if (isAdded) benchPref?.summary = describe(result)
+            }
+        }
+    }
+
+    private fun describe(b: AdapterBenchmark?): String {
+        if (b == null) return getString(R.string.obd_check_no_link)
+        if (b.samples == 0) return getString(R.string.obd_check_benchmark_no_answer, b.adapter, b.protocol)
+        val quality = getString(
+            when (b.quality) {
+                AdapterBenchmark.Quality.EXCELLENT -> R.string.obd_bench_quality_excellent
+                AdapterBenchmark.Quality.GOOD -> R.string.obd_bench_quality_good
+                AdapterBenchmark.Quality.MODERATE -> R.string.obd_bench_quality_moderate
+                AdapterBenchmark.Quality.SLOW -> R.string.obd_bench_quality_slow
+            }
+        )
+        return getString(
+            R.string.obd_check_benchmark_result,
+            b.adapter, b.protocol, b.avgMs, b.minMs, b.maxMs, b.hz, quality
+        )
     }
 
     override fun onResume() {
