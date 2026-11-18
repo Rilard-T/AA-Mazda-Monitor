@@ -3,10 +3,7 @@
     <string name="activity_credits_title">Авторы</string>
 
     <!-- Fuzzy -->
-    <string name="activity_main_title">AA Mazda Monitor</string>
-    <string name="activity_settings_title">AA Mazda Monitor</string>
     <string name="activity_stopwatch_title">Секундомер</string>
-    <string name="app_name">AA Monitor Beta</string>
     <string name="credits_author">На базе приложения:</string>
     <string name="credits_thanks">Особое спасибо:</string>
     <string name="element_VIN">VIN</string>
@@ -128,7 +125,6 @@
     <string name="credits_modifications">Разработчик:</string>
     <string name="credits_original">Оригинальный AA Torque:</string>
     <string name="credits_original_btn">Оригинал</string>
-    <string name="credits_fork_notice">Изменённая версия AA Torque под лицензией GPL-3.0. Изменения: прямое подключение к ELM327, данные Mazda SkyActiv-D, новое название. © 2026 Rilard-T.</string>
     <string name="action_obd">Настройки</string>
     <string name="action_exit">Выход</string>
     <string name="exit_title">Выйти из приложения?</string>
@@ -230,7 +226,6 @@
     <string name="obd_hint_ble">Не удалось подключиться по BLE. Включите зажигание, подойдите ближе к адаптеру, закройте другие программы с OBD.</string>
     <string name="obd_hint_classic">Не удалось открыть канал Bluetooth. Включите зажигание, закройте другие программы с OBD (CarScanner, Torque, старую версию приложения).</string>
     <string name="obd_notif_channel_name">Связь с адаптером OBD</string>
-    <string name="obd_notif_title">Mazda: диагностика</string>
     <string name="obd_notif_stop">Остановить</string>
 
     <!-- Ошибки каналов связи (Bluetooth Classic, BLE, Wi-Fi) -->

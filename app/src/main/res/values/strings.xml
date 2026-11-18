@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="activity_credits_title">Credits</string>
-    <string name="activity_main_title">AA Mazda Monitor</string>
-    <string name="activity_settings_title">AA Mazda Monitor</string>
     <string name="activity_stopwatch_title">Stopwatch</string>
-    <string name="app_name">AA Monitor Beta</string>
     <string name="credits_author">Based on the app made by:</string>
     <string name="credits_basedon">Based on the SDK and demo App by:</string>
     <string name="credits_drivesafely">Drive Safely.</string>
@@ -206,7 +203,6 @@
     <string name="invalid_settings">Attempted to import invalid settings file.</string>
     <string name="credits_original">Original AA Torque by:</string>
     <string name="credits_original_btn">Original</string>
-    <string name="credits_fork_notice">Modified version of AA Torque, licensed under GPL-3.0. Changes: direct ELM327 connection, Mazda SkyActiv-D data, renamed app. © 2026 Rilard-T.</string>
     <string name="action_obd">Settings</string>
     <string name="action_exit">Exit</string>
     <string name="exit_title">Exit the app?</string>
@@ -243,7 +239,6 @@
     <string name="obd_hint_ble">Could not connect over BLE. Turn on the ignition, move closer to the adapter, close other OBD apps.</string>
     <string name="obd_hint_classic">Could not open the Bluetooth channel. Turn on the ignition, close other OBD apps (CarScanner, Torque, an older version of this app).</string>
     <string name="obd_notif_channel_name">OBD adapter link</string>
-    <string name="obd_notif_title">Mazda: diagnostics</string>
     <string name="obd_notif_stop">Stop</string>
 
     <!-- Link errors (Bluetooth Classic, BLE, Wi-Fi) -->

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stable brand accent (Mazda red). Shared colours stay in src/main/res/values/colors.xml;
+     only the toolbar/status-bar accent family is overridden here. -->
+<resources>
+    <color name="primaryColor">#C8102E</color>
+    <color name="primaryLightColor">#E2647A</color>
+    <color name="primaryDarkColor">#7A0A1C</color>
+
+    <color name="secondaryColor">#CCC8102E</color>
+    <color name="secondaryLightColor">#CCE2647A</color>
+    <color name="secondaryDarkColor">#CC7A0A1C</color>
+</resources>

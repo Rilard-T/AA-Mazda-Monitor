@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nav brand: "AA Dash Nav" (applicationId com.aadash.nav).
+     Android Auto templates UI, car profiles, own PID set, dashboard editor. -->
+<resources>
+    <string name="app_name">AA Dash Nav</string>
+    <string name="activity_main_title">AA Dash Nav</string>
+    <string name="activity_settings_title">AA Dash Nav</string>
+    <string name="obd_notif_title">AA Dash Nav: diagnostics</string>
+    <string name="log_file_prefix">aadashnav-log-</string>
+    <string name="credits_fork_notice">AA Dash Nav — modified version of AA Torque, licensed under GPL-3.0. Changes: direct ELM327 connection, Mazda SkyActiv-D data, Android Auto template UI, car profiles, dashboard layout editor. © 2026 Rilard-T.</string>
+</resources>

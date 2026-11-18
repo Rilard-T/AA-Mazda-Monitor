@@ -1,4 +1,4 @@
-# HANDOFF — AA Mazda Monitor (beta)
+# HANDOFF — nav-приложение AA Dash Nav (ветка `beta`)
 
 Дата: 2026-11-16. Ветка: `beta`. Последний коммит: `eb2e9b3`.
 
@@ -24,11 +24,11 @@
 - Ответы по-русски, честно про непроверенное на устройстве.
 
 ## Ключевые файлы
-- `app/src/main/java/com/aatorque/nav/NavPainter.kt` — отрисовка приборов, риски, красная зона.
-- `app/src/main/java/com/aatorque/nav/NavLayout.kt` — модель раскладки, миграция max оборотов.
-- `app/src/main/java/com/aatorque/nav/NavEditorActivity.kt` — редактор, пункты «Тема…», «Шрифт…», «Красная зона…», «Максимум…».
-- `app/src/main/java/com/aatorque/nav/NavRenderer.kt` — применение темы/шрифта.
-- `app/src/main/java/com/aatorque/nav/NavFonts.kt` — маппинг имени шрифта → Typeface.
+- `app/src/main/java/com/aadash/nav/NavPainter.kt` — отрисовка приборов, риски, красная зона.
+- `app/src/main/java/com/aadash/nav/NavLayout.kt` — модель раскладки, миграция max оборотов.
+- `app/src/main/java/com/aadash/nav/NavEditorActivity.kt` — редактор, пункты «Тема…», «Шрифт…», «Красная зона…», «Максимум…».
+- `app/src/main/java/com/aadash/nav/NavRenderer.kt` — применение темы/шрифта.
+- `app/src/main/java/com/aadash/nav/NavFonts.kt` — маппинг имени шрифта → Typeface.
 - `app/src/main/res/values/styles.xml` — темы (dialTicks/dialEmpty).
 
 ## Сборка

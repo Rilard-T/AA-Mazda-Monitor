@@ -55,7 +55,7 @@
 
 ## 5. Почему код приложения не обфусцируется
 
-В `app/proguard-rules.pro` есть строка `-keep,allowoptimization class com.aatorque.** { *; }`.
+В `app/proguard-rules.pro` есть строка `-keep,allowoptimization class com.aadash.** { *; }`.
 Это намеренное решение, а не наследие: журнал (`Файл .txt` в отчёте об ошибке) разбирается по
 тегам, а Timber берёт тег из имени класса. Без этого правила в релизе вместо `ObdEngine`,
 `RegenTracker`, `GaugeRefresher` появились бы `a`, `b`, `c`, и диагностика по журналу умерла бы.

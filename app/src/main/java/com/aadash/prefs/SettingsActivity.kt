@@ -1,0 +1,526 @@
+package com.aadash.prefs
+
+import android.Manifest
+import com.aadash.obd.ObdBridgeService
+import android.app.Activity
+import androidx.appcompat.app.AlertDialog
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.DialogInterface
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Environment
+import android.view.Menu
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
+import androidx.lifecycle.lifecycleScope
+import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
+import com.aadash.datastore.UserPreference
+import com.aadash.obd.RegenTracker
+import com.aadash.stats.App
+import com.aadash.stats.BuildConfig
+import com.aadash.stats.CreditsFragment
+import com.aadash.stats.R
+import com.google.android.material.snackbar.Snackbar
+import com.google.protobuf.InvalidProtocolBufferException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.io.IOException
+import java.net.ConnectException
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.UnknownHostException
+import javax.net.ssl.HttpsURLConnection
+import javax.net.ssl.SSLException
+
+
+class SettingsActivity : AppCompatActivity(),
+    PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
+
+    val br: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.`package` == BuildConfig.APPLICATION_ID) {
+                AlertDialog.Builder(this@SettingsActivity).setTitle(R.string.download_complete)
+                    .setMessage(R.string.download_dialog)
+                    .setPositiveButton(android.R.string.ok, object: DialogInterface.OnClickListener{
+                        override fun onClick(p0: DialogInterface?, p1: Int) {
+                            val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                            if (downloadId == -1L) return
+                            val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).getUriForDownloadedFile(downloadId)
+                            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                Intent(Intent.ACTION_INSTALL_PACKAGE).also {
+                                    it.data = uri
+                                    it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+                                }
+                            } else {
+                                Intent(Intent.ACTION_VIEW).also {
+                                    it.setDataAndTypeAndNormalize(
+                                        uri,
+                                        "application/vnd.android.package-archive"
+                                    )
+                                    it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            }
+                            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+                            intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
+                            applicationContext.startActivity(intent)
+                        }
+                    }).setNegativeButton(android.R.string.cancel
+                    ) { p0, p1 -> p0?.dismiss() }.show()
+            }
+        }
+    }
+
+    public override fun onCreate(savedInstanceState: Bundle?) {
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
+        super.onCreate(savedInstanceState)
+        // Служба OBD больше не поднимается при каждом открытии настроек: адаптер занимается
+        // только когда пользователь сам заходит на экран «Подключение к OBD» или запускает AA.
+        com.aadash.obd.AppExit.installBackConfirm(this)
+        setContentView(R.layout.activity_settings)
+        supportActionBar!!.setDisplayUseLogoEnabled(true)
+        if (savedInstanceState == null) {
+            supportFragmentManager
+                .beginTransaction()
+                .replace(R.id.settings_fragment, SettingsFragment())
+                .commit()
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            checkUpdate()
+        }
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentResumed(fm: FragmentManager, f: Fragment) {
+                    super.onFragmentResumed(fm, f)
+                    supportActionBar!!.subtitle = when (f) {
+                        is SettingsDashboard -> {
+                            resources.getString(
+                                R.string.pref_data_element_settings,
+                                f.dashboardIndex() + 1
+                            )
+                        }
+
+                        is SettingsPIDFragment -> {
+                            f.requireArguments().getCharSequence("title")
+                        }
+
+                        else -> {
+                            null
+                        }
+                    }
+                    supportActionBar!!.setDisplayHomeAsUpEnabled(f !is SettingsFragment)
+                }
+            }, false
+        )
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.settings_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: android.view.MenuItem): Boolean {
+        // Handle item selection
+        return when (item.itemId) {
+            R.id.action_copy_logs -> {
+                logsToClipboard()
+                true
+            }
+
+            R.id.action_credits -> {
+                launchFragment("credits", CreditsFragment())
+                true
+            }
+
+            R.id.force_update -> {
+                lifecycleScope.launch(Dispatchers.IO) {
+                    if (!checkUpdate(true)) {
+                        runOnUiThread {
+                            Toast.makeText(this@SettingsActivity, R.string.update_failed, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                true
+            }
+
+            android.R.id.home -> {
+                onBackPressedDispatcher.onBackPressed()
+                true
+            }
+
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    fun openFile() {
+        importFileLauncher.launch(EXPORT_MIME)
+    }
+
+    fun exportFile() {
+        exportFileLauncher.launch("")
+    }
+
+    private fun launchFragment(
+        tag: String,
+        fragment: Fragment
+    ) {
+        val existing = supportFragmentManager.findFragmentByTag(tag)
+        if (existing?.isVisible == true) return
+        supportFragmentManager.beginTransaction()
+            .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+            .replace(
+                R.id.settings_fragment,
+                existing ?: fragment,
+                tag
+            )
+            .addToBackStack(null)
+            .commit()
+    }
+
+    private val exportFileLauncher = registerForActivityResult(ExportFileContract()) { uri: Uri? ->
+        // This lambda will be executed when the activity result returns
+        lifecycleScope.launch(Dispatchers.IO) {
+            val data = userDataStore(applicationContext).data.first()
+            val result = if (uri != null) {
+                contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    UserPreferenceSerializer.writeTo(data, outputStream)
+                }
+                R.string.file_exported_successfully
+            } else {
+                R.string.export_failed
+            }
+            runOnUiThread {
+                Toast.makeText(baseContext, result, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
+    private val regenExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        val tracker = RegenTracker.get(getSharedPreferences(com.aadash.prefs.AppProfiles.obdPrefsName(this@SettingsActivity), MODE_PRIVATE))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val ok = runCatching {
+                contentResolver.openOutputStream(uri)?.use { tracker.exportText().toByteArray(Charsets.UTF_8).let(it::write) } != null
+            }.getOrDefault(false)
+            runOnUiThread {
+                Toast.makeText(
+                    baseContext,
+                    if (ok) R.string.regen_exported else R.string.export_failed,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private val regenImportLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        val tracker = RegenTracker.get(getSharedPreferences(com.aadash.prefs.AppProfiles.obdPrefsName(this@SettingsActivity), MODE_PRIVATE))
+        lifecycleScope.launch(Dispatchers.IO) {
+            val count = runCatching {
+                contentResolver.openInputStream(uri)
+                    ?.use { tracker.importText(it.readBytes().toString(Charsets.UTF_8)) }
+            }.getOrNull()
+            runOnUiThread {
+                val text = when {
+                    count == null -> getString(R.string.import_failed)
+                    count == 0 -> getString(R.string.regen_import_empty)
+                    else -> getString(R.string.regen_imported, count)
+                }
+                Toast.makeText(baseContext, text, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private val importFileLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
+        if (uri != null) {
+            val inStream = contentResolver.openInputStream(uri)
+            this@SettingsActivity.lifecycleScope.launch {
+                try {
+                    userDataStore(this@SettingsActivity.applicationContext).updateData {
+                        return@updateData UserPreference.parseFrom(inStream)
+                    }
+                } catch (e: InvalidProtocolBufferException) {
+                    Toast.makeText(
+                        baseContext,
+                        R.string.invalid_settings,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    class ExportFileContract : ActivityResultContract<String, Uri?>() {
+
+        override fun createIntent(context: Context, input: String): Intent {
+            return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                type = EXPORT_MIME
+                // Suggest a file name based on the original file name
+                putExtra(Intent.EXTRA_TITLE, "dashboards.pb")
+            }
+        }
+
+        // This function parses the activity result and returns the URI of the user selected location
+        override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
+            return if (resultCode == Activity.RESULT_OK) {
+                intent?.data
+            } else {
+                null
+            }
+        }
+    }
+
+    class TextExportContract : ActivityResultContract<String, Uri?>() {
+
+        override fun createIntent(context: Context, input: String): Intent {
+            return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TITLE, "regen-log.csv")
+            }
+        }
+
+        override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
+            return if (resultCode == Activity.RESULT_OK) intent?.data else null
+        }
+    }
+
+    class ImportFileContract : ActivityResultContract<String, Uri?>() {
+
+        override fun createIntent(context: Context, input: String): Intent {
+            return Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = input
+            }
+        }
+
+        // This function parses the activity result and returns the URI of the user selected location
+        override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
+            return if (resultCode == Activity.RESULT_OK) {
+                intent?.data
+            } else {
+                null
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val permissionsToRequest: MutableList<String> = ArrayList()
+        if (ContextCompat.checkSelfPermission(this, PERMISSION_CAR_VENDOR_EXTENSION)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionsToRequest.add(PERMISSION_CAR_VENDOR_EXTENSION)
+        }
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissions(permissionsToRequest.toTypedArray(), REQUEST_PERMISSIONS)
+            return
+        }
+
+    }
+
+
+    override fun onPreferenceStartFragment(
+        caller: PreferenceFragmentCompat,
+        pref: Preference
+    ): Boolean {
+        // Instantiate the new Fragment
+        val args = Bundle()
+        args.putCharSequence("title", pref.title)
+        val prefix = pref.extras.getString("prefix") ?: pref.key
+        if (prefix.startsWith("clock_") || prefix.startsWith("display")) {
+            val parts = prefix.split("_")
+            assert(parts.size == 3)
+            val isClock = parts[0] == "clock"
+            val screen = parts[1].toInt()
+            val index = parts[2].toInt()
+            args.putBoolean("isClock", isClock)
+            args.putInt("screen", screen)
+            args.putInt("index", index)
+        }
+        args.putString("prefix", prefix)
+        val fragment = supportFragmentManager.fragmentFactory.instantiate(
+            classLoader,
+            pref.fragment!!
+        )
+        fragment.arguments = args
+        // Replace the existing Fragment with the new Fragment
+        supportFragmentManager.beginTransaction()
+            .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_OPEN)
+            .replace(R.id.settings_fragment, fragment)
+            .addToBackStack(null)
+            .commit()
+        return true
+    }
+
+    private fun checkUpdate(force: Boolean =false): Boolean {
+        Timber.i("Checking for update")
+        if (!BuildConfig.OTA_ENABLED) {
+            if (force) runOnUiThread {
+                Toast.makeText(this, "Бета: обновление отключено", Toast.LENGTH_LONG).show()
+            }
+            return true
+        }
+
+        var needsUpdate: Boolean? = null
+        var checked = false
+        var downloadItem: String? = null
+
+        val url = URL(BuildConfig.RELEASE_URL)
+        val urlConnection = url.openConnection() as HttpsURLConnection
+        // Не следуем редиректу автоматически — читаем Location, чтобы получить тег релиза.
+        // Это обходит лимит GitHub API (60 req/ч без токена), который давал 403.
+        urlConnection.instanceFollowRedirects = false
+        try {
+            urlConnection.connect()
+        } catch (e: UnknownHostException) {
+            Timber.w("Проверка обновлений: нет сети (%s)", e.message)
+            return false
+        } catch (e: ConnectException) {
+            Timber.w("Проверка обновлений: GitHub недоступен (%s)", e.message)
+            return false
+        } catch (e: SSLException) {
+            Timber.w("Проверка обновлений: ошибка TLS (%s)", e.message)
+            return false
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: ошибка сети (%s)", e.message)
+            return false
+        }
+        try {
+            val code = urlConnection.responseCode
+            if (code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM || code == 302 || code == 301) {
+                val location = urlConnection.getHeaderField("Location")
+                // Location: https://github.com/.../releases/tag/0.8.6
+                val tagName = location?.substringAfterLast("/tag/")?.substringBefore("?")
+                checked = true
+                // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
+                // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
+                needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
+                if (needsUpdate == true && !tagName.isNullOrBlank()) {
+                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/app-release.apk"
+                }
+                if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
+            } else {
+                Timber.w("Проверка обновлений: GitHub ответил %d", code)
+            }
+        } catch (e: Exception) {
+            Timber.e("Failed on update check: %s", e.message)
+        } finally {
+            urlConnection.disconnect()
+        }
+
+
+        if (needsUpdate == true && downloadItem != null) {
+            Snackbar.make(
+                findViewById(android.R.id.content),
+                R.string.new_version,
+                Snackbar.LENGTH_LONG
+            )
+                .setDuration(10000)
+                .setActionTextColor(resources.getColor(R.color.snackbarBtnText, theme))
+                .setAction(R.string.download) {
+                    ContextCompat.registerReceiver(
+                        baseContext,
+                        br,
+                        IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                        ContextCompat.RECEIVER_EXPORTED
+                    )
+                    val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
+                    downloadRequest.setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS,
+                        "aa-mazda-monitor.apk"
+                    )
+                    downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    runCatching {
+                        java.io.File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            "aa-mazda-monitor.apk"
+                        ).delete()
+                    }
+                    val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                    dm.enqueue(downloadRequest)
+                    // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
+                    Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
+
+                    Toast.makeText(
+                        baseContext,
+                        R.string.download_instructions,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }.show()
+        }
+
+        if (needsUpdate != true && force) {
+            if (!checked) return false        // нет связи, нет выпуска или в нём нет APK
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    getString(R.string.update_latest, BuildConfig.VERSION_NAME),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        return true
+    }
+
+    fun logsToClipboard() {
+        val logs = (application as App).logTree.logToString()
+        com.aadash.obd.ErrorReport.start(this, logs.map { it.toString() })
+    }
+
+    fun exportRegenLog() {
+        regenExportLauncher.launch("")
+    }
+
+    fun importRegenLog() {
+        regenImportLauncher.launch("text/plain")
+    }
+
+    fun forceUpdate() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!checkUpdate(true)) {
+                runOnUiThread {
+                    Toast.makeText(this@SettingsActivity, R.string.update_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun exitApp() {
+        com.aadash.obd.AppExit.confirmAndExit(this)
+    }
+
+    fun openCredits() {
+        launchFragment("credits", CreditsFragment())
+    }
+
+
+    companion object {
+        private const val REQUEST_PERMISSIONS = 0
+        private const val PERMISSION_CAR_VENDOR_EXTENSION =
+            "com.google.android.gms.permission.CAR_VENDOR_EXTENSION"
+        const val EXPORT_MIME = "application/octet-stream"
+    }
+}
+

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stable brand: "AA Mazda Monitor" (applicationId com.aamazda.monitor).
+     Only brand tokens live here; shared UI/OBD code reads them by name. -->
+<resources>
+    <string name="app_name">AA Mazda Monitor</string>
+    <string name="activity_main_title">AA Mazda Monitor</string>
+    <string name="activity_settings_title">AA Mazda Monitor</string>
+    <string name="obd_notif_title">Mazda: diagnostics</string>
+    <string name="log_file_prefix">aamazda-log-</string>
+    <string name="credits_fork_notice">Modified version of AA Torque, licensed under GPL-3.0. Changes: direct ELM327 connection, Mazda SkyActiv-D data, renamed app. © 2026 Rilard-T.</string>
+</resources>

@@ -7,11 +7,11 @@
 
 Проект: форк AA Torque (GPL-3.0). Есть два способа рисовать на экране AA:
 - **Старый проекционный интерфейс** (в `master` и в `beta`): окно обычного приложения AA, неофициальный API (`CarService`, `MainCarActivity`).
-- **Новый навигационный интерфейс AA NAV** (только в `beta`, пакет `com.aatorque.nav`): документированная Car App Library, рисуем на всю поверхность AA. Это основная линия развития беты.
+- **Новый навигационный интерфейс AA NAV** (только в `beta`, пакет `com.aadash.nav`): документированная Car App Library, рисуем на всю поверхность AA. Это основная линия развития беты.
 
 ## 2. Репозиторий и сборка
 - Репозиторий **`Rilard-T/AA-Mazda-Monitor`** (раньше назывался `aa-torque-fork`; в Codespaces путь `/workspaces/AA-Mazda-Monitor`). Основная ветка `master`, бета в ветке `beta`.
-- Основное приложение: «AA Mazda Monitor», `applicationId com.aamazda.monitor`. Бета: `com.aamazda.monitor.beta`, в списке телефона «AA Monitor Beta», в списке AA «AA Monitor…». Kotlin-пакеты и namespace `com.aatorque.stats` (не менялись; `R` берётся из `com.aatorque.stats.R`).
+- Основное приложение: «AA Mazda Monitor», `applicationId com.aamazda.monitor`. Бета: `com.aamazda.monitor.beta`, в списке телефона «AA Monitor Beta», в списке AA «AA Monitor…». Kotlin-пакеты и namespace `com.aadash.stats` (не менялись; `R` берётся из `com.aadash.stats.R`).
 - Пользователь работает **только с телефона**: GitHub (версия для ПК) и Codespaces в браузере (терминал, Upload, Source Control). В файлах, скачанных из терминала, в начале бывают служебные символы `]633;E;...`: это артефакт терминала.
 - Сборка: GitHub Actions. Процессы: `build`, `release` (подписанный APK, вручную), `beta` (запуск при push в `beta`, пред-релизы `beta-<версия>-<номер запуска>`). Секреты подписи: `KEYSTORE_B64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` (aamm), `KEY_PASSWORD`. Процессы записаны одной строкой в JSON-стиле.
 - Бета собрана с `OTA_ENABLED false`. Одновременно основное приложение и бета пользоваться адаптером не могут (закрыть одно через «⋮ → Выход»).
@@ -23,8 +23,8 @@
 - В панели Source Control Codespaces подмодуль показывается отдельным репозиторием `speedviewlib`. Там ничего не коммитить и не синхронизировать. Скрыть: ⋯ у заголовка панели → «Репозитории» → снять галочку, либо настройка `git.detectSubmodules` (снять галочку). В «Изменения» главного репозитория не должно быть `lib/speedviewlib`.
 - Слияние `master` → `beta`: `git fetch origin && git checkout beta && git pull && git branch backup-beta-<версия> && git merge origin/master --no-edit`, затем `git diff --name-only --diff-filter=U` (конфликты), `grep -n 'applicationId\|OTA_ENABLED' app/build.gradle; grep -n 'CarService\|NavCarAppService' app/src/main/AndroidManifest.xml; cat version.properties`. Старой службы `CarService` в манифесте беты быть не должно, `automotive_app_desc.xml` содержит только `<uses name="template" />`. Слияние 13.11 принесло из `master`: `ObdEngine.kt`, `CacheLogTree.kt`, иконки `drawable/baseline_*.xml`, `layout/preference*.xml`, `values/bools_ms.xml`, `values-night/bools_ms.xml`, `themes_settings.xml`.
 
-## 3. Архитектура навигационного интерфейса (пакет `com.aatorque.nav`)
-Данные: `ObdBridgeService` (пакет `com.aatorque.obd`, общая с основным приложением часть кода) читает ELM327. `ObdBridgeService.peek(id)` нельзя вызывать из главного потока. Таблица параметров `MazdaPids.all` (`PidDef`: `id`, `name`, `shortName`, `unit`, `min`, `max`) в `obd/Pids.kt`.
+## 3. Архитектура навигационного интерфейса (пакет `com.aadash.nav`)
+Данные: `ObdBridgeService` (пакет `com.aadash.obd`, общая с основным приложением часть кода) читает ELM327. `ObdBridgeService.peek(id)` нельзя вызывать из главного потока. Таблица параметров `MazdaPids.all` (`PidDef`: `id`, `name`, `shortName`, `unit`, `min`, `max`) в `obd/Pids.kt`.
 
 Файлы `app/src/main/java/com/aatorque/nav/`:
 - **`NavCarAppService.kt`**: `NavSession`, `NavScreen`, `NavigationTemplate` с одной кнопкой «Выход»; `SurfaceCallback` = `NavRenderer(carContext)`. `HostValidator.ALLOW_ALL_HOSTS_VALIDATOR`. Манифест: категория `androidx.car.app.category.NAVIGATION`, разрешения `NAVIGATION_TEMPLATES`, `ACCESS_SURFACE`, `automotive_app_desc.xml` с `template`.

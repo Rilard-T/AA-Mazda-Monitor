@@ -5,7 +5,7 @@
     <import type="android.view.View" />
     <import type="android.graphics.Typeface" />
     <import type="androidx.constraintlayout.widget.ConstraintLayout.LayoutParams" />
-    <import type="com.aatorque.stats.ViewAdapterKt" />
+    <import type="com.aadash.stats.ViewAdapterKt" />
     <import type="android.view.Gravity" />
     <import type="android.widget.LinearLayout" />
     <variable name="value" type="String"/>
@@ -30,7 +30,7 @@
         android:orientation="vertical"
         app:reversed="@{showBottom || showSide}">
 
-        <com.aatorque.utils.AnimatedLine
+        <com.aadash.utils.AnimatedLine
             android:id="@+id/lineAnim"
             android:layout_width="50dp"
             android:layout_height="3dp"
