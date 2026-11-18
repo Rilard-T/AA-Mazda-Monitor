@@ -87,7 +87,10 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
     private val io = Executors.newSingleThreadExecutor()
     private var statusPref: Preference? = null
     private var valuesPref: Preference? = null
+    private var probePref: Preference? = null
     private var adapterPref: ListPreference? = null
+    private var benchPref: Preference? = null
+    @Volatile private var benchBusy = false
     private val classicPrefs = mutableListOf<Preference>()
     private val blePrefs = mutableListOf<Preference>()
     private val wifiPrefs = mutableListOf<Preference>()
@@ -131,6 +134,12 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         values.isSelectable = false
         st.addPreference(values)
         valuesPref = values
+        val probe = Preference(ctx)
+        probe.title = getString(R.string.obd_pref_probe)
+        probe.summary = getString(R.string.obd_probe_in_progress)
+        probe.isSelectable = false
+        st.addPreference(probe)
+        probePref = probe
 
         // --- подключение ---
         val con = category(getString(R.string.obd_cat_connection))
@@ -233,6 +242,15 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
 
         updateLinkPrefs(prefs.getString("link_type", "classic") ?: "classic")
 
+        // --- адаптер: замер задержки ---
+        val adapterCat = category(getString(R.string.obd_check_cat_adapter))
+        val bench = Preference(ctx)
+        bench.title = getString(R.string.obd_check_benchmark)
+        bench.summary = getString(R.string.obd_check_benchmark_hint)
+        bench.setOnPreferenceClickListener { startBenchmark(); true }
+        adapterCat.addPreference(bench)
+        benchPref = bench
+
         // --- опрос датчиков ---
         val poll = category(getString(R.string.obd_cat_polling))
         val fast = ListPreference(ctx)
@@ -307,6 +325,13 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
             getString(R.string.obd_check_action_summary)
         ) {
             startActivity(Intent(ctx, ObdCheckActivity::class.java))
+        }
+        action(
+            app,
+            getString(R.string.obd_user_pids_title),
+            getString(R.string.obd_user_pids_action_summary)
+        ) {
+            startActivity(Intent(ctx, UserPidsActivity::class.java))
         }
         action(
             app,
@@ -390,6 +415,40 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
         if (ad.value == null) ad.value = ""
     }
 
+    /**
+     * Замер адаптера: несколько запросов с обычным таймаутом приложения.
+     * Идёт в фоновом потоке: на время замера опрос датчиков приостанавливается.
+     */
+    private fun startBenchmark() {
+        if (benchBusy) return
+        benchBusy = true
+        benchPref?.summary = getString(R.string.obd_check_benchmark_running)
+        io.execute {
+            val result = ObdBridgeService.benchmark()
+            ui.post {
+                benchBusy = false
+                if (isAdded) benchPref?.summary = describe(result)
+            }
+        }
+    }
+
+    private fun describe(b: AdapterBenchmark?): String {
+        if (b == null) return getString(R.string.obd_check_no_link)
+        if (b.samples == 0) return getString(R.string.obd_check_benchmark_no_answer, b.adapter, b.protocol)
+        val quality = getString(
+            when (b.quality) {
+                AdapterBenchmark.Quality.EXCELLENT -> R.string.obd_bench_quality_excellent
+                AdapterBenchmark.Quality.GOOD -> R.string.obd_bench_quality_good
+                AdapterBenchmark.Quality.MODERATE -> R.string.obd_bench_quality_moderate
+                AdapterBenchmark.Quality.SLOW -> R.string.obd_bench_quality_slow
+            }
+        )
+        return getString(
+            R.string.obd_check_benchmark_result,
+            b.adapter, b.protocol, b.avgMs, b.minMs, b.maxMs, b.hz, quality
+        )
+    }
+
     override fun onResume() {
         super.onResume()
         refreshAdapters()
@@ -412,6 +471,7 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
             val ctx = context
             if (ctx != null) {
                 statusPref?.summary = ObdBridgeService.statusText(ctx)
+                probePref?.summary = probeSummary(ctx)
                 // Служба подключилась впервые — показываем проверку датчиков: пустой список до
                 // подключения пользователю ничего не сообщает.
                 val obdPrefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
@@ -432,6 +492,18 @@ class ObdPrefsFragment : PreferenceFragmentCompat() {
             }
             ui.postDelayed(this, 2000)
         }
+    }
+
+    /** Сколько нестандартных датчиков ответило и какие промолчали (результат PidProbe). */
+    private fun probeSummary(ctx: Context): String {
+        val probeIds = MazdaPids.all
+            .filter { it.virtual == null && it.request != null && !it.isStandard }
+            .map { it.id }
+            .toSet()
+        if (!PidProbe.done) return ctx.getString(R.string.obd_probe_in_progress)
+        val missing = PidProbe.missingIds().filter { it in probeIds }
+        return if (missing.isEmpty()) ctx.getString(R.string.obd_probe_all, probeIds.size)
+        else ctx.getString(R.string.obd_probe_some, probeIds.size - missing.size, probeIds.size, missing.sorted().joinToString(", "))
     }
 
     private companion object {
