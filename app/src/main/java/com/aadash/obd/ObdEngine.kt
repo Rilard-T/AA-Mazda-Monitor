@@ -43,6 +43,7 @@ class ObdEngine(
 
     /** Когда блок в последний раз ответил на запрос датчика (0 — ещё ни разу). */
     @Volatile private var lastAnswerAt = 0L
+    @Volatile private var lastEgt: Double? = null
 
     /**
      * Зажигание включено: блок отвечает на запросы. Стоит зажигание или нет, по CAN не отличить,
@@ -135,10 +136,10 @@ class ObdEngine(
         val full = dpfFullGl()
         val dpf = if (soot != null && full > 0) soot / full * 100.0 else null
         Timber.i(
-            "Состояние %s: сажа %s г/л (макс %s), DPF %s%% (порог %s), статус %s, счётчик %s, пробег %s км, обороты %s, скорость %s, ОЖ %s, АКПП %s, масло %s",
+            "Состояние %s: сажа %s г/л (макс %s), DPF %s%% (порог %s), статус %s, счётчик %s, пробег %s км, обороты %s, скорость %s, EGT %s, ОЖ %s, АКПП %s, масло %s",
             java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date(now)),
             f(soot, 2), f(tracker.currentSootPeak(), 2), f(dpf, 1), f(full, 2),
-            f(v("ff9006")), f(v("ff9001")), f(v("ff9002")), f(v("0c")), f(v("0d")), f(v("05")), f(v("ff9005")), f(v("5c")),
+            f(v("ff9006")), f(v("ff9001")), f(v("ff9002")), f(v("0c")), f(v("0d")), f(lastEgt), f(v("05")), f(v("ff9005")), f(v("5c")),
         )
     }
 
@@ -152,8 +153,9 @@ class ObdEngine(
             val raw = diagRaw("01$pid")
             Timber.i("Диагностика 01%s: %s", pid, raw.replace(Regex("\\s+"), " ").trim().take(160))
             if (pid == "78") parse(raw, "4178")?.takeIf { it.size >= 9 }?.let { b ->
-                val t = ElmParse.egtTemperatures(b)   // нулевой датчик отсутствует и пропускается
-                    .joinToString(" ") { "%.1f".format(it) }
+                val temps = ElmParse.egtTemperatures(b)   // нулевой датчик отсутствует и пропускается
+                val t = temps.joinToString(" ") { "%.1f".format(it) }
+                lastEgt = temps.maxOrNull()
                 Timber.i("Диагностика 0178: флаги %02X, температуры %s °C", b[0], t)
             }
         }
@@ -317,7 +319,7 @@ class ObdEngine(
             "ff9001" -> tracker.onCount(v.toInt())
             "ff9002" -> tracker.onDist(v)
             "ff9003" -> tracker.onSoot(v)
-            "ff9006" -> tracker.onStatus(v.toInt())
+            "ff9006" -> tracker.onStatus(v.toInt(), lastEgt, cache["0d"]?.v)
         }
         return shown
     }
