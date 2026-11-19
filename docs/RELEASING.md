@@ -50,12 +50,12 @@
 ## 4. Обфускация и журналы
 
 В release включён R8, поэтому имена классов и методов в стектрейсах сокращены.
-Файл `app/build/outputs/mapping/release/mapping.txt` прикладывается к каждому релизу:
+Файл `app/build/outputs/mapping/stableRelease/mapping.txt` прикладывается к каждому релизу:
 сохраняйте его вместе с APK, иначе разбирать жалобы на падения будет нечем.
 
 ## 5. Почему код приложения не обфусцируется
 
-В `app/proguard-rules.pro` есть строка `-keep,allowoptimization class com.aatorque.** { *; }`.
+В `app/proguard-rules.pro` есть строка `-keep,allowoptimization class com.aadash.** { *; }`.
 Это намеренное решение, а не наследие: журнал (`Файл .txt` в отчёте об ошибке) разбирается по
 тегам, а Timber берёт тег из имени класса. Без этого правила в релизе вместо `ObdEngine`,
 `RegenTracker`, `GaugeRefresher` появились бы `a`, `b`, `c`, и диагностика по журналу умерла бы.

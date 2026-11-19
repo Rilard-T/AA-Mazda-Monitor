@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AA Dash Nav</string>
+    <string name="activity_main_title">AA Dash Nav</string>
+    <string name="activity_settings_title">AA Dash Nav</string>
+    <string name="obd_notif_title">Dash Nav: диагностика</string>
+    <string name="credits_fork_notice">Изменённая версия AA Torque под лицензией GPL-3.0. © 2026 Rilard-T.</string>
+    <string name="log_file_prefix">aadash-nav-log</string>
+</resources>

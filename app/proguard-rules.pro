@@ -60,7 +60,7 @@
 # читаемые теги (Timber берёт тег из имени класса) и понятные стектрейсы. Библиотеки при этом
 # обфусцируются — экономия размера остаётся. Снимать это правило нельзя: разбор журнала
 # опирается на теги ObdEngine, RegenTracker, GaugeRefresher и сообщения из этих классов.
--keep,allowoptimization class com.aatorque.** { *; }
+-keep,allowoptimization class com.aadash.** { *; }
 
 # Разделители библиотеки настроек отсекаются по типу (CardRecyclerView.addItemDecoration),
 # поэтому правило -keep для DividerDecoration больше не нужно: обфускация имени безопасна.

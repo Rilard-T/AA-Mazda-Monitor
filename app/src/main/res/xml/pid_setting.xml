@@ -42,7 +42,7 @@
         android:title="@string/pidLabel"
         android:persistent="false"
         />
-    <com.aatorque.prefs.ImageListPreference
+    <com.aadash.prefs.ImageListPreference
         android:key="image"
         android:title="@string/icon"
         app:entryImages="@array/icons"
@@ -65,7 +65,7 @@
         android:title="@string/alarms"
         android:summary="@string/alarms_desc"
         android:persistent="false"
-        android:fragment="com.aatorque.prefs.AlarmFragment"
+        android:fragment="com.aadash.prefs.AlarmFragment"
         />
     <SwitchPreferenceCompat
         android:key="wholeNumbers"
@@ -81,7 +81,7 @@
         android:summary="@string/enable_script_desc"
          android:persistent="false"
      />
-    <com.aatorque.prefs.FormulaPreference
+    <com.aadash.prefs.FormulaPreference
         android:key="customScript"
         android:title="@string/custom_script"
         android:summary="@string/custom_script_desc"
@@ -93,7 +93,7 @@
         android:key="gaugeSettings"
         android:title="@string/gauge_settings"
         android:enabled="false">
-        <com.aatorque.prefs.ColorPreference
+        <com.aadash.prefs.ColorPreference
             android:key="chartColor"
             android:title="@string/pref_chart_title"
             android:summary="@string/pref_chart_summary"

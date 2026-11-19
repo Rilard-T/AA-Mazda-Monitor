@@ -19,7 +19,7 @@
 | Релиз | тег `X.Y.Z`, workflow `release.yml`, ручной запуск с `master` | тег `nav-X.Y.Z-<run>`, prerelease, workflow `nav.yml` (по пушу в `beta`/`nav`) |
 
 Kotlin-пакеты и `namespace` общие для обоих приложений: `com.aadash.*` (`namespace com.aadash.stats`).
-Имя `com.aatorque.*` из форка выведено полностью; держать его в `master` нельзя — ветки разъедутся.
+Имя `com.aadash.*` из форка выведено полностью; держать его в `master` нельзя — ветки разъедутся.
 `-keep` в `proguard-rules.pro` теперь `class com.aadash.**`.
 
 Общее ядро: `app/src/main/java/com/aadash/obd/` (22 файла) и телефонный UI. На 18.11.2026 OBD-код
@@ -29,7 +29,7 @@ Kotlin-пакеты и `namespace` общие для обоих приложен
 ## 2. Состояние на 18.11.2026
 
 * `master` = `4a92225` (`ci(release): обновить actions до актуальных мажоров`), `version.properties` =
-  0.8.9. Флейворов, брендового слоя, переименования `com.aatorque` и CI под флейворы там **нет**.
+  0.8.9. Флейворов, брендового слоя, переименования `com.aadash` и CI под флейворы там **нет**.
 * `beta` = `0ca4fce` + коммит «nav-переименование»: флейворы, брендовый слой, `com.aadash.*`,
   `AA Dash Nav`. Из этого коммита заведена релизная ветка **`nav`** (см. §9).
 * `nav` — релизная ветка nav-приложения (`nav.yml`, теги `nav-X.Y.Z-<run>`); `beta` после переезда
@@ -42,7 +42,7 @@ Kotlin-пакеты и `namespace` общие для обоих приложен
 Выполнять по порядку; после каждой задачи — сборка `assembleStableDebug`, после блока ресурсов —
 ещё и `assembleStableRelease`.
 
-- [ ] **M0. Переименовать пакеты `com.aatorque` → `com.aadash`.** Пакеты уже переименованы в `beta`,
+- [ ] **M0. Переименовать пакеты `com.aadash` → `com.aadash`.** Пакеты уже переименованы в `beta`,
       поэтому на `master` это делается ровно так же, иначе ветки разъедутся на 85 файлах:
       `git mv app/src/main/java/com/aatorque app/src/main/java/com/aadash` (и то же в `src/test`),
       затем `s/\bcom\.aatorque/com.aadash/g` по `.kt`, `.java`, `.xml`, `AndroidManifest.xml`,

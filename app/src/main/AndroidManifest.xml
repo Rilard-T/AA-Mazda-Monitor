@@ -28,7 +28,7 @@
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false"/>
     <application
-        android:name="com.aatorque.stats.App"
+        android:name="com.aadash.stats.App"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -40,7 +40,7 @@
         android:hardwareAccelerated="true">
 
         <activity
-            android:name="com.aatorque.prefs.SettingsActivity"
+            android:name="com.aadash.prefs.SettingsActivity"
             android:theme="@style/Theme.App.Settings"
             android:exported="true"
             android:label="@string/activity_settings_title"
@@ -54,7 +54,7 @@
         </activity>
 
         <service
-            android:name="com.aatorque.stats.CarService"
+            android:name="com.aadash.stats.CarService"
             android:exported="true"
             android:label="@string/app_car_service_name"
             tools:ignore="ExportedService">
@@ -88,31 +88,31 @@
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
         <service
-            android:name="com.aatorque.obd.ObdBridgeService"
+            android:name="com.aadash.obd.ObdBridgeService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice"/>
         <activity
-            android:name="com.aatorque.obd.ObdSettingsActivity"
+            android:name="com.aadash.obd.ObdSettingsActivity"
             android:theme="@style/Theme.App.Settings"
             android:label="@string/obd_connection_title"
             android:exported="false"/>
         <activity
-            android:name="com.aatorque.obd.ObdCheckActivity"
+            android:name="com.aadash.obd.ObdCheckActivity"
             android:theme="@style/Theme.App.Settings"
             android:label="@string/obd_check_title"
             android:exported="false"/>
         <activity
-            android:name="com.aatorque.obd.UserPidsActivity"
+            android:name="com.aadash.obd.UserPidsActivity"
             android:theme="@style/Theme.App.Settings"
             android:label="@string/obd_user_pids_title"
             android:exported="false"/>
         <activity
-                android:name="com.aatorque.obd.ObdExperimentalActivity"
+                android:name="com.aadash.obd.ObdExperimentalActivity"
                 android:theme="@style/Theme.App.Settings"
                 android:label="@string/obd_exp_title"
                 android:exported="false"/>
         <provider
-            android:name="com.aatorque.stats.LogFileProvider"
+            android:name="com.aadash.stats.LogFileProvider"
             android:authorities="${applicationId}.logfileprovider"
             android:exported="false"
             android:grantUriPermissions="true">

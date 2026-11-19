@@ -7,14 +7,14 @@
         android:title="@string/pref_appearance">
 
 
-        <com.aatorque.prefs.ImageListPreference
+        <com.aadash.prefs.ImageListPreference
             android:entries="@array/Themes"
             android:entryValues="@array/Themes"
             android:key="selectedTheme"
             android:title="@string/pref_theme"
             android:persistent="false"
             app:entryImages="@array/ThemesThumbs" />
-        <com.aatorque.prefs.ImageListPreference
+        <com.aadash.prefs.ImageListPreference
             android:entries="@array/fontEntries"
             android:entryValues="@array/fontValues"
             android:key="selectedFont"
@@ -23,7 +23,7 @@
             android:persistent="false"
             app:tint="@color/tintColor"
         />
-        <com.aatorque.prefs.ImageListPreference
+        <com.aadash.prefs.ImageListPreference
             android:entries="@array/backgroundstrings"
             android:entryValues="@array/backgrounds"
             app:entryImages="@array/thumbs_backgrounds"

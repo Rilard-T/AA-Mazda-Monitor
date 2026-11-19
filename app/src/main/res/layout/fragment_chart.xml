@@ -5,7 +5,7 @@
     <data>
         <variable
             name="legendData"
-            type="com.aatorque.stats.LegendAdapter" />
+            type="com.aadash.stats.LegendAdapter" />
         <variable
             name="layoutManager"
             type="androidx.recyclerview.widget.StaggeredGridLayoutManager" />
@@ -26,7 +26,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
 
-        <com.aatorque.stats.NoninteractiveGraphView
+        <com.aadash.stats.NoninteractiveGraphView
             android:id="@+id/graph"
             android:layout_width="match_parent"
             android:layout_height="0dp"
