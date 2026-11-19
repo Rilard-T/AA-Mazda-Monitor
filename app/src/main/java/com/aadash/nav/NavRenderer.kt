@@ -218,27 +218,26 @@ class NavRenderer(context: Context) : SurfaceCallback {
                 if (g != null) painter.graph(c, area, g)
             }
 
-            // Уведомление о прожиге: заметное, но не раздражающее, без прогресса/анимации.
-            if (regenTracker?.regenActive() == true) {
+            // Статус прожига: компактный, в левом верхнем углу, не перекрывает приборы;
+            // показывается только пока блок сообщает статус 1/2 (исчезает при статусе 0).
+            val regenIndicated = regenTracker?.let { it.regenStatusAvailable() && it.regenStatus() >= 1 } == true
+            if (regenIndicated) {
                 val scale = painter.pxScale
-                val margin = 12f * scale
-                val bannerH = 44f * scale
+                val margin = 10f * scale
+                val textH = 28f * scale
                 val left = area.left + margin
                 val top = area.top + margin
-                val right = area.right - margin
-                val bottom = top + bannerH
-                bannerFill.color = Color.argb(200, 40, 30, 10)
-                c.drawRoundRect(left, top, right, bottom, 12f * scale, 12f * scale, bannerFill)
-                // рамка
+                bannerFill.color = Color.argb(180, 40, 30, 10)
+                c.drawRoundRect(left, top, left + 150f * scale, top + textH, 8f * scale, 8f * scale, bannerFill)
                 stroke.style = Paint.Style.STROKE
-                stroke.strokeWidth = 2f * scale
-                stroke.color = Color.argb(230, 255, 190, 60)
-                c.drawRoundRect(left, top, right, bottom, 12f * scale, 12f * scale, stroke)
+                stroke.strokeWidth = 1.5f * scale
+                stroke.color = Color.argb(220, 255, 190, 60)
+                c.drawRoundRect(left, top, left + 150f * scale, top + textH, 8f * scale, 8f * scale, stroke)
                 stroke.style = Paint.Style.STROKE
                 bannerText.color = Color.argb(255, 255, 230, 180)
-                bannerText.textSize = 16f * scale
-                bannerText.textAlign = Paint.Align.CENTER
-                c.drawText(appContext.getString(R.string.regen_banner_text), (left + right) / 2f, top + bannerH * 0.62f, bannerText)
+                bannerText.textSize = 13f * scale
+                bannerText.textAlign = Paint.Align.LEFT
+                c.drawText(appContext.getString(R.string.regen_banner_text), left + 8f * scale, top + textH * 0.68f, bannerText)
             }
 
             if (debugOverlay) {

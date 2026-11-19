@@ -1,5 +1,6 @@
 package com.aadash.nav
 
+import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -53,8 +54,9 @@ class NavEditorActivity : AppCompatActivity() {
     private var graphs: ArrayList<GraphDef> = ArrayList()
 
     private lateinit var editor: NavEditorView
-    private lateinit var info: TextView
-    private lateinit var previewSwitch: MaterialButton
+    private var info: TextView? = null
+    private var previewSwitch: MaterialButton? = null
+    private var previewMenuItem: MenuItem? = null
     private var gridBtn: MaterialButton? = null
     private var snapBtn: MaterialButton? = null
     private var ticksBtn: MaterialButton? = null
@@ -67,6 +69,15 @@ class NavEditorActivity : AppCompatActivity() {
         // Короткий заголовок: полный («Раскладка приборов») не влезает рядом с «Сохранить»
         title = "Раскладка"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        val accent = getSharedPreferences(null, Context.MODE_PRIVATE).getString("app_accent_color", "blue")
+        val overlay = when (accent) {
+            "green" -> R.style.ThemeOverlay_App_Accent_Green
+            "red" -> R.style.ThemeOverlay_App_Accent_Red
+            "orange" -> R.style.ThemeOverlay_App_Accent_Orange
+            "purple" -> R.style.ThemeOverlay_App_Accent_Purple
+            else -> R.style.ThemeOverlay_App_Accent_Blue
+        }
+        theme.applyStyle(overlay, true)
         NavLayoutStore.load(this)
         loadFromStore()
         setContentView(buildUi())
@@ -103,6 +114,7 @@ class NavEditorActivity : AppCompatActivity() {
         const val M_GRID = 13
         const val M_SNAP = 14
         const val M_ALIGN = 15
+        const val M_PREVIEW = 16
         const val M_RESET = 9
     }
 
@@ -145,7 +157,7 @@ class NavEditorActivity : AppCompatActivity() {
         val root = LinearLayout(this)
         root.orientation = if (landscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         root.setBackgroundColor(themeColor(android.R.attr.colorBackground, Color.TRANSPARENT))
-        root.setPadding(dp(12), dp(12), dp(12), dp(12))
+        root.setPadding(dp(12), dp(6), dp(12), dp(12))
 
         editor = NavEditorView(this)
         editor.forms = forms
@@ -178,19 +190,6 @@ class NavEditorActivity : AppCompatActivity() {
         val panel = LinearLayout(this)
         panel.orientation = LinearLayout.VERTICAL
 
-        previewSwitch = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
-        previewSwitch.isAllCaps = false
-        previewSwitch.textSize = 15f
-        previewSwitch.insetTop = 0
-        previewSwitch.insetBottom = 0
-        previewSwitch.minHeight = dp(44)
-        previewSwitch.cornerRadius = dp(14)
-        previewSwitch.setOnClickListener { togglePreview() }
-        panel.addView(
-            previewSwitch,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        )
-
         // Аккордеон: пункты бывшего меню «⋯» сгруппированы и доступны прямо в панели.
         val scroll = ScrollView(this)
         val acc = LinearLayout(this)
@@ -222,11 +221,12 @@ class NavEditorActivity : AppCompatActivity() {
             val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
             b.isAllCaps = false
             b.text = label
-            b.textSize = 13f
+            b.textSize = 14f
             b.insetTop = 0
             b.insetBottom = 0
-            b.minHeight = dp(40)
+            b.minHeight = dp(48)
             b.cornerRadius = dp(12)
+            b.strokeWidth = dp(1)
             b.setOnClickListener { onClick() }
             return b
         }
@@ -297,17 +297,6 @@ class NavEditorActivity : AppCompatActivity() {
             panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260)))
         }
 
-        info = TextView(this)
-        info.textSize = 13f
-        info.maxLines = if (landscape) 6 else 3
-        info.setLineSpacing(dp(3).toFloat(), 1f)
-        info.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY))
-        info.setPadding(dp(6), dp(12), dp(6), dp(4))
-        panel.addView(
-            info,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        )
-
         if (landscape) {
             root.addView(holder, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
             root.addView(
@@ -318,7 +307,7 @@ class NavEditorActivity : AppCompatActivity() {
             root.addView(holder, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
             root.addView(
                 panel,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) }
             )
         }
         return root
@@ -345,6 +334,11 @@ class NavEditorActivity : AppCompatActivity() {
             MenuItem.SHOW_AS_ACTION_ALWAYS or
                 (if (isLandscape()) MenuItem.SHOW_AS_ACTION_WITH_TEXT else 0)
         )
+        // Переключатель приборы/график рядом с «Сохранить»
+        previewMenuItem = menu.add(Menu.NONE, M_PREVIEW, 1, "Приборы")
+        previewMenuItem?.setIcon(R.drawable.ic_nav_check)
+        previewMenuItem?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        updatePreviewSwitch()
         // Пункты перенесены в аккордеон панели; в меню остаётся только «Сохранить».
         return true
     }
@@ -352,6 +346,7 @@ class NavEditorActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             M_SAVE -> save()
+            M_PREVIEW -> togglePreview()
             M_WIDE -> {
                 formKey = NavLayoutStore.WIDE
                 applyForm()
@@ -533,13 +528,13 @@ class NavEditorActivity : AppCompatActivity() {
     }
 
     private fun updatePreviewSwitch() {
-        if (!::previewSwitch.isInitialized) return
+        if (previewSwitch == null) return
         val label = if (previewIndex < 0) {
             "Приборы"
         } else {
             "График: " + (graphs.getOrNull(previewIndex)?.name ?: "график")
         }
-        previewSwitch.text = label
+        previewMenuItem?.title = label
     }
 
     /**
@@ -578,7 +573,7 @@ class NavEditorActivity : AppCompatActivity() {
             getString(R.string.nav_selected) + sel.label + " (" + sel.pid + ")" +
                 (if (sel.kind == NavItem.GAUGE) getString(R.string.nav_circle) + (sel.size * 100f).toInt() + "%" else "")
         }
-        info.text = getString(R.string.nav_form) + (if (narrow) getString(R.string.nav_narrow) else getString(R.string.nav_wide)) +
+        info?.text = getString(R.string.nav_form) + (if (narrow) getString(R.string.nav_narrow) else getString(R.string.nav_wide)) +
             getString(R.string.nav_aspect_prefix) + aspectLabel() + " " +
             String.format(Locale.US, "%.2f", editor.aspect) +
             getString(R.string.nav_items) + count + "\n" + themeLine() + "\n" + selText

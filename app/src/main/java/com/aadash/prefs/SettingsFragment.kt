@@ -83,6 +83,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
             AppCompatDelegate.setDefaultNightMode(mode)
             true
         }
+        findPreference<ListPreference>("app_accent_color")?.setOnPreferenceChangeListener { _, _ ->
+            requireActivity().recreate()
+            true
+        }
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {

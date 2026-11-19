@@ -249,6 +249,11 @@ class RegenTracker internal constructor(
     @Synchronized fun currentSootPeak(): Double? = sootPeak.takeIf { it > 0 }
     @Synchronized fun currentSoot(): Double? = lastSoot
     @Synchronized fun regenActive(): Boolean = active
+
+    /** Статус прожига от блока: 0 — нет, 1/2 — идёт. Доступен, только если блок отвечал недавно. */
+    @Synchronized fun regenStatus(): Int = lastStatus ?: 0
+
+    @Synchronized fun regenStatusAvailable(): Boolean = statusAvailable(clock())
     /** Статус от блока (0/1/2), если он сейчас приходит, иначе null. */
     @Synchronized fun liveStatus(): Int? = if (statusAvailable(clock())) lastStatus else null
     @Synchronized fun history(): List<RegenEntry> = ArrayList(log)

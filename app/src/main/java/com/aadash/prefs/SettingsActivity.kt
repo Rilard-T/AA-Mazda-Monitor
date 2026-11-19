@@ -89,6 +89,15 @@ class SettingsActivity : AppCompatActivity(),
     public override fun onCreate(savedInstanceState: Bundle?) {
         com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
+        val accent = getSharedPreferences(null, Context.MODE_PRIVATE).getString("app_accent_color", "blue")
+        val overlay = when (accent) {
+            "green" -> R.style.ThemeOverlay_App_Accent_Green
+            "red" -> R.style.ThemeOverlay_App_Accent_Red
+            "orange" -> R.style.ThemeOverlay_App_Accent_Orange
+            "purple" -> R.style.ThemeOverlay_App_Accent_Purple
+            else -> R.style.ThemeOverlay_App_Accent_Blue
+        }
+        theme.applyStyle(overlay, true)
         // Служба OBD больше не поднимается при каждом открытии настроек: адаптер занимается
         // только когда пользователь сам заходит на экран «Подключение к OBD» или запускает AA.
         com.aadash.obd.AppExit.installBackConfirm(this)

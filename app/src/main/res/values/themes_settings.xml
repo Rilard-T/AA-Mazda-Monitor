@@ -41,4 +41,25 @@
     <style name="Widget.App.ActionBar" parent="Widget.Material3.ActionBar.Solid">
         <item name="background">?attr/colorSurfaceContainer</item>
     </style>
+
+    <style name="ThemeOverlay.App.Accent.Blue" parent="">
+        <item name="colorSecondary">#2196F3</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+    <style name="ThemeOverlay.App.Accent.Green" parent="">
+        <item name="colorSecondary">#4CAF50</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+    <style name="ThemeOverlay.App.Accent.Red" parent="">
+        <item name="colorSecondary">#F44336</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+    <style name="ThemeOverlay.App.Accent.Orange" parent="">
+        <item name="colorSecondary">#FF9800</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
+    <style name="ThemeOverlay.App.Accent.Purple" parent="">
+        <item name="colorSecondary">#9C27B0</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+    </style>
 </resources>
