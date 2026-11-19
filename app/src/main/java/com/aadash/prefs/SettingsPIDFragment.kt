@@ -88,7 +88,6 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
         isClock = args.getBoolean("isClock")
         screen = args.getInt("screen")
         index = args.getInt("index")
-        preferenceManager.sharedPreferencesName = null
 
         enabledPref = findPreference("enabled")!!
         pidPref = findPreference("pidList")!!

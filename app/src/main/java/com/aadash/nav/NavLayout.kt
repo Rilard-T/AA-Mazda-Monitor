@@ -46,6 +46,29 @@ data class GraphDef(
     val autoScaleY: Boolean = true
 )
 
+/**
+ * Уведомление о прожиге на приборной панели: включение, угол области, размер и цвета.
+ * Размер [scale] — множитель к базовым 150×28 dp, он же масштабирует текст и скругление.
+ */
+data class RegenBanner(
+    val enabled: Boolean = true,
+    val corner: Int = TOP_LEFT,
+    val scale: Float = 1f,
+    val fill: Int = 0xB4281E0A.toInt(),
+    val text: Int = 0xFFFFE6B4.toInt(),
+    val border: Int = 0xDCFFBE3C.toInt()
+) {
+    companion object {
+        const val TOP_LEFT = 0
+        const val TOP_RIGHT = 1
+        const val BOTTOM_LEFT = 2
+        const val BOTTOM_RIGHT = 3
+        const val MIN_SCALE = 0.6f
+        const val MAX_SCALE = 2f
+        val DEFAULT = RegenBanner()
+    }
+}
+
 /** Набор элементов для одной формы области. */
 data class NavForm(val items: List<NavItem>)
 
@@ -57,7 +80,8 @@ data class NavLayout(
     val theme: String = "",
     val font: String = "",
     val ticks: Boolean = true,
-    val debug: Boolean = false
+    val debug: Boolean = false,
+    val regen: RegenBanner = RegenBanner.DEFAULT
 ) {
     fun form(key: String): NavForm =
         forms[key] ?: forms[NavLayoutStore.WIDE] ?: NavLayoutStore.defaultLayout().forms.getValue(NavLayoutStore.WIDE)
@@ -180,9 +204,17 @@ object NavLayoutStore {
             o.put("auto", g.autoScaleY)
             graphs.put(o)
         }
+        val regen = JSONObject()
+            .put("on", l.regen.enabled)
+            .put("corner", l.regen.corner)
+            .put("scale", l.regen.scale.toDouble())
+            .put("fill", l.regen.fill)
+            .put("text", l.regen.text)
+            .put("border", l.regen.border)
         return JSONObject().put("v", 2).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
             .put("graphs", graphs)
-            .put("theme", l.theme).put("font", l.font).put("ticks", l.ticks).put("debug", l.debug).toString()
+            .put("theme", l.theme).put("font", l.font).put("ticks", l.ticks).put("debug", l.debug)
+            .put("regen", regen).toString()
     }
 
     fun parse(text: String): NavLayout? {
@@ -257,10 +289,21 @@ object NavLayoutStore {
                 }
             }
 
+            val regenJson = root.optJSONObject("regen")
+            val regen = if (regenJson == null) RegenBanner.DEFAULT else RegenBanner(
+                enabled = regenJson.optBoolean("on", true),
+                corner = regenJson.optInt("corner", RegenBanner.TOP_LEFT).coerceIn(0, 3),
+                scale = regenJson.optDouble("scale", 1.0).toFloat()
+                    .coerceIn(RegenBanner.MIN_SCALE, RegenBanner.MAX_SCALE),
+                fill = regenJson.optInt("fill", RegenBanner.DEFAULT.fill),
+                text = regenJson.optInt("text", RegenBanner.DEFAULT.text),
+                border = regenJson.optInt("border", RegenBanner.DEFAULT.border)
+            )
+
             return NavLayout(
                 root.optDouble("narrowAspect", 1.15).toFloat(), forms, graphs,
                 root.optString("theme", ""), root.optString("font", ""),
-                root.optBoolean("ticks", true), root.optBoolean("debug", false)
+                root.optBoolean("ticks", true), root.optBoolean("debug", false), regen
             )
         } catch (e: Exception) {
             return null

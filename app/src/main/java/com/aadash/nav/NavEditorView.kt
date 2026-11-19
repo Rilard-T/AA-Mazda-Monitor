@@ -42,6 +42,12 @@ class NavEditorView(context: Context) : View(context) {
     var previewGraph: GraphDef? = null
     var gridCols: Int = 12
     var gridRows: Int = 8
+    /** Уведомление о прожиге: в предпросмотре показывается всегда, чтобы были видны место и цвета. */
+    var regen: RegenBanner = RegenBanner.DEFAULT
+        set(value) {
+            field = value
+            invalidate()
+        }
 
     private val painter = NavPainter().apply { appContext = context.applicationContext }
     private val area = RectF()
@@ -49,6 +55,7 @@ class NavEditorView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
     private val fillPaint = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val linePaint = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true; strokeWidth = 1.5f * density }
+    private val textPaint = Paint().apply { isAntiAlias = true }
     private var mode = MODE_NONE
     private var lastX = 0f
     private var lastY = 0f
@@ -174,6 +181,13 @@ class NavEditorView(context: Context) : View(context) {
                 "none" -> {}
                 else -> canvas.drawRect(tmp, linePaint)
             }
+        }
+        if (regen.enabled) {
+            RegenBannerPainter.draw(
+                canvas, area, regen, density,
+                context.getString(com.aadash.stats.R.string.regen_banner_text),
+                fillPaint, linePaint, textPaint
+            )
         }
         val sel = selectedItem()
         if (sel != null) {

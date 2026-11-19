@@ -218,26 +218,17 @@ class NavRenderer(context: Context) : SurfaceCallback {
                 if (g != null) painter.graph(c, area, g)
             }
 
-            // Статус прожига: компактный, в левом верхнем углу, не перекрывает приборы;
-            // показывается только пока блок сообщает статус 1/2 (исчезает при статусе 0).
-            val regenIndicated = regenTracker?.let { it.regenStatusAvailable() && it.regenStatus() >= 1 } == true
+            // Статус прожига: показывается, только пока блок сообщает статус 1/2 (исчезает при 0).
+            // Включение, угол, размер и цвета задаются в редакторе раскладки.
+            val banner = layout.regen
+            val regenIndicated = banner.enabled &&
+                regenTracker?.let { it.regenStatusAvailable() && it.regenStatus() >= 1 } == true
             if (regenIndicated) {
-                val scale = painter.pxScale
-                val margin = 10f * scale
-                val textH = 28f * scale
-                val left = area.left + margin
-                val top = area.top + margin
-                bannerFill.color = Color.argb(180, 40, 30, 10)
-                c.drawRoundRect(left, top, left + 150f * scale, top + textH, 8f * scale, 8f * scale, bannerFill)
-                stroke.style = Paint.Style.STROKE
-                stroke.strokeWidth = 1.5f * scale
-                stroke.color = Color.argb(220, 255, 190, 60)
-                c.drawRoundRect(left, top, left + 150f * scale, top + textH, 8f * scale, 8f * scale, stroke)
-                stroke.style = Paint.Style.STROKE
-                bannerText.color = Color.argb(255, 255, 230, 180)
-                bannerText.textSize = 13f * scale
-                bannerText.textAlign = Paint.Align.LEFT
-                c.drawText(appContext.getString(R.string.regen_banner_text), left + 8f * scale, top + textH * 0.68f, bannerText)
+                RegenBannerPainter.draw(
+                    c, area, banner, painter.pxScale,
+                    appContext.getString(R.string.regen_banner_text),
+                    bannerFill, stroke, bannerText
+                )
             }
 
             if (debugOverlay) {

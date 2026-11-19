@@ -3,8 +3,6 @@ package com.aadash.prefs
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.preference.ListPreference
@@ -18,7 +16,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        preferenceManager.sharedPreferencesName = null
         findPreference<Preference>("navEditor")?.setOnPreferenceClickListener {
             startActivity(Intent(requireContext(), com.aadash.nav.NavEditorActivity::class.java))
             true
@@ -83,18 +80,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             }
             AppCompatDelegate.setDefaultNightMode(mode)
-            true
-        }
-        findPreference<ListPreference>(AppAccent.KEY)?.setOnPreferenceChangeListener { pref, newValue ->
-            val value = newValue as? String ?: AppAccent.DEFAULT
-            val list = pref as ListPreference
-            // Значение записываем сами: ListPreference сохраняет выбор уже после возврата из
-            // слушателя, а пересоздание экрана внутри него оставляло в диалоге прежнюю строку.
-            list.value = value
-            val index = list.findIndexOfValue(value)
-            if (index >= 0) list.summary = list.entries[index]
-            // Пересоздаём, когда диалог уже закрыт, иначе он восстанавливается со старым выбором.
-            Handler(Looper.getMainLooper()).post { requireActivity().recreate() }
             true
         }
     }

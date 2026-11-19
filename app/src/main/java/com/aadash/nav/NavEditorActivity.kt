@@ -22,6 +22,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
+import android.widget.Space
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -54,6 +55,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var fontName = ""
     private var ticksOn = true
     private var debugOn = false
+    private var regenBanner: RegenBanner = RegenBanner.DEFAULT
     private var graphs: ArrayList<GraphDef> = ArrayList()
 
     private lateinit var editor: NavEditorView
@@ -65,6 +67,12 @@ class NavEditorActivity : AppCompatActivity() {
     private var snapBtn: MaterialButton? = null
     private var ticksBtn: MaterialButton? = null
     private var debugBtn: MaterialButton? = null
+    private var regenBtn: MaterialButton? = null
+    private var regenPosBtn: MaterialButton? = null
+    private var regenFillBtn: MaterialButton? = null
+    private var regenTextBtn: MaterialButton? = null
+    private var regenBorderBtn: MaterialButton? = null
+    private var regenSizeBtn: MaterialButton? = null
     private var aspectBtn: MaterialButton? = null
     private lateinit var previewFrame: NavAspectFrame
 
@@ -117,7 +125,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
-        return NavLayout(narrowAspect, map, ArrayList(graphs), themeName, fontName, ticksOn, debugOn)
+        return NavLayout(narrowAspect, map, ArrayList(graphs), themeName, fontName, ticksOn, debugOn, regenBanner)
     }
 
     private fun currentJson(): String = NavLayoutStore.toJson(currentLayout())
@@ -131,6 +139,7 @@ class NavEditorActivity : AppCompatActivity() {
         fontName = layout.font
         ticksOn = layout.ticks
         debugOn = layout.debug
+        regenBanner = layout.regen
         graphs = ArrayList(layout.graphs)
         baseline = currentJson()
     }
@@ -158,6 +167,7 @@ class NavEditorActivity : AppCompatActivity() {
 
         editor = NavEditorView(this)
         editor.forms = forms
+        editor.regen = regenBanner
         editor.onSelectionChanged = { updateInfo() }
         editor.onLongPressItem = { item -> showItemMenu(item) }
 
@@ -230,8 +240,11 @@ class NavEditorActivity : AppCompatActivity() {
             acc.addView(
                 content,
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                    .apply { topMargin = dp(4); bottomMargin = dp(8) }
+                    .apply { topMargin = dp(4) }
             )
+            // Отступа между заголовками не было: при свёрнутых группах соседние заголовки одного
+            // цвета слипались в одну плашку. Разделитель-прослойка остаётся видимой в любом состоянии.
+            acc.addView(Space(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(10)))
         }
 
         fun mkBtn(label: String, onClick: () -> Unit): MaterialButton {
@@ -289,6 +302,34 @@ class NavEditorActivity : AppCompatActivity() {
             g.addView(debugBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(themeBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(fontBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+            // Уведомление о прожиге: его вид виден в предпросмотре сразу.
+            g.addView(TextView(this).apply {
+                setText("Уведомление о прожиге")
+                textSize = 13f
+                setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY))
+                setPadding(dp(4), dp(10), 0, dp(2))
+            })
+
+            regenBtn = mkBtn(regenOnLabel()) {
+                regenBanner = regenBanner.copy(enabled = !regenBanner.enabled)
+                applyRegen()
+            }
+            regenBtn?.let { stateBtn(it) { regenBanner.enabled } }
+            regenPosBtn = mkBtn(regenPosLabel()) { chooseRegenCorner() }
+            regenFillBtn = mkBtn(regenColorLabel("Фон", regenBanner.fill)) {
+                chooseRegenColor("Цвет фона", regenBanner.fill) { regenBanner = regenBanner.copy(fill = it); applyRegen() }
+            }
+            regenTextBtn = mkBtn(regenColorLabel("Текст", regenBanner.text)) {
+                chooseRegenColor("Цвет текста", regenBanner.text) { regenBanner = regenBanner.copy(text = it); applyRegen() }
+            }
+            regenBorderBtn = mkBtn(regenColorLabel("Рамка", regenBanner.border)) {
+                chooseRegenColor("Цвет рамки", regenBanner.border) { regenBanner = regenBanner.copy(border = it); applyRegen() }
+            }
+            regenSizeBtn = mkBtn(regenSizeLabel()) { chooseRegenSize() }
+            for (b in listOf(regenBtn, regenPosBtn, regenFillBtn, regenTextBtn, regenBorderBtn, regenSizeBtn)) {
+                g.addView(b, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }
         }
 
         // Группа «Элементы»
@@ -344,6 +385,85 @@ class NavEditorActivity : AppCompatActivity() {
         return root
     }
 
+    private fun regenOnLabel(): String = "Прожиг: " + if (regenBanner.enabled) "вкл" else "выкл"
+
+    private fun regenPosLabel(): String = "Положение: " + when (regenBanner.corner) {
+        RegenBanner.TOP_RIGHT -> "справа сверху"
+        RegenBanner.BOTTOM_LEFT -> "слева снизу"
+        RegenBanner.BOTTOM_RIGHT -> "справа снизу"
+        else -> "слева сверху"
+    }
+
+    private fun regenColorLabel(name: String, color: Int): String =
+        name + ": " + String.format("#%06X", 0xFFFFFF and color)
+
+    private fun regenSizeLabel(): String = "Размер: " + Math.round(regenBanner.scale * 100f) + "%"
+
+    /** Изменение вида уведомления: сразу в предпросмотр и на кнопки. */
+    private fun applyRegen() {
+        editor.regen = regenBanner
+        regenBtn?.text = regenOnLabel()
+        regenPosBtn?.text = regenPosLabel()
+        regenFillBtn?.text = regenColorLabel("Фон", regenBanner.fill)
+        regenTextBtn?.text = regenColorLabel("Текст", regenBanner.text)
+        regenBorderBtn?.text = regenColorLabel("Рамка", regenBanner.border)
+        regenSizeBtn?.text = regenSizeLabel()
+        refreshStateButtons()
+    }
+
+    private fun chooseRegenCorner() {
+        val labels = arrayOf("Слева сверху", "Справа сверху", "Слева снизу", "Справа снизу")
+        AlertDialog.Builder(this)
+            .setTitle("Положение уведомления")
+            .setSingleChoiceItems(labels, regenBanner.corner) { dialog, which ->
+                regenBanner = regenBanner.copy(corner = which)
+                applyRegen()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun chooseRegenColor(title: String, current: Int, onPick: (Int) -> Unit) {
+        val picker = com.rarepebble.colorpicker.ColorPickerView(this).apply {
+            showHex(true)
+            color = current
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(picker)
+            .setPositiveButton(android.R.string.ok) { dialog, _ ->
+                onPick(picker.color)
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
+    /** Размер плашки: 60–200 % шагом 10, текст и отступы масштабируются вместе с ней. */
+    private fun chooseRegenSize() {
+        val maxStep = Math.round((RegenBanner.MAX_SCALE - RegenBanner.MIN_SCALE) / 0.1f)
+        val seek = SeekBar(this)
+        seek.max = maxStep
+        seek.progress = Math.round((regenBanner.scale - RegenBanner.MIN_SCALE) / 0.1f).coerceIn(0, maxStep)
+        val holder = FrameLayout(this)
+        holder.setPadding(dp(20), dp(8), dp(20), dp(8))
+        holder.addView(
+            seek,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Размер уведомления: " + Math.round(regenBanner.scale * 100f) + "%")
+            .setView(holder)
+            .setPositiveButton(android.R.string.ok) { dialog, _ ->
+                val scale = RegenBanner.MIN_SCALE + seek.progress * 0.1f
+                regenBanner = regenBanner.copy(scale = scale)
+                applyRegen()
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+
     private fun groupTitle(title: String, open: Boolean): String =
         title + if (open) "    ▾" else "    ▸"
 
@@ -384,17 +504,18 @@ class NavEditorActivity : AppCompatActivity() {
 
     /** Общие действия: «Сохранить» всегда на виду, остальное в меню «⋯». */
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        // Переключатель приборы/график — левее «Сохранить»: у него меняется надпись, и в правом
+        // краю он дёргал бы «Сохранить». У «Сохранить» правый край закреплён, поэтому растёт он влево.
+        previewMenuItem = menu.add(Menu.NONE, M_PREVIEW, 0, "Приборы")
+        previewMenuItem?.setShowAsAction(
+            MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT
+        )
         // «Сохранить»: в альбоме надпись, в портрете только иконка - иначе заголовок обрезается
-        val save = menu.add(Menu.NONE, M_SAVE, 0, getString(R.string.nav_save))
+        val save = menu.add(Menu.NONE, M_SAVE, 1, getString(R.string.nav_save))
         save.setIcon(R.drawable.ic_nav_check)
         save.setShowAsAction(
             MenuItem.SHOW_AS_ACTION_ALWAYS or
                 (if (isLandscape()) MenuItem.SHOW_AS_ACTION_WITH_TEXT else 0)
-        )
-        // Переключатель приборы/график рядом с «Сохранить»: текстом, без второй галочки
-        previewMenuItem = menu.add(Menu.NONE, M_PREVIEW, 1, "Приборы")
-        previewMenuItem?.setShowAsAction(
-            MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT
         )
         updatePreviewSwitch()
         // Пункты перенесены в аккордеон панели; в меню остаётся только «Сохранить».
@@ -1092,6 +1213,7 @@ class NavEditorActivity : AppCompatActivity() {
         loadFromStore()
         applyForm()
         applyTheme()
+        applyRegen()
         Toast.makeText(this, getString(R.string.nav_reset_done), Toast.LENGTH_SHORT).show()
     }
 

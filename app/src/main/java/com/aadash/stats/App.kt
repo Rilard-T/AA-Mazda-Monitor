@@ -15,8 +15,9 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Тот же файл, в который пишет ListPreference на экране настроек (getSharedPreferences(null, …)
-        // открывает другой файл, null.xml, и режим темы после перезапуска сбрасывался на системный).
+        // Сначала переносим значения из старого файла null.xml: до этого экраны настроек писали
+        // туда, а чтение шло из <пакет>_preferences, поэтому тема после перезапуска сбрасывалась.
+        com.aadash.prefs.MainPrefs.migrate(this)
         val mode = PreferenceManager.getDefaultSharedPreferences(this).getString("app_theme_mode", "system")
         AppCompatDelegate.setDefaultNightMode(when (mode) {
             "light" -> AppCompatDelegate.MODE_NIGHT_NO

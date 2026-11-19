@@ -34,6 +34,12 @@
         <item name="colorSurfaceContainer">@color/ms_sc</item>
         <item name="colorSurfaceContainerHigh">@color/ms_sc_high</item>
         <item name="colorSurfaceContainerHighest">@color/ms_sc_highest</item>
+        <!-- Контролы AppCompat (переключатели, флажки, радиокнопки, SeekBar) красятся не из
+             colorPrimary, а из этих атрибутов. Повторяем их за акцентом, иначе при динамической
+             палитре Material 3 они остались бы базового цвета. -->
+        <item name="colorAccent">?attr/colorPrimary</item>
+        <item name="android:colorAccent">?attr/colorPrimary</item>
+        <item name="colorControlActivated">?attr/colorPrimary</item>
         <!-- верхняя панель и строка состояния одного цвета; значки строки состояния по режиму -->
         <item name="actionBarStyle">@style/Widget.App.ActionBar</item>
         <item name="android:statusBarColor">?attr/colorSurfaceContainer</item>
@@ -42,6 +48,24 @@
 
     <style name="Widget.App.ActionBar" parent="Widget.Material3.ActionBar.Solid">
         <item name="background">?attr/colorSurfaceContainer</item>
+    </style>
+
+    <!-- Нейтральные поверхности поверх динамической палитры Material 3. Акцентный цвет задаёт
+         только акцентные роли, а фон, карточки и обводки остаются в палитре приложения. -->
+    <style name="ThemeOverlay.App.Surfaces" parent="">
+        <item name="android:colorBackground">@color/ms_background</item>
+        <item name="colorOnBackground">@color/ms_on_background</item>
+        <item name="colorSurface">@color/ms_surface</item>
+        <item name="colorOnSurface">@color/ms_on_surface</item>
+        <item name="colorSurfaceVariant">@color/ms_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/ms_on_surface_variant</item>
+        <item name="colorOutline">@color/ms_outline</item>
+        <item name="colorOutlineVariant">@color/ms_outline_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/ms_sc_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/ms_sc_low</item>
+        <item name="colorSurfaceContainer">@color/ms_sc</item>
+        <item name="colorSurfaceContainerHigh">@color/ms_sc_high</item>
+        <item name="colorSurfaceContainerHighest">@color/ms_sc_highest</item>
     </style>
 
     <!-- Акцентные overlay-темы Material 3. Раньше переопределялся только colorSecondary, поэтому

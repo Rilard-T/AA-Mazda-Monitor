@@ -22,13 +22,11 @@
             android:entries="@array/app_theme_mode_entries"
             android:entryValues="@array/app_theme_mode_values"
             android:defaultValue="system" />
-        <ListPreference
-            android:key="app_accent_color"
+        <com.aadash.prefs.AccentPreference
+            android:key="app_accent_picker"
+            android:persistent="false"
             android:title="Акцентный цвет"
-            android:summary="%s"
-            android:entries="@array/app_accent_color_entries"
-            android:entryValues="@array/app_accent_color_values"
-            android:defaultValue="blue" />
+            app:iconSpaceReserved="true" />
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -38,7 +38,6 @@ class ProfilesFragment : PreferenceFragmentCompat() {
     private var activePref: ListPreference? = null
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
-        preferenceManager.sharedPreferencesName = null
         val ctx = requireContext()
         val screen = preferenceManager.createPreferenceScreen(ctx)
         preferenceScreen = screen
