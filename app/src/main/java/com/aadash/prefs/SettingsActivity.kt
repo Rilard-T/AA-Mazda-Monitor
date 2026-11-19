@@ -416,7 +416,9 @@ class SettingsActivity : AppCompatActivity(),
                 // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
                 needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
                 if (needsUpdate == true && !tagName.isNullOrBlank()) {
-                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/app-release.apk"
+                    // Имя файла в релизе задаёт ci.yml (шаг «Rename release»): aa-torque.apk,
+                    // а не app-release.apk — иначе кнопка «Скачать» ведёт на 404.
+                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/aa-torque.apk"
                 }
                 if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
             } else {
