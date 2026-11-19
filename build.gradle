@@ -45,6 +45,16 @@ allprojects {
     }
 }
 
+// Kotlin has to target the same JVM version as the Java sources of the module,
+// otherwise the build fails with "Inconsistent JVM-target compatibility".
+subprojects { subproject ->
+    subproject.plugins.withId('org.jetbrains.kotlin.android') {
+        subproject.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions.jvmTarget = rootProject.ext.targetCompatibility.toString()
+        }
+    }
+}
+
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
