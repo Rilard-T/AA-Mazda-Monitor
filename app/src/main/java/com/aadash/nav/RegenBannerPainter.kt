@@ -5,53 +5,79 @@ import android.graphics.Paint
 import android.graphics.RectF
 
 /**
- * Уведомление о прожиге: одна и та же геометрия для приборной панели на экране машины и для
- * предпросмотра в редакторе раскладки, иначе подобранные в редакторе размер и место не совпадут.
+ * Уведомление о прожиге: одна и та же геометрия для шапки на экране машины (там, где «Выход»
+ * и кнопки экранов) и для предпросмотра в редакторе раскладки, иначе подобранный в редакторе
+ * сдвиг и размер не совпадут. Ширина — по надписи, по вертикали плашка стоит по центру полосы шапки.
  */
 object RegenBannerPainter {
-    private const val BASE_WIDTH_DP = 150f
     private const val BASE_HEIGHT_DP = 28f
-    private const val MARGIN_DP = 10f
-    private const val PADDING_DP = 8f
+    private const val MARGIN_DP = 8f
+    private const val PADDING_DP = 9f
     private const val RADIUS_DP = 8f
     private const val BORDER_DP = 1.5f
     private const val TEXT_DP = 13f
 
-    /** Прямоугольник баннера в координатах области; [dp] — сколько пикселей в одном dp. */
-    fun bounds(area: RectF, banner: RegenBanner, dp: Float, out: RectF) {
-        val w = BASE_WIDTH_DP * banner.scale * dp
-        val h = BASE_HEIGHT_DP * banner.scale * dp
+    private fun scaleOf(banner: RegenBanner): Float =
+        banner.scale.coerceIn(RegenBanner.MIN_SCALE, RegenBanner.MAX_SCALE)
+
+    /** Высота плашки: базовая с масштабом, но не меньше самого текста. */
+    fun height(banner: RegenBanner, dp: Float): Float {
+        val s = scaleOf(banner)
+        return maxOf(BASE_HEIGHT_DP * s * dp, TEXT_DP * s * dp * 1.6f)
+    }
+
+    /**
+     * Прямоугольник плашки внутри полосы [band]: по горизонтали — сдвиг [RegenBanner.x]
+     * (0 — у левого края полосы, 1 — у правого), по вертикали — по центру полосы.
+     */
+    fun bounds(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, out: RectF) {
+        val s = scaleOf(banner)
+        text.textSize = TEXT_DP * s * dp
+        val pad = PADDING_DP * s * dp
+        val w = text.measureText(label) + 2f * pad
+        val h = height(banner, dp)
         val m = MARGIN_DP * dp
-        val right = banner.corner == RegenBanner.TOP_RIGHT || banner.corner == RegenBanner.BOTTOM_RIGHT
-        val bottom = banner.corner == RegenBanner.BOTTOM_LEFT || banner.corner == RegenBanner.BOTTOM_RIGHT
-        val left = if (right) area.right - m - w else area.left + m
-        val top = if (bottom) area.bottom - m - h else area.top + m
+        val span = (band.width() - w - 2f * m).coerceAtLeast(0f)
+        val left = band.left + m + banner.x.coerceIn(0f, 1f) * span
+        val top = if (band.height() >= h) band.top + (band.height() - h) / 2f else band.top
         out.set(left, top, left + w, top + h)
     }
 
-    /** Рисует плашку с текстом. Кисти передаются готовыми: цвета и стиль задаются здесь. */
+    /** Сдвиг для перетаскивания пальцем: положение левого края плашки по координате касания. */
+    fun xFor(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, touchX: Float): Float {
+        val s = scaleOf(banner)
+        text.textSize = TEXT_DP * s * dp
+        val pad = PADDING_DP * s * dp
+        val w = text.measureText(label) + 2f * pad
+        val m = MARGIN_DP * dp
+        val span = band.width() - w - 2f * m
+        if (span <= 0f) return 0f
+        return ((touchX - w / 2f - band.left - m) / span).coerceIn(0f, 1f)
+    }
+
+    /** Рисует плашку в готовом прямоугольнике (его считает [bounds]). */
     fun draw(
         canvas: Canvas,
-        area: RectF,
+        rect: RectF,
         banner: RegenBanner,
         dp: Float,
         label: String,
         fill: Paint,
         border: Paint,
-        text: Paint,
-        out: RectF = RectF()
+        text: Paint
     ) {
-        bounds(area, banner, dp, out)
-        val radius = RADIUS_DP * banner.scale * dp
+        val s = scaleOf(banner)
+        val radius = RADIUS_DP * s * dp
         fill.color = banner.fill
-        canvas.drawRoundRect(out, radius, radius, fill)
+        canvas.drawRoundRect(rect, radius, radius, fill)
         border.style = Paint.Style.STROKE
-        border.strokeWidth = BORDER_DP * banner.scale * dp
+        border.strokeWidth = BORDER_DP * s * dp
         border.color = banner.border
-        canvas.drawRoundRect(out, radius, radius, border)
+        canvas.drawRoundRect(rect, radius, radius, border)
         text.color = banner.text
-        text.textSize = TEXT_DP * banner.scale * dp
+        text.textSize = TEXT_DP * s * dp
         text.textAlign = Paint.Align.LEFT
-        canvas.drawText(label, out.left + PADDING_DP * banner.scale * dp, out.top + out.height() * 0.68f, text)
+        val baseline = rect.centerY() - (text.descent() + text.ascent()) / 2f
+        canvas.drawText(label, rect.left + PADDING_DP * s * dp, baseline, text)
     }
 }

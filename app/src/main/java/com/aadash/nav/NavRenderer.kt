@@ -38,6 +38,8 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private val states = HashMap<String, GaugeState>()
     private val painter = NavPainter().apply { appContext = context.applicationContext }
     private val fullF = RectF()
+    private val bannerBand = RectF()
+    private val bannerRect = RectF()
     private var loadedTheme: String? = null
     private var regenTracker: RegenTracker? = null
 
@@ -218,17 +220,17 @@ class NavRenderer(context: Context) : SurfaceCallback {
                 if (g != null) painter.graph(c, area, g)
             }
 
-            // Статус прожига: показывается, только пока блок сообщает статус 1/2 (исчезает при 0).
-            // Включение, угол, размер и цвета задаются в редакторе раскладки.
+            // Статус прожига: плашка живёт в строке шапки Android Auto — там же, где «Выход»
+            // и кнопки экранов, а не поверх приборов. Видна, пока блок сообщает статус 1 или 2;
+            // сам статус дописывается в скобках. Включение, сдвиг и цвета — в редакторе раскладки.
             val banner = layout.regen
-            val regenIndicated = banner.enabled &&
-                regenTracker?.let { it.regenStatusAvailable() && it.regenStatus() >= 1 } == true
-            if (regenIndicated) {
-                RegenBannerPainter.draw(
-                    c, area, banner, painter.pxScale,
-                    appContext.getString(R.string.regen_banner_text),
-                    bannerFill, stroke, bannerText
-                )
+            val status = if (regenTracker?.regenStatusAvailable() == true) regenTracker?.regenStatus() ?: 0 else 0
+            if (banner.enabled && (status == 1 || status == 2)) {
+                // Видимая область начинается ниже шапки: полоса шапки — от верха поверхности до visible.top.
+                bannerBand.set(0f, 0f, width.toFloat(), visible.top.toFloat().coerceAtLeast(0f))
+                val label = appContext.getString(R.string.regen_banner_text) + " (" + status + ")"
+                RegenBannerPainter.bounds(bannerBand, banner, painter.pxScale, label, bannerText, bannerRect)
+                RegenBannerPainter.draw(c, bannerRect, banner, painter.pxScale, label, bannerFill, stroke, bannerText)
             }
 
             if (debugOverlay) {

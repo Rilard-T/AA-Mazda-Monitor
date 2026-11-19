@@ -47,22 +47,19 @@ data class GraphDef(
 )
 
 /**
- * Уведомление о прожиге на приборной панели: включение, угол области, размер и цвета.
- * Размер [scale] — множитель к базовым 150×28 dp, он же масштабирует текст и скругление.
+ * Уведомление о прожиге в строке шапки: там же, где «Выход» и кнопки экранов, не ниже их.
+ * [x] — сдвиг по горизонтали (0 — к левому краю, 1 — к правому), [scale] — множитель
+ * к базовой высоте 28 dp, он же масштабирует текст, отступы и скругление.
  */
 data class RegenBanner(
     val enabled: Boolean = true,
-    val corner: Int = TOP_LEFT,
+    val x: Float = 0f,
     val scale: Float = 1f,
     val fill: Int = 0xB4281E0A.toInt(),
     val text: Int = 0xFFFFE6B4.toInt(),
     val border: Int = 0xDCFFBE3C.toInt()
 ) {
     companion object {
-        const val TOP_LEFT = 0
-        const val TOP_RIGHT = 1
-        const val BOTTOM_LEFT = 2
-        const val BOTTOM_RIGHT = 3
         const val MIN_SCALE = 0.6f
         const val MAX_SCALE = 2f
         val DEFAULT = RegenBanner()
@@ -206,7 +203,7 @@ object NavLayoutStore {
         }
         val regen = JSONObject()
             .put("on", l.regen.enabled)
-            .put("corner", l.regen.corner)
+            .put("x", l.regen.x.coerceIn(0f, 1f).toDouble())
             .put("scale", l.regen.scale.toDouble())
             .put("fill", l.regen.fill)
             .put("text", l.regen.text)
@@ -290,9 +287,12 @@ object NavLayoutStore {
             }
 
             val regenJson = root.optJSONObject("regen")
+            // Старые раскладки хранили угол (0..3): слева — по левому краю, справа — по правому.
+            val oldCorner = if (regenJson?.has("x") == false) regenJson.optInt("corner", 0) else -1
             val regen = if (regenJson == null) RegenBanner.DEFAULT else RegenBanner(
                 enabled = regenJson.optBoolean("on", true),
-                corner = regenJson.optInt("corner", RegenBanner.TOP_LEFT).coerceIn(0, 3),
+                x = if (regenJson.has("x")) regenJson.optDouble("x", 0.0).toFloat().coerceIn(0f, 1f)
+                    else if (oldCorner == 1 || oldCorner == 3) 1f else 0f,
                 scale = regenJson.optDouble("scale", 1.0).toFloat()
                     .coerceIn(RegenBanner.MIN_SCALE, RegenBanner.MAX_SCALE),
                 fill = regenJson.optInt("fill", RegenBanner.DEFAULT.fill),

@@ -49,9 +49,14 @@ class NavEditorView(context: Context) : View(context) {
             invalidate()
         }
 
+    /** Сдвиг плашки пальцем: Activity сохраняет новое положение в раскладку. */
+    var onRegenChanged: ((RegenBanner) -> Unit)? = null
+
     private val painter = NavPainter().apply { appContext = context.applicationContext }
     private val area = RectF()
     private val tmp = RectF()
+    private val bannerBand = RectF()
+    private val bannerRect = RectF()
     private val density = resources.displayMetrics.density
     private val fillPaint = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val linePaint = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true; strokeWidth = 1.5f * density }
@@ -103,8 +108,11 @@ class NavEditorView(context: Context) : View(context) {
 
     private fun computeArea() {
         val pad = 12f * density
+        // Плашка прожига живёт над полотном приборов, в полосе шапки (как на экране машины):
+        // под неё оставляем место, иначе она опять накрывала бы верхние приборы.
+        val header = if (regen.enabled) bannerHeight() + pad / 2f else 0f
         val availW = max(1f, width - 2f * pad)
-        val availH = max(1f, height - 2f * pad)
+        val availH = max(1f, height - 2f * pad - header)
         val w: Float
         val h: Float
         if (availW / availH > aspect) {
@@ -115,9 +123,23 @@ class NavEditorView(context: Context) : View(context) {
             h = w / aspect
         }
         val l = (width - w) / 2f
-        val t = (height - h) / 2f
+        val t = header + (height - header - h) / 2f
         area.set(l, t, l + w, t + h)
     }
+
+    private fun bannerHeight(): Float = RegenBannerPainter.height(regen, density)
+
+    /** Полоса шапки над полотном: там рисуется и ловится пальцем плашка. */
+    private fun headerBand(): RectF {
+        val h = bannerHeight()
+        val top = (area.top - h - 4f * density).coerceAtLeast(0f)
+        bannerBand.set(area.left, top, area.right, area.top)
+        return bannerBand
+    }
+
+    /** В предпросмотре живого статуса нет — показываем как пример. */
+    private fun bannerLabel(): String =
+        context.getString(com.aadash.stats.R.string.regen_banner_text) + " (2)"
 
     private fun itemRect(item: NavItem, out: RectF) {
         out.set(
@@ -183,11 +205,10 @@ class NavEditorView(context: Context) : View(context) {
             }
         }
         if (regen.enabled) {
-            RegenBannerPainter.draw(
-                canvas, area, regen, density,
-                context.getString(com.aadash.stats.R.string.regen_banner_text),
-                fillPaint, linePaint, textPaint
-            )
+            val label = bannerLabel()
+            val band = headerBand()
+            RegenBannerPainter.bounds(band, regen, density, label, textPaint, bannerRect)
+            RegenBannerPainter.draw(canvas, bannerRect, regen, density, label, fillPaint, linePaint, textPaint)
         }
         val sel = selectedItem()
         if (sel != null) {
@@ -214,8 +235,13 @@ class NavEditorView(context: Context) : View(context) {
                 mode = MODE_NONE
                 lastX = event.x
                 lastY = event.y
+                // Плашку прожига можно перетащить по горизонтали прямо в предпросмотре.
+                if (regen.enabled) {
+                    RegenBannerPainter.bounds(headerBand(), regen, density, bannerLabel(), textPaint, bannerRect)
+                    if (bannerRect.contains(event.x, event.y)) mode = MODE_BANNER
+                }
                 val sel = selectedItem()
-                if (sel != null) {
+                if (sel != null && mode == MODE_NONE) {
                     itemRect(sel, tmp)
                     if (hypot(event.x - tmp.right, event.y - tmp.bottom) <= HANDLE_DP * density * 2f) mode = MODE_RESIZE
                 }
@@ -251,8 +277,16 @@ class NavEditorView(context: Context) : View(context) {
                     lastX = downX
                     lastY = downY
                 }
+                if (mode == MODE_BANNER) {
+                    val next = regen.copy(
+                        x = RegenBannerPainter.xFor(headerBand(), regen, density, bannerLabel(), textPaint, event.x)
+                    )
+                    regen = next
+                    onRegenChanged?.invoke(next)
+                    return true
+                }
                 val sel = selectedItem()
-                if (sel != null && mode != MODE_NONE && area.width() > 0f && area.height() > 0f) {
+                if (sel != null && (mode == MODE_MOVE || mode == MODE_RESIZE) && area.width() > 0f && area.height() > 0f) {
                     val dx = (event.x - lastX) / area.width()
                     val dy = (event.y - lastY) / area.height()
                     lastX = event.x
@@ -306,6 +340,7 @@ class NavEditorView(context: Context) : View(context) {
         private const val MODE_NONE = 0
         private const val MODE_MOVE = 1
         private const val MODE_RESIZE = 2
+        private const val MODE_BANNER = 3
         private const val MIN_SIZE = 0.06f
         private const val HANDLE_DP = 11f
     }

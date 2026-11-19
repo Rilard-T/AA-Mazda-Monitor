@@ -168,11 +168,19 @@ class NavEditorActivity : AppCompatActivity() {
         editor = NavEditorView(this)
         editor.forms = forms
         editor.regen = regenBanner
+        // Плашку можно перетащить прямо в предпросмотре — кнопка сдвига обновится сразу.
+        editor.onRegenChanged = { moved ->
+            regenBanner = moved
+            regenPosBtn?.text = regenPosLabel()
+        }
         editor.onSelectionChanged = { updateInfo() }
         editor.onLongPressItem = { item -> showItemMenu(item) }
 
         previewFrame = NavAspectFrame(this)
         previewFrame.aspect = currentAspect()
+        // Портрет телефона как пропорция предпросмотра даёт очень высокий холст: без ограничения он
+        // вытеснял панель с кнопками за нижний край экрана. Ширину предпросмотр считает сам.
+        previewFrame.maxHeight = if (landscape) 0 else (resources.displayMetrics.heightPixels * 0.45f).toInt()
         previewFrame.elevation = dp(4).toFloat()
         previewFrame.clipToOutline = true
         previewFrame.background = GradientDrawable().apply {
@@ -316,7 +324,7 @@ class NavEditorActivity : AppCompatActivity() {
                 applyRegen()
             }
             regenBtn?.let { stateBtn(it) { regenBanner.enabled } }
-            regenPosBtn = mkBtn(regenPosLabel()) { chooseRegenCorner() }
+            regenPosBtn = mkBtn(regenPosLabel()) { chooseRegenShift() }
             regenFillBtn = mkBtn(regenColorLabel("Фон", regenBanner.fill)) {
                 chooseRegenColor("Цвет фона", regenBanner.fill) { regenBanner = regenBanner.copy(fill = it); applyRegen() }
             }
@@ -387,12 +395,7 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun regenOnLabel(): String = "Прожиг: " + if (regenBanner.enabled) "вкл" else "выкл"
 
-    private fun regenPosLabel(): String = "Положение: " + when (regenBanner.corner) {
-        RegenBanner.TOP_RIGHT -> "справа сверху"
-        RegenBanner.BOTTOM_LEFT -> "слева снизу"
-        RegenBanner.BOTTOM_RIGHT -> "справа снизу"
-        else -> "слева сверху"
-    }
+    private fun regenPosLabel(): String = "Сдвиг: " + Math.round(regenBanner.x * 100f) + " %"
 
     private fun regenColorLabel(name: String, color: Int): String =
         name + ": " + String.format("#%06X", 0xFFFFFF and color)
@@ -411,15 +414,36 @@ class NavEditorActivity : AppCompatActivity() {
         refreshStateButtons()
     }
 
-    private fun chooseRegenCorner() {
-        val labels = arrayOf("Слева сверху", "Справа сверху", "Слева снизу", "Справа снизу")
-        AlertDialog.Builder(this)
-            .setTitle("Положение уведомления")
-            .setSingleChoiceItems(labels, regenBanner.corner) { dialog, which ->
-                regenBanner = regenBanner.copy(corner = which)
+    /**
+     * Сдвиг плашки в строке шапки по горизонтали: 0 % — к левому краю, 100 % — к правому.
+     * Тот же сдвиг можно задать пальцем в предпросмотре.
+     */
+    private fun chooseRegenShift() {
+        val seek = SeekBar(this)
+        seek.max = 100
+        seek.progress = Math.round(regenBanner.x * 100f).coerceIn(0, 100)
+        val box = FrameLayout(this)
+        box.setPadding(dp(20), dp(8), dp(20), dp(8))
+        box.addView(
+            seek,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                regenBanner = regenBanner.copy(x = progress / 100f)
                 applyRegen()
-                dialog.dismiss()
             }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {}
+        })
+        AlertDialog.Builder(this)
+            .setTitle("Сдвиг уведомления по горизонтали")
+            .setView(box)
+            .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
             .show()
     }
 

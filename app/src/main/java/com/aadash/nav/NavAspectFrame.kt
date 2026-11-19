@@ -12,6 +12,15 @@ class NavAspectFrame @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : FrameLayout(context, attrs) {
+    /** Предел высоты в пикселях (0 — без предела): высокий холст не должен вытеснять панель за экран. */
+    var maxHeight: Int = 0
+        set(value) {
+            if (value != field) {
+                field = value
+                requestLayout()
+            }
+        }
+
     var aspect: Float = NavAspects.DEFAULT
         set(value) {
             val next = if (value.isFinite() && value > 0f) value else NavAspects.DEFAULT
@@ -30,10 +39,11 @@ class NavAspectFrame @JvmOverloads constructor(
             return
         }
         val a = aspect
+        val limit = if (maxHeight > 0) minOf(availH, maxHeight) else availH
         var w = availW
         var h = (w / a).toInt()
-        if (h > availH) {
-            h = availH
+        if (h > limit) {
+            h = limit
             w = (h * a).toInt()
         }
         w = w.coerceAtLeast(1)
