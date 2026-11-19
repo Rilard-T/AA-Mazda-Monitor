@@ -8,6 +8,9 @@ import android.graphics.RectF
  * Уведомление о прожиге: одна и та же геометрия для шапки на экране машины (там, где «Выход»
  * и кнопки экранов) и для предпросмотра в редакторе раскладки, иначе подобранный в редакторе
  * сдвиг и размер не совпадут. Ширина — по надписи, по вертикали плашка стоит по центру полосы шапки.
+ * Все размеры заданы в базовых dp, а [dp] — сколько пикселей приходится на такую единицу:
+ * на экране машины это масштаб её области, в предпросмотре — масштаб самого полотна приборов,
+ * поэтому предпросмотр выглядит как тот же экран машины, уменьшенный целиком.
  */
 object RegenBannerPainter {
     private const val BASE_HEIGHT_DP = 28f
@@ -26,15 +29,22 @@ object RegenBannerPainter {
         return maxOf(BASE_HEIGHT_DP * s * dp, TEXT_DP * s * dp * 1.6f)
     }
 
+    private fun textSizeAt(banner: RegenBanner, dp: Float): Float = TEXT_DP * scaleOf(banner) * dp
+
+    private fun paddingAt(banner: RegenBanner, dp: Float): Float = PADDING_DP * scaleOf(banner) * dp
+
+    private fun naturalWidth(banner: RegenBanner, dp: Float, label: String, text: Paint): Float {
+        text.textSize = textSizeAt(banner, dp)
+        return text.measureText(label) + 2f * paddingAt(banner, dp)
+    }
+
     /**
      * Прямоугольник плашки внутри полосы [band]: по горизонтали — сдвиг [RegenBanner.x]
      * (0 — у левого края полосы, 1 — у правого), по вертикали — по центру полосы.
+     * Кегль в [text] выставляется только для замера ширины надписи.
      */
     fun bounds(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, out: RectF) {
-        val s = scaleOf(banner)
-        text.textSize = TEXT_DP * s * dp
-        val pad = PADDING_DP * s * dp
-        val w = text.measureText(label) + 2f * pad
+        val w = naturalWidth(banner, dp, label, text)
         val h = height(banner, dp)
         val m = MARGIN_DP * dp
         val span = (band.width() - w - 2f * m).coerceAtLeast(0f)
@@ -45,17 +55,18 @@ object RegenBannerPainter {
 
     /** Сдвиг для перетаскивания пальцем: положение левого края плашки по координате касания. */
     fun xFor(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, touchX: Float): Float {
-        val s = scaleOf(banner)
-        text.textSize = TEXT_DP * s * dp
-        val pad = PADDING_DP * s * dp
-        val w = text.measureText(label) + 2f * pad
+        val w = naturalWidth(banner, dp, label, text)
         val m = MARGIN_DP * dp
         val span = band.width() - w - 2f * m
         if (span <= 0f) return 0f
         return ((touchX - w / 2f - band.left - m) / span).coerceIn(0f, 1f)
     }
 
-    /** Рисует плашку в готовом прямоугольнике (его считает [bounds]). */
+    /**
+     * Рисует плашку в готовом прямоугольнике (его считает [bounds]). Кегль, отступ и обводку
+     * берёт из [dp], а не из размеров прямоугольника, поэтому [draw] не зависит от того,
+     * что [bounds] уже трогал перо надписи.
+     */
     fun draw(
         canvas: Canvas,
         rect: RectF,
@@ -75,9 +86,9 @@ object RegenBannerPainter {
         border.color = banner.border
         canvas.drawRoundRect(rect, radius, radius, border)
         text.color = banner.text
-        text.textSize = TEXT_DP * s * dp
         text.textAlign = Paint.Align.LEFT
+        text.textSize = textSizeAt(banner, dp)
         val baseline = rect.centerY() - (text.descent() + text.ascent()) / 2f
-        canvas.drawText(label, rect.left + PADDING_DP * s * dp, baseline, text)
+        canvas.drawText(label, rect.left + paddingAt(banner, dp), baseline, text)
     }
 }

@@ -17,7 +17,6 @@ import com.aadash.obd.RegenTracker
 import com.aadash.prefs.AppProfiles
 import kotlin.math.exp
 import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -195,7 +194,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
             // реальные пропорции области - для предпросмотра в редакторе на телефоне
             NavLayoutStore.reportArea(appContext, (tr - tl) / (tb - tt))
 
-            painter.pxScale = (minOf(tr - tl, tb - tt) / 800f).coerceIn(0.6f, 3f)
+            painter.pxScale = NavPainter.scaleFor(tr - tl, tb - tt)
             val idx = NavScreen.currentIndex
             if (idx <= 0 || layout.graphs.isEmpty()) {
                 val narrow = (tr - tl) < (tb - tt) * layout.narrowAspect

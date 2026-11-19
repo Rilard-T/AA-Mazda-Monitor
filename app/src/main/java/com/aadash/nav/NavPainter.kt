@@ -428,4 +428,16 @@ class NavPainter {
         // Название прибора — в нижнем разрыве шкалы, не на ободе циферблата
         c.drawText(item.label, cx, cy + r * 0.66f, text)
     }
+
+    companion object {
+        /** Опорный размер области: pxScale = 1 при меньшей стороне ~800 px. */
+        private const val REFERENCE_SIZE = 800f
+
+        /**
+         * Масштаб размеров под область: тот же, что на экране машины. По нему предпросмотр
+         * на телефоне и шапка с плашкой прожига выглядят как уменьшенный экран машины.
+         */
+        fun scaleFor(width: Float, height: Float): Float =
+            (min(width, height) / REFERENCE_SIZE).coerceIn(0.6f, 3f)
+    }
 }

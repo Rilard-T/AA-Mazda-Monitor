@@ -559,7 +559,8 @@
     <string name="pid_ff901b_unit">%</string>
 
     <!-- Ранее отсутствовавшие переводы -->
-    <string name="download_dialog">Попробовать установить приложение через Play Store? Если не получится, попробуйте Kingstaller.</string>
+    <string name="download_dialog">Обновление скачано. Установите его через AAEnabler: откроется приложение, выберите скачанный APK и нажмите «Install app». Без AAEnabler новое приложение не появится в Android Auto.</string>
+    <string name="download_open_enabler">Открыть AAEnabler</string>
     <string name="download_instructions">Обновление загружается</string>
     <string name="credits_basedon">На базе SDK и демо-приложения:</string>
     <string name="credits_drivesafely">Безопасной дороги.</string>

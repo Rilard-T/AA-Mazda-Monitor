@@ -466,6 +466,7 @@ class NavEditorActivity : AppCompatActivity() {
     /** Размер плашки: 60–200 % шагом 10, текст и отступы масштабируются вместе с ней. */
     private fun chooseRegenSize() {
         val maxStep = Math.round((RegenBanner.MAX_SCALE - RegenBanner.MIN_SCALE) / 0.1f)
+        val before = regenBanner
         val seek = SeekBar(this)
         seek.max = maxStep
         seek.progress = Math.round((regenBanner.scale - RegenBanner.MIN_SCALE) / 0.1f).coerceIn(0, maxStep)
@@ -475,17 +476,30 @@ class NavEditorActivity : AppCompatActivity() {
             seek,
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         )
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("Размер уведомления: " + Math.round(regenBanner.scale * 100f) + "%")
             .setView(holder)
-            .setPositiveButton(android.R.string.ok) { dialog, _ ->
-                val scale = RegenBanner.MIN_SCALE + seek.progress * 0.1f
-                regenBanner = regenBanner.copy(scale = scale)
+            .setPositiveButton(android.R.string.ok) { d, _ -> d.dismiss() }
+            .setNegativeButton(android.R.string.cancel) { d, _ ->
+                regenBanner = before
                 applyRegen()
-                dialog.dismiss()
+                d.dismiss()
             }
-            .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
-            .show()
+            .create()
+        // Значение меняется сразу: и плашка в предпросмотре, и надпись на кнопке.
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                regenBanner = regenBanner.copy(scale = RegenBanner.MIN_SCALE + progress * 0.1f)
+                applyRegen()
+                dialog.setTitle("Размер уведомления: " + Math.round(regenBanner.scale * 100f) + "%")
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {}
+        })
+        dialog.show()
     }
 
     private fun groupTitle(title: String, open: Boolean): String =

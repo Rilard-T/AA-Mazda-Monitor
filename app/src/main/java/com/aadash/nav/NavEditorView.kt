@@ -108,9 +108,15 @@ class NavEditorView(context: Context) : View(context) {
 
     private fun computeArea() {
         val pad = 12f * density
-        // Плашка прожига живёт над полотном приборов, в полосе шапки (как на экране машины):
-        // под неё оставляем место, иначе она опять накрывала бы верхние приборы.
+        // Сначала полотно без полосы шапки, чтобы масштаб плашки шёл от самого полотна (как от
+        // области на экране машины), затем тесним полотно под эту полосу.
+        layoutArea(pad, 0f)
         val header = if (regen.enabled) bannerHeight() + pad / 2f else 0f
+        layoutArea(pad, header)
+    }
+
+    /** Пропорционально вписать полотно в вид, оставив сверху полосу шапки [header]. */
+    private fun layoutArea(pad: Float, header: Float) {
         val availW = max(1f, width - 2f * pad)
         val availH = max(1f, height - 2f * pad - header)
         val w: Float
@@ -127,12 +133,15 @@ class NavEditorView(context: Context) : View(context) {
         area.set(l, t, l + w, t + h)
     }
 
-    private fun bannerHeight(): Float = RegenBannerPainter.height(regen, density)
+    /** Масштаб плашки — от полотна приборов, как на экране машины: предпросмотр — уменьшенный экран. */
+    private fun bannerScale(): Float = NavPainter.scaleFor(area.width(), area.height())
+
+    private fun bannerHeight(): Float = RegenBannerPainter.height(regen, bannerScale())
 
     /** Полоса шапки над полотном: там рисуется и ловится пальцем плашка. */
     private fun headerBand(): RectF {
         val h = bannerHeight()
-        val top = (area.top - h - 4f * density).coerceAtLeast(0f)
+        val top = (area.top - h - 4f * bannerScale()).coerceAtLeast(0f)
         bannerBand.set(area.left, top, area.right, area.top)
         return bannerBand
     }
@@ -206,9 +215,10 @@ class NavEditorView(context: Context) : View(context) {
         }
         if (regen.enabled) {
             val label = bannerLabel()
+            val scale = bannerScale()
             val band = headerBand()
-            RegenBannerPainter.bounds(band, regen, density, label, textPaint, bannerRect)
-            RegenBannerPainter.draw(canvas, bannerRect, regen, density, label, fillPaint, linePaint, textPaint)
+            RegenBannerPainter.bounds(band, regen, scale, label, textPaint, bannerRect)
+            RegenBannerPainter.draw(canvas, bannerRect, regen, scale, label, fillPaint, linePaint, textPaint)
         }
         val sel = selectedItem()
         if (sel != null) {
@@ -237,7 +247,7 @@ class NavEditorView(context: Context) : View(context) {
                 lastY = event.y
                 // Плашку прожига можно перетащить по горизонтали прямо в предпросмотре.
                 if (regen.enabled) {
-                    RegenBannerPainter.bounds(headerBand(), regen, density, bannerLabel(), textPaint, bannerRect)
+                    RegenBannerPainter.bounds(headerBand(), regen, bannerScale(), bannerLabel(), textPaint, bannerRect)
                     if (bannerRect.contains(event.x, event.y)) mode = MODE_BANNER
                 }
                 val sel = selectedItem()
@@ -279,7 +289,7 @@ class NavEditorView(context: Context) : View(context) {
                 }
                 if (mode == MODE_BANNER) {
                     val next = regen.copy(
-                        x = RegenBannerPainter.xFor(headerBand(), regen, density, bannerLabel(), textPaint, event.x)
+                        x = RegenBannerPainter.xFor(headerBand(), regen, bannerScale(), bannerLabel(), textPaint, event.x)
                     )
                     regen = next
                     onRegenChanged?.invoke(next)
