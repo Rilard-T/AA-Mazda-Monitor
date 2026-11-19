@@ -1,135 +1,149 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.LinearLayoutCompat
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:layout_margin="5dp"
-    xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <TextView
-        android:id="@+id/textStopwatch2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="@string/credits_modifications" />
-
-    <TextView
-        android:id="@+id/myName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Rilard-T"
-        android:layout_marginBottom="10dp" />
-
-    <TextView
-        android:id="@+id/textOriginalLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="@string/credits_original" />
-
-    <TextView
-        android:id="@+id/textOriginalName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Kyle Agronick"
-        android:layout_marginBottom="10dp" />
-
-    <TextView
-        android:id="@+id/textStopwatch"
-        android:layout_width="wrap_content"
-        android:text="@string/credits_author"
-        android:textStyle="bold"
-        android:layout_height="wrap_content"/>
-
-    <TextView
-        android:id="@+id/textView4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Chillout"
-        android:layout_marginBottom="10dp" />
-
-    <TextView
-        android:id="@+id/textView2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="@string/credits_basedon" />
-
-    <TextView
-        android:id="@+id/textView5"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Martoreto"
-        android:layout_marginBottom="10dp" />
-
-    <TextView
-        android:id="@+id/textView6"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textStyle="bold"
-        android:text="@string/credits_thanks"/>
-
-    <TextView
-        android:id="@+id/textView7"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="10dp"
-        android:text="mkwatchface, Ddemtlapps, Hugo Morais, Jose Alberto Morales Nery, kacnje, Mirco, Paul Rusu, tasos-kom, Vasyl Solevych, Vincent chouquet, Vladi69"/>
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/icon_credits"
-        android:textStyle="bold" />
+    android:fillViewport="true">
 
     <LinearLayout
-        android:id="@+id/ic_credits_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="20dp"
-        ></LinearLayout>
+        android:padding="16dp">
 
-    <TextView
-        android:id="@+id/txtForkNotice"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/credits_fork_notice"
-        android:textSize="12sp"
-        android:layout_marginBottom="20dp" />
+        <TextView
+            android:id="@+id/titleAbout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/section_about"
+            android:textAppearance="?attr/textAppearanceHeadlineSmall"
+            android:layout_marginBottom="8dp" />
 
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginBottom="20dp">
+        <TextView
+            android:id="@+id/txtVersion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/app_version"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:layout_marginBottom="16dp" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/githubBtn"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:drawableLeft="@drawable/github"
-            android:text=" Github"/>
+            android:orientation="horizontal"
+            android:layout_marginBottom="24dp">
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/githubOrigBtn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/credits_original_btn" />
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/githubBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:drawableLeft="@drawable/github"
+                android:text=" Github" />
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/translateBtn"
-            android:layout_width="wrap_content"
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/githubOrigBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/credits_original_btn" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/translateBtn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/translate" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/translate" />
+            android:text="@string/credits_modifications"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/myName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Rilard-T"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/credits_original"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/textOriginalName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Kyle Agronick"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/credits_author"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/textView4"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Chillout"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/credits_basedon"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/textView5"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Martoreto"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/credits_thanks"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/textView7"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="mkwatchface, Ddemtlapps, Hugo Morais, Jose Alberto Morales Nery, kacnje, Mirco, Paul Rusu, tasos-kom, Vasyl Solevych, Vincent chouquet, Vladi69"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/icon_credits"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:layout_marginBottom="4dp" />
+
+        <LinearLayout
+            android:id="@+id/ic_credits_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/txtForkNotice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/credits_fork_notice"
+            android:textSize="12sp"
+            android:layout_marginBottom="8dp" />
 
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/txtVersion"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/app_version"
-        android:layout_marginBottom="20dp"
-        android:textAlignment="center"/>
-</androidx.appcompat.widget.LinearLayoutCompat>
+</ScrollView>

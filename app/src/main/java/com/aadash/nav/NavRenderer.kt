@@ -12,6 +12,9 @@ import android.view.Choreographer
 import android.view.Surface
 import androidx.car.app.SurfaceCallback
 import androidx.car.app.SurfaceContainer
+import com.aadash.stats.R
+import com.aadash.obd.RegenTracker
+import com.aadash.prefs.AppProfiles
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -36,6 +39,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private val painter = NavPainter().apply { appContext = context.applicationContext }
     private val fullF = RectF()
     private var loadedTheme: String? = null
+    private var regenTracker: RegenTracker? = null
 
     private var debugOverlay = false
 
@@ -62,6 +66,8 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private var ab = 0f
     private val stroke = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true }
     private val text = Paint().apply { isAntiAlias = true; textAlign = Paint.Align.CENTER }
+    private val bannerFill = Paint().apply { isAntiAlias = true; style = Paint.Style.FILL }
+    private val bannerText = Paint().apply { isAntiAlias = true; textAlign = Paint.Align.CENTER }
 
     private val frame = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -80,6 +86,13 @@ class NavRenderer(context: Context) : SurfaceCallback {
         width = surfaceContainer.width
         height = surfaceContainer.height
         dpi = surfaceContainer.dpi
+        if (regenTracker == null) {
+            try {
+                regenTracker = RegenTracker.get(appContext.getSharedPreferences(AppProfiles.obdPrefsName(appContext), Context.MODE_PRIVATE))
+            } catch (e: Exception) {
+                regenTracker = null
+            }
+        }
         updateDebug()
         NavLayoutStore.load(appContext)
         start()
@@ -203,6 +216,29 @@ class NavRenderer(context: Context) : SurfaceCallback {
             } else {
                 val g = layout.graphs.getOrNull(idx - 1)
                 if (g != null) painter.graph(c, area, g)
+            }
+
+            // Уведомление о прожиге: заметное, но не раздражающее, без прогресса/анимации.
+            if (regenTracker?.regenActive() == true) {
+                val scale = painter.pxScale
+                val margin = 12f * scale
+                val bannerH = 44f * scale
+                val left = area.left + margin
+                val top = area.top + margin
+                val right = area.right - margin
+                val bottom = top + bannerH
+                bannerFill.color = Color.argb(200, 40, 30, 10)
+                c.drawRoundRect(left, top, right, bottom, 12f * scale, 12f * scale, bannerFill)
+                // рамка
+                stroke.style = Paint.Style.STROKE
+                stroke.strokeWidth = 2f * scale
+                stroke.color = Color.argb(230, 255, 190, 60)
+                c.drawRoundRect(left, top, right, bottom, 12f * scale, 12f * scale, stroke)
+                stroke.style = Paint.Style.STROKE
+                bannerText.color = Color.argb(255, 255, 230, 180)
+                bannerText.textSize = 16f * scale
+                bannerText.textAlign = Paint.Align.CENTER
+                c.drawText(appContext.getString(R.string.regen_banner_text), (left + right) / 2f, top + bannerH * 0.62f, bannerText)
             }
 
             if (debugOverlay) {

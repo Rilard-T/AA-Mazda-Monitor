@@ -121,6 +121,9 @@
     <string name="status_connecting_torque">Connecting to OBD…</string>
     <string name="status_connecting_to_ecu">Connecting to ECU…</string>
     <string name="credits_modifications">Developed by:</string>
+    <string name="app_appearance_cat">Appearance</string>
+    <string name="app_theme_mode_title">App theme</string>
+    <string name="regen_banner_text">Regeneration in progress — do not turn off the engine</string>
     <string name="export_dashboards">Export dashboards</string>
     <string name="import_dashboards">Import dashboards</string>
     <string name="export_regen_log">Export regeneration log</string>

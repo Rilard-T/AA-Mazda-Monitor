@@ -380,4 +380,15 @@
         <item>@color/graphColor2</item>
         <item>@color/graphColor3</item>
     </array>
+
+    <string-array name="app_theme_mode_entries">
+        <item>Системная</item>
+        <item>Светлая</item>
+        <item>Тёмная</item>
+    </string-array>
+    <string-array name="app_theme_mode_values">
+        <item>system</item>
+        <item>light</item>
+        <item>dark</item>
+    </string-array>
 </resources>

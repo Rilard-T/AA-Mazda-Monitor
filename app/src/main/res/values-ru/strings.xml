@@ -123,6 +123,9 @@
     <string name="donate">Пожертвовать</string>
     <string name="translate">Перевести</string>
     <string name="credits_modifications">Разработчик:</string>
+    <string name="app_appearance_cat">Внешний вид</string>
+    <string name="app_theme_mode_title">Тема приложения</string>
+    <string name="regen_banner_text">Идёт прожиг, не глушите двигатель</string>
     <string name="credits_original">Оригинальный AA Torque:</string>
     <string name="credits_original_btn">Оригинал</string>
     <string name="action_obd">Настройки</string>

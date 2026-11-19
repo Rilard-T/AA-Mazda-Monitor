@@ -18,6 +18,7 @@ import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
@@ -54,6 +55,11 @@ class NavEditorActivity : AppCompatActivity() {
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
     private lateinit var previewSwitch: MaterialButton
+    private var gridBtn: MaterialButton? = null
+    private var snapBtn: MaterialButton? = null
+    private var ticksBtn: MaterialButton? = null
+    private var debugBtn: MaterialButton? = null
+    private var aspectBtn: MaterialButton? = null
     private lateinit var previewFrame: NavAspectFrame
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -185,6 +191,112 @@ class NavEditorActivity : AppCompatActivity() {
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         )
 
+        // Аккордеон: пункты бывшего меню «⋯» сгруппированы и доступны прямо в панели.
+        val scroll = ScrollView(this)
+        val acc = LinearLayout(this)
+        acc.orientation = LinearLayout.VERTICAL
+        scroll.addView(acc, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        fun addGroup(title: String, initiallyOpen: Boolean, build: (LinearLayout) -> Unit) {
+            val header = TextView(this)
+            header.text = (if (initiallyOpen) "▾  " else "▸  ") + title
+            header.textSize = 14f
+            header.setTypeface(null, android.graphics.Typeface.BOLD)
+            header.setPadding(dp(8), dp(10), dp(8), dp(6))
+            header.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK))
+            val content = LinearLayout(this)
+            content.orientation = LinearLayout.VERTICAL
+            content.visibility = if (initiallyOpen) View.VISIBLE else View.GONE
+            content.setPadding(dp(2), 0, dp(2), dp(8))
+            build(content)
+            header.setOnClickListener {
+                val nowOpen = content.visibility != View.VISIBLE
+                content.visibility = if (nowOpen) View.VISIBLE else View.GONE
+                header.text = (if (nowOpen) "▾  " else "▸  ") + title
+            }
+            acc.addView(header)
+            acc.addView(content)
+        }
+
+        fun mkBtn(label: String, onClick: () -> Unit): MaterialButton {
+            val b = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+            b.isAllCaps = false
+            b.text = label
+            b.textSize = 13f
+            b.insetTop = 0
+            b.insetBottom = 0
+            b.minHeight = dp(40)
+            b.cornerRadius = dp(12)
+            b.setOnClickListener { onClick() }
+            return b
+        }
+
+        fun rowOf(vararg buttons: MaterialButton): LinearLayout {
+            val r = LinearLayout(this)
+            r.orientation = LinearLayout.HORIZONTAL
+            for (b in buttons) r.addView(b, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(6) })
+            return r
+        }
+
+        // Группа «Форма»
+        addGroup("Форма", true) { g ->
+            val wideBtn = mkBtn(getString(R.string.nav_form_wide)) { formKey = NavLayoutStore.WIDE; applyForm() }
+            val narrowBtn = mkBtn(getString(R.string.nav_form_narrow)) { formKey = NavLayoutStore.NARROW; applyForm() }
+            g.addView(rowOf(wideBtn, narrowBtn))
+        }
+
+        // Группа «Пропорции»
+        addGroup("Пропорции", false) { g ->
+            aspectBtn = mkBtn("Пресет: " + aspectLabel()) { cycleAspects(); aspectBtn?.text = "Пресет: " + aspectLabel() }
+            g.addView(aspectBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        // Группа «Вид»
+        addGroup("Вид", false) { g ->
+            ticksBtn = mkBtn(if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл") { toggleTicks(); ticksBtn?.text = if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл" }
+            debugBtn = mkBtn(if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл") { toggleDebug(); debugBtn?.text = if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл" }
+            val themeBtn = mkBtn(getString(R.string.nav_theme)) { chooseTheme() }
+            val fontBtn = mkBtn(getString(R.string.nav_font)) { chooseFont() }
+            g.addView(ticksBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(debugBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(themeBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(fontBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        // Группа «Элементы»
+        addGroup("Элементы", false) { g ->
+            val addBtn = mkBtn(getString(R.string.nav_add)) { addElement() }
+            val alignBtn = mkBtn("Выровнять") { alignSelected() }
+            val borderBtn = mkBtn("Границы виджета") { if (editor.selectedItem() != null) chooseBorder() }
+            g.addView(addBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(alignBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(borderBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        // Группа «Графики»
+        addGroup("Графики", false) { g ->
+            val graphsBtn = mkBtn("Графики") { manageGraphs() }
+            g.addView(graphsBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        // Группа «Инструменты»
+        addGroup("Инструменты", false) { g ->
+            gridBtn = mkBtn("Сетка: " + if (editor.gridOn) "вкл" else "выкл") { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo(); gridBtn?.text = "Сетка: " + if (editor.gridOn) "вкл" else "выкл" }
+            snapBtn = mkBtn("Привязка: " + if (editor.snapToGrid) "вкл" else "выкл") { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo(); snapBtn?.text = "Привязка: " + if (editor.snapToGrid) "вкл" else "выкл" }
+            val copyBtn = mkBtn(getString(R.string.nav_copy)) { confirmCopySensors() }
+            val resetBtn = mkBtn(getString(R.string.nav_reset)) { reset() }
+            g.addView(gridBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(snapBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(copyBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(resetBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+
+        if (landscape) {
+            panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        } else {
+            panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260)))
+        }
+
         info = TextView(this)
         info.textSize = 13f
         info.maxLines = if (landscape) 6 else 3
@@ -233,20 +345,7 @@ class NavEditorActivity : AppCompatActivity() {
             MenuItem.SHOW_AS_ACTION_ALWAYS or
                 (if (isLandscape()) MenuItem.SHOW_AS_ACTION_WITH_TEXT else 0)
         )
-        menu.add(Menu.NONE, M_WIDE, 1, getString(R.string.nav_form_wide)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_NARROW, 2, getString(R.string.nav_form_narrow)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_PRESET, 3, getString(R.string.nav_preset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_ADD, 4, getString(R.string.nav_add)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_THEME, 5, getString(R.string.nav_theme)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_FONT, 6, getString(R.string.nav_font)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_TICKS, 6, getString(R.string.nav_ticks)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_DEBUG, 9, getString(R.string.nav_debug)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_COPY, 7, getString(R.string.nav_copy)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_RESET, 8, getString(R.string.nav_reset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_GRAPHS, 9, "Графики").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_GRID, 10, "Сетка: " + if (editor.gridOn) "вкл" else "выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_SNAP, 11, "Привязка: " + if (editor.snapToGrid) "вкл" else "выкл").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, M_ALIGN, 12, "Выровнять").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        // Пункты перенесены в аккордеон панели; в меню остаётся только «Сохранить».
         return true
     }
 
@@ -483,6 +582,7 @@ class NavEditorActivity : AppCompatActivity() {
             getString(R.string.nav_aspect_prefix) + aspectLabel() + " " +
             String.format(Locale.US, "%.2f", editor.aspect) +
             getString(R.string.nav_items) + count + "\n" + themeLine() + "\n" + selText
+        aspectBtn?.text = "Пресет: " + aspectLabel()
     }
 
     /** Новый элемент на месте старого: те же положение и размер, параметры от выбранного датчика. */
@@ -687,11 +787,13 @@ class NavEditorActivity : AppCompatActivity() {
     private fun toggleTicks() {
         ticksOn = !ticksOn
         applyTheme()
+        ticksBtn?.text = if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл"
     }
 
     private fun toggleDebug() {
         debugOn = !debugOn
         updateInfo()
+        debugBtn?.text = if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл"
     }
 
     private fun save(): Boolean {

@@ -14,6 +14,18 @@
 
     <PreferenceCategory
         android:singleLineTitle="false"
+        android:title="@string/app_appearance_cat">
+        <ListPreference
+            android:key="app_theme_mode"
+            android:title="@string/app_theme_mode_title"
+            android:summary="%s"
+            android:entries="@array/app_theme_mode_entries"
+            android:entryValues="@array/app_theme_mode_values"
+            android:defaultValue="system" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
         android:title="@string/nav_settings_cat"
         android:key="navCat">
         <Preference

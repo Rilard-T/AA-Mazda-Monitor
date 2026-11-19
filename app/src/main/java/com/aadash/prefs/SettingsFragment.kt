@@ -5,8 +5,10 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.appcompat.app.AppCompatDelegate
 import com.aadash.stats.NotiService
 import com.aadash.stats.R
 
@@ -70,6 +72,15 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
         findPreference<Preference>("exit_app")?.setOnPreferenceClickListener {
             (requireActivity() as SettingsActivity).exitApp()
+            true
+        }
+        findPreference<ListPreference>("app_theme_mode")?.setOnPreferenceChangeListener { _, newValue ->
+            val mode = when (newValue) {
+                "light" -> AppCompatDelegate.MODE_NIGHT_NO
+                "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            }
+            AppCompatDelegate.setDefaultNightMode(mode)
             true
         }
     }
