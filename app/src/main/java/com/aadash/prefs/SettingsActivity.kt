@@ -379,13 +379,37 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     /**
-     * Имя APK в релизе. Исторически оно разное: старые выпуски (0.8.9) выложены как
-     * app-release.apk, а ci.yml с шагом «Rename release» кладёт aa-torque.apk.
-     * Берём то, что реально есть в выпуске.
+     * Имя APK в релизе. Оно зависит от сборки: старые выпуски (0.8.9) выложены как
+     * app-release.apk, а сборка с флейворами кладёт app-stable-release.apk, поэтому
+     * имя нельзя угадывать — читаем список файлов выпуска (это не API, лимита нет).
+     * Если страница недоступна, проверяем известные имена HEAD-запросом; null — APK нет.
      */
-    private fun apkAssetName(tag: String): String {
-        val candidates = listOf("aa-torque.apk", "app-release.apk")
-        return candidates.firstOrNull { assetExists(tag, it) } ?: candidates.first()
+    private fun apkAssetName(tag: String): String? {
+        assetNameFromReleasePage(tag)?.let { return it }
+        val candidates = listOf("app-release.apk", "app-stable-release.apk", "aa-torque.apk")
+        return candidates.firstOrNull { assetExists(tag, it) }
+    }
+
+    /** Список файлов выпуска (releases/expanded_assets/<тег>) → имя первого APK. */
+    private fun assetNameFromReleasePage(tag: String): String? {
+        val conn = URL("${BuildConfig.REPO_URL}/releases/expanded_assets/$tag")
+            .openConnection() as HttpsURLConnection
+        return try {
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                Timber.w("Проверка обновлений: список файлов %s — код %d", tag, conn.responseCode)
+                null
+            } else {
+                conn.inputStream.bufferedReader().use { UpdateCheck.apkAssetName(it.readText(), tag) }
+            }
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: список файлов %s не получен (%s)", tag, e.message)
+            null
+        } finally {
+            conn.disconnect()
+        }
     }
 
     /** Есть ли файл с таким именем в релизе (HEAD без скачивания). */
@@ -444,7 +468,12 @@ class SettingsActivity : AppCompatActivity(),
                 // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
                 needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
                 if (needsUpdate == true && !tagName.isNullOrBlank()) {
-                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/${apkAssetName(tagName)}"
+                    val apk = apkAssetName(tagName)
+                    if (apk == null) {
+                        Timber.w("Проверка обновлений: в выпуске %s нет APK", tagName)
+                    } else {
+                        downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/$apk"
+                    }
                 }
                 if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
             } else {

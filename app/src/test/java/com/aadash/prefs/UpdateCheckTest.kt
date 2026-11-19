@@ -41,4 +41,22 @@ class UpdateCheckTest {
         assertEquals(8004, UpdateCheck.versionCode(0, 8, 4))
         assertEquals(8003, UpdateCheck.versionCode(0, 8, 3))
     }
+
+    @Test
+    fun apkAssetNameFromReleasePage() {
+        // реальный фрагмент страницы releases/expanded_assets/0.9.0
+        val flavored = """<a href="/Rilard-T/AA-Mazda-Monitor/releases/download/0.9.0/app-stable-release.apk" """ +
+            """rel="nofollow" class="text-bold">app-stable-release.apk</a>""" +
+            """<a href="/Rilard-T/AA-Mazda-Monitor/releases/download/0.9.0/mapping.txt">mapping.txt</a>"""
+        assertEquals("app-stable-release.apk", UpdateCheck.apkAssetName(flavored, "0.9.0"))
+
+        // старый выпуск без флейвора
+        val legacy = "<a href=\"/Rilard-T/AA-Mazda-Monitor/releases/download/0.8.9/app-release.apk\">x</a>"
+        assertEquals("app-release.apk", UpdateCheck.apkAssetName(legacy, "0.8.9"))
+
+        // ссылка на другой тег не подходит
+        assertNull(UpdateCheck.apkAssetName(legacy, "0.9.0"))
+        // APK в выпуске нет — только архив исходников
+        assertNull(UpdateCheck.apkAssetName("<a href=\"/x/archive/refs/tags/0.9.0.zip\">z</a>", "0.9.0"))
+    }
 }

@@ -20,4 +20,15 @@ object UpdateCheck {
     /** true — на сервере новее; false — та же или старая; null — тег не разобран. */
     fun isNewer(tag: String?, currentCode: Int): Boolean? =
         versionCodeOf(tag)?.let { it > currentCode }
+
+    /**
+     * Имя APK из HTML-списка файлов выпуска (github.com/…/releases/expanded_assets/<тег>).
+     * Имя зависит от сборки (app-release.apk в старых выпусках, app-stable-release.apk
+     * с флейворами), поэтому его нельзя зашивать в код — читаем из самого релиза.
+     * Возвращает имя первого .apk или null, если файлов APK в выпуске нет.
+     */
+    fun apkAssetName(html: String, tag: String): String? {
+        val pattern = Regex("/releases/download/" + Regex.escape(tag) + "/([^\"'?<>\\s]+\\.apk)")
+        return pattern.find(html)?.groupValues?.get(1)
+    }
 }
