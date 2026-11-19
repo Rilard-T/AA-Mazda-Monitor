@@ -17,6 +17,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.util.TypedValue
 import android.view.Menu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContract
@@ -86,18 +87,19 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    public override fun onCreate(savedInstanceState: Bundle?) {
-        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
-        super.onCreate(savedInstanceState)
-        val accent = getSharedPreferences(null, Context.MODE_PRIVATE).getString("app_accent_color", "blue")
-        val overlay = when (accent) {
-            "green" -> R.style.ThemeOverlay_App_Accent_Green
-            "red" -> R.style.ThemeOverlay_App_Accent_Red
-            "orange" -> R.style.ThemeOverlay_App_Accent_Orange
-            "purple" -> R.style.ThemeOverlay_App_Accent_Purple
-            else -> R.style.ThemeOverlay_App_Accent_Blue
+    /** Инверсный акцент темы: им подкрашивается текст действия в Snackbar на тёмной плашке. */
+    private fun snackbarActionColor(): Int {
+        val value = TypedValue()
+        return if (theme.resolveAttribute(com.google.android.material.R.attr.colorPrimaryInverse, value, true)) {
+            value.data
+        } else {
+            resources.getColor(R.color.snackbarBtnText, theme)
         }
-        theme.applyStyle(overlay, true)
+    }
+
+    public override fun onCreate(savedInstanceState: Bundle?) {
+        AppAccent.applyTo(this)
+        super.onCreate(savedInstanceState)
         // Служба OBD больше не поднимается при каждом открытии настроек: адаптер занимается
         // только когда пользователь сам заходит на экран «Подключение к OBD» или запускает AA.
         com.aadash.obd.AppExit.installBackConfirm(this)
@@ -446,7 +448,9 @@ class SettingsActivity : AppCompatActivity(),
                 Snackbar.LENGTH_LONG
             )
                 .setDuration(10000)
-                .setActionTextColor(resources.getColor(R.color.snackbarBtnText, theme))
+                // Цвет действия в Snackbar берём из темы (инверсный акцент), а не из синей
+                // константы приборной панели: иначе текст остаётся синим при другом акценте.
+                .setActionTextColor(snackbarActionColor())
                 .setAction(R.string.download) {
                     ContextCompat.registerReceiver(
                         baseContext,

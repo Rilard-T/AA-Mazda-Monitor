@@ -2,6 +2,7 @@ package com.aadash.nav
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -44,7 +45,9 @@ class NavEditorActivity : AppCompatActivity() {
     private val forms = HashMap<String, ArrayList<NavItem>>()
     private var narrowAspect = 1.15f
     private var formKey = NavLayoutStore.WIDE
-    private var aspectSource = NavAspectSource.LANDSCAPE
+    // По умолчанию — реальная область из машины, если Android Auto её уже сообщал:
+    // именно в этих пропорциях раскладку потом увидят на экране ГУ.
+    private var aspectSource = NavAspectSource.AUTO
     private var previewIndex = -1
     private var baseline = ""
     private var themeName = ""
@@ -55,8 +58,9 @@ class NavEditorActivity : AppCompatActivity() {
 
     private lateinit var editor: NavEditorView
     private var info: TextView? = null
-    private var previewSwitch: MaterialButton? = null
     private var previewMenuItem: MenuItem? = null
+    /** Кнопки панели с состоянием вкл/выкл: пара с функцией, которая говорит, активна ли кнопка. */
+    private val stateButtons = ArrayList<Pair<MaterialButton, () -> Boolean>>()
     private var gridBtn: MaterialButton? = null
     private var snapBtn: MaterialButton? = null
     private var ticksBtn: MaterialButton? = null
@@ -65,19 +69,11 @@ class NavEditorActivity : AppCompatActivity() {
     private lateinit var previewFrame: NavAspectFrame
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        com.aadash.prefs.AppAccent.applyTo(this)
         super.onCreate(savedInstanceState)
         // Короткий заголовок: полный («Раскладка приборов») не влезает рядом с «Сохранить»
         title = "Раскладка"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        val accent = getSharedPreferences(null, Context.MODE_PRIVATE).getString("app_accent_color", "blue")
-        val overlay = when (accent) {
-            "green" -> R.style.ThemeOverlay_App_Accent_Green
-            "red" -> R.style.ThemeOverlay_App_Accent_Red
-            "orange" -> R.style.ThemeOverlay_App_Accent_Orange
-            "purple" -> R.style.ThemeOverlay_App_Accent_Purple
-            else -> R.style.ThemeOverlay_App_Accent_Blue
-        }
-        theme.applyStyle(overlay, true)
         NavLayoutStore.load(this)
         loadFromStore()
         setContentView(buildUi())
@@ -154,6 +150,7 @@ class NavEditorActivity : AppCompatActivity() {
      */
     private fun buildUi(): View {
         val landscape = isLandscape()
+        stateButtons.clear()
         val root = LinearLayout(this)
         root.orientation = if (landscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
         root.setBackgroundColor(themeColor(android.R.attr.colorBackground, Color.TRANSPARENT))
@@ -183,7 +180,7 @@ class NavEditorActivity : AppCompatActivity() {
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
+                if (landscape) Gravity.CENTER else Gravity.TOP or Gravity.CENTER_HORIZONTAL
             )
         )
 
@@ -196,25 +193,45 @@ class NavEditorActivity : AppCompatActivity() {
         acc.orientation = LinearLayout.VERTICAL
         scroll.addView(acc, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
+        // Заголовок группы — кнопка на тональной подложке, содержимое — карточка под ней.
         fun addGroup(title: String, initiallyOpen: Boolean, build: (LinearLayout) -> Unit) {
-            val header = TextView(this)
-            header.text = (if (initiallyOpen) "▾  " else "▸  ") + title
+            val header = MaterialButton(this)
+            header.backgroundTintList = ColorStateList.valueOf(
+                themeColor(com.google.android.material.R.attr.colorSecondaryContainer, Color.rgb(230, 232, 240))
+            )
+            header.setTextColor(
+                themeColor(com.google.android.material.R.attr.colorOnSecondaryContainer, Color.BLACK)
+            )
+            header.isAllCaps = false
+            header.text = groupTitle(title, initiallyOpen)
             header.textSize = 14f
-            header.setTypeface(null, android.graphics.Typeface.BOLD)
-            header.setPadding(dp(8), dp(10), dp(8), dp(6))
-            header.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK))
+            header.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            header.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+            header.insetTop = 0
+            header.insetBottom = 0
+            header.minHeight = dp(44)
+            header.cornerRadius = dp(12)
+            header.setPaddingRelative(dp(10), 0, dp(10), 0)
             val content = LinearLayout(this)
             content.orientation = LinearLayout.VERTICAL
             content.visibility = if (initiallyOpen) View.VISIBLE else View.GONE
-            content.setPadding(dp(2), 0, dp(2), dp(8))
+            content.background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(themeColor(com.google.android.material.R.attr.colorSurfaceContainerHigh, Color.rgb(40, 42, 48)))
+            }
+            content.setPadding(dp(10), dp(10), dp(10), dp(10))
             build(content)
             header.setOnClickListener {
                 val nowOpen = content.visibility != View.VISIBLE
                 content.visibility = if (nowOpen) View.VISIBLE else View.GONE
-                header.text = (if (nowOpen) "▾  " else "▸  ") + title
+                header.text = groupTitle(title, nowOpen)
             }
-            acc.addView(header)
-            acc.addView(content)
+            acc.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            acc.addView(
+                content,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    .apply { topMargin = dp(4); bottomMargin = dp(8) }
+            )
         }
 
         fun mkBtn(label: String, onClick: () -> Unit): MaterialButton {
@@ -231,6 +248,13 @@ class NavEditorActivity : AppCompatActivity() {
             return b
         }
 
+        // Кнопка с состоянием: включённая заливается акцентом, выключенная остаётся контурной.
+        fun stateBtn(btn: MaterialButton, active: () -> Boolean): MaterialButton {
+            stateButtons.add(btn to active)
+            styleState(btn, active())
+            return btn
+        }
+
         fun rowOf(vararg buttons: MaterialButton): LinearLayout {
             val r = LinearLayout(this)
             r.orientation = LinearLayout.HORIZONTAL
@@ -242,6 +266,8 @@ class NavEditorActivity : AppCompatActivity() {
         addGroup("Форма", true) { g ->
             val wideBtn = mkBtn(getString(R.string.nav_form_wide)) { formKey = NavLayoutStore.WIDE; applyForm() }
             val narrowBtn = mkBtn(getString(R.string.nav_form_narrow)) { formKey = NavLayoutStore.NARROW; applyForm() }
+            stateBtn(wideBtn) { formKey == NavLayoutStore.WIDE }
+            stateBtn(narrowBtn) { formKey == NavLayoutStore.NARROW }
             g.addView(rowOf(wideBtn, narrowBtn))
         }
 
@@ -255,6 +281,8 @@ class NavEditorActivity : AppCompatActivity() {
         addGroup("Вид", false) { g ->
             ticksBtn = mkBtn(if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл") { toggleTicks(); ticksBtn?.text = if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл" }
             debugBtn = mkBtn(if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл") { toggleDebug(); debugBtn?.text = if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл" }
+            ticksBtn?.let { stateBtn(it) { ticksOn } }
+            debugBtn?.let { stateBtn(it) { debugOn } }
             val themeBtn = mkBtn(getString(R.string.nav_theme)) { chooseTheme() }
             val fontBtn = mkBtn(getString(R.string.nav_font)) { chooseFont() }
             g.addView(ticksBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -281,8 +309,10 @@ class NavEditorActivity : AppCompatActivity() {
 
         // Группа «Инструменты»
         addGroup("Инструменты", false) { g ->
-            gridBtn = mkBtn("Сетка: " + if (editor.gridOn) "вкл" else "выкл") { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo(); gridBtn?.text = "Сетка: " + if (editor.gridOn) "вкл" else "выкл" }
-            snapBtn = mkBtn("Привязка: " + if (editor.snapToGrid) "вкл" else "выкл") { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo(); snapBtn?.text = "Привязка: " + if (editor.snapToGrid) "вкл" else "выкл" }
+            gridBtn = mkBtn("Сетка: " + if (editor.gridOn) "вкл" else "выкл") { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo(); gridBtn?.text = "Сетка: " + if (editor.gridOn) "вкл" else "выкл"; refreshStateButtons() }
+            snapBtn = mkBtn("Привязка: " + if (editor.snapToGrid) "вкл" else "выкл") { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo(); snapBtn?.text = "Привязка: " + if (editor.snapToGrid) "вкл" else "выкл"; refreshStateButtons() }
+            gridBtn?.let { stateBtn(it) { editor.gridOn } }
+            snapBtn?.let { stateBtn(it) { editor.snapToGrid } }
             val copyBtn = mkBtn(getString(R.string.nav_copy)) { confirmCopySensors() }
             val resetBtn = mkBtn(getString(R.string.nav_reset)) { reset() }
             g.addView(gridBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -291,11 +321,7 @@ class NavEditorActivity : AppCompatActivity() {
             g.addView(resetBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
 
-        if (landscape) {
-            panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        } else {
-            panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(260)))
-        }
+        panel.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         if (landscape) {
             root.addView(holder, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
@@ -304,13 +330,44 @@ class NavEditorActivity : AppCompatActivity() {
                 LinearLayout.LayoutParams(dp(240), ViewGroup.LayoutParams.MATCH_PARENT).apply { marginStart = dp(12) }
             )
         } else {
-            root.addView(holder, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            // Предпросмотр сверху (а не в середине экрана), панель с аккордеоном — под ним.
+            root.addView(
+                holder,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            )
             root.addView(
                 panel,
-                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) }
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = dp(8) }
             )
         }
+        refreshStateButtons()
         return root
+    }
+
+    private fun groupTitle(title: String, open: Boolean): String =
+        title + if (open) "    ▾" else "    ▸"
+
+    /** Активная кнопка заливается акцентом (primary), неактивная — контурная с цветом текста темы. */
+    private fun styleState(btn: MaterialButton, active: Boolean) {
+        val primary = themeColor(com.google.android.material.R.attr.colorPrimary, Color.BLUE)
+        val onPrimary = themeColor(com.google.android.material.R.attr.colorOnPrimary, Color.WHITE)
+        val onSurface = themeColor(com.google.android.material.R.attr.colorOnSurface, Color.BLACK)
+        val outline = themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY)
+        if (active) {
+            btn.backgroundTintList = ColorStateList.valueOf(primary)
+            btn.setTextColor(onPrimary)
+            btn.strokeWidth = 0
+        } else {
+            btn.backgroundTintList = ColorStateList.valueOf(Color.TRANSPARENT)
+            btn.setTextColor(onSurface)
+            btn.strokeWidth = dp(1)
+            btn.strokeColor = ColorStateList.valueOf(outline)
+        }
+    }
+
+    /** Перекрашивает кнопки после смены формы, сетки, привязки и других переключателей. */
+    private fun refreshStateButtons() {
+        for ((btn, active) in stateButtons) styleState(btn, active())
     }
 
     /** Поворот телефона: активность не пересоздаётся (configChanges), собираем раскладку заново. */
@@ -334,10 +391,11 @@ class NavEditorActivity : AppCompatActivity() {
             MenuItem.SHOW_AS_ACTION_ALWAYS or
                 (if (isLandscape()) MenuItem.SHOW_AS_ACTION_WITH_TEXT else 0)
         )
-        // Переключатель приборы/график рядом с «Сохранить»
+        // Переключатель приборы/график рядом с «Сохранить»: текстом, без второй галочки
         previewMenuItem = menu.add(Menu.NONE, M_PREVIEW, 1, "Приборы")
-        previewMenuItem?.setIcon(R.drawable.ic_nav_check)
-        previewMenuItem?.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        previewMenuItem?.setShowAsAction(
+            MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT
+        )
         updatePreviewSwitch()
         // Пункты перенесены в аккордеон панели; в меню остаётся только «Сохранить».
         return true
@@ -512,6 +570,7 @@ class NavEditorActivity : AppCompatActivity() {
         editor.previewGraph = if (previewIndex >= 0) graphs.getOrNull(previewIndex) else null
         updateInfo()
         updatePreviewSwitch()
+        refreshStateButtons()
     }
 
     private fun togglePreview() {
@@ -528,7 +587,6 @@ class NavEditorActivity : AppCompatActivity() {
     }
 
     private fun updatePreviewSwitch() {
-        if (previewSwitch == null) return
         val label = if (previewIndex < 0) {
             "Приборы"
         } else {
@@ -550,15 +608,22 @@ class NavEditorActivity : AppCompatActivity() {
         return if (a > 0f) a else NavAspects.DEFAULT
     }
 
-    /** Переключить пропорции предпросмотра: телефон альбом ↔ телефон портрет. */
+    /** Переключить пропорции предпросмотра: авто (машина) → телефон альбом → телефон портрет. */
     private fun cycleAspects() {
-        aspectSource = if (aspectSource == NavAspectSource.LANDSCAPE) NavAspectSource.PORTRAIT else NavAspectSource.LANDSCAPE
+        aspectSource = when (aspectSource) {
+            NavAspectSource.AUTO -> NavAspectSource.LANDSCAPE
+            NavAspectSource.LANDSCAPE -> NavAspectSource.PORTRAIT
+            else -> NavAspectSource.AUTO
+        }
         editor.aspect = currentAspect()
         if (::previewFrame.isInitialized) previewFrame.aspect = editor.aspect
         updateInfo()
     }
 
     private fun aspectLabel(): String = when (aspectSource) {
+        NavAspectSource.AUTO ->
+            if (NavLayoutStore.carAspect > 0f) "Авто (машина)" else "Авто (телефон)"
+        NavAspectSource.CAR -> "Машина"
         NavAspectSource.PORTRAIT -> getString(R.string.nav_aspect_portrait)
         else -> getString(R.string.nav_aspect_landscape)
     }
@@ -783,12 +848,14 @@ class NavEditorActivity : AppCompatActivity() {
         ticksOn = !ticksOn
         applyTheme()
         ticksBtn?.text = if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл"
+        refreshStateButtons()
     }
 
     private fun toggleDebug() {
         debugOn = !debugOn
         updateInfo()
         debugBtn?.text = if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл"
+        refreshStateButtons()
     }
 
     private fun save(): Boolean {

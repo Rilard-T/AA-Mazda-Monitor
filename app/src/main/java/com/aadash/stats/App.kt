@@ -3,6 +3,7 @@ package com.aadash.stats
 import android.app.Application
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.preference.PreferenceManager
 import com.aadash.obd.UserPids
 import timber.log.Timber
 
@@ -14,7 +15,9 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val mode = getSharedPreferences(null, Context.MODE_PRIVATE).getString("app_theme_mode", "system")
+        // Тот же файл, в который пишет ListPreference на экране настроек (getSharedPreferences(null, …)
+        // открывает другой файл, null.xml, и режим темы после перезапуска сбрасывался на системный).
+        val mode = PreferenceManager.getDefaultSharedPreferences(this).getString("app_theme_mode", "system")
         AppCompatDelegate.setDefaultNightMode(when (mode) {
             "light" -> AppCompatDelegate.MODE_NIGHT_NO
             "dark" -> AppCompatDelegate.MODE_NIGHT_YES

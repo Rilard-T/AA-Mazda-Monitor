@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Акцентные палитры Material 3 (тёмная тема): тона 80/20/30/90. -->
+<resources>
+    <color name="accent_blue_ripple">#33ADC6FF</color>
+    <!-- Инверсный акцент: тёмный тон 40 (в тёмной теме плашка светлая). -->
+    <color name="accent_blue_inverse">#0058CB</color>
+    <color name="accent_green_inverse">#256C28</color>
+    <color name="accent_red_inverse">#A13E37</color>
+    <color name="accent_orange_inverse">#8E4E15</color>
+    <color name="accent_purple_inverse">#7D4993</color>
+
+    <color name="accent_green_primary">#A0D49A</color>
+    <color name="accent_green_on_primary">#173717</color>
+    <color name="accent_green_primary_container">#205121</color>
+    <color name="accent_green_on_primary_container">#C5EDBF</color>
+    <color name="accent_green_secondary">#B8CCB5</color>
+    <color name="accent_green_on_secondary">#283327</color>
+    <color name="accent_green_secondary_container">#374C34</color>
+    <color name="accent_green_on_secondary_container">#D6E7D3</color>
+    <color name="accent_green_ripple">#33A0D49A</color>
+
+    <color name="accent_red_primary">#FFB4A9</color>
+    <color name="accent_red_on_primary">#52221D</color>
+    <color name="accent_red_primary_container">#77302B</color>
+    <color name="accent_red_on_primary_container">#FFDAD5</color>
+    <color name="accent_red_secondary">#E2BEB9</color>
+    <color name="accent_red_on_secondary">#3F2C29</color>
+    <color name="accent_red_secondary_container">#623D39</color>
+    <color name="accent_red_on_secondary_container">#FBDBD7</color>
+    <color name="accent_red_ripple">#33FFB4A9</color>
+
+    <color name="accent_orange_primary">#F8B98C</color>
+    <color name="accent_orange_on_primary">#48290E</color>
+    <color name="accent_orange_primary_container">#693B14</color>
+    <color name="accent_orange_on_primary_container">#FFDCC4</color>
+    <color name="accent_orange_secondary">#DCC1B0</color>
+    <color name="accent_orange_on_secondary">#3C2E24</color>
+    <color name="accent_orange_secondary_container">#5B412E</color>
+    <color name="accent_orange_on_secondary_container">#F6DECE</color>
+    <color name="accent_orange_ripple">#33F8B98C</color>
+
+    <color name="accent_purple_primary">#E4B7F4</color>
+    <color name="accent_purple_on_primary">#40264A</color>
+    <color name="accent_purple_primary_container">#5D386C</color>
+    <color name="accent_purple_on_primary_container">#F6D9FF</color>
+    <color name="accent_purple_secondary">#D2C1D8</color>
+    <color name="accent_purple_on_secondary">#372D3A</color>
+    <color name="accent_purple_secondary_container">#534059</color>
+    <color name="accent_purple_on_secondary_container">#EDDDF2</color>
+    <color name="accent_purple_ripple">#33E4B7F4</color>
+</resources>

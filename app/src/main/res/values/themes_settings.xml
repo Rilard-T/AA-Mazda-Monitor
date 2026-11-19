@@ -15,6 +15,8 @@
         <item name="colorOnTertiary">@color/ms_on_tertiary</item>
         <item name="colorTertiaryContainer">@color/ms_tertiary_container</item>
         <item name="colorOnTertiaryContainer">@color/ms_on_tertiary_container</item>
+        <!-- инверсный акцент: текст действия в Snackbar (по умолчанию в Material 3 он не из палитры) -->
+        <item name="colorPrimaryInverse">@color/accent_blue_inverse</item>
         <item name="colorError">@color/ms_error</item>
         <item name="colorOnError">@color/ms_on_error</item>
         <item name="colorErrorContainer">@color/ms_error_container</item>
@@ -42,24 +44,92 @@
         <item name="background">?attr/colorSurfaceContainer</item>
     </style>
 
+    <!-- Акцентные overlay-темы Material 3. Раньше переопределялся только colorSecondary, поэтому
+         новый цвет получали лишь подписи и контролы оформления; переключатели, радиокнопки,
+         кнопки диалогов, ползунки и подсветка нажатий оставались базовыми (синими). Теперь задана
+         вся пара семейств primary/secondary, а светлые и тёмные тона берутся из colors_accent.xml. -->
     <style name="ThemeOverlay.App.Accent.Blue" parent="">
-        <item name="colorSecondary">#2196F3</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorPrimary">@color/ms_primary</item>
+        <item name="colorOnPrimary">@color/ms_on_primary</item>
+        <item name="colorPrimaryContainer">@color/ms_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/ms_on_primary_container</item>
+        <item name="colorSecondary">@color/ms_secondary</item>
+        <item name="colorOnSecondary">@color/ms_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/ms_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/ms_on_secondary_container</item>
+        <item name="colorAccent">@color/ms_primary</item>
+        <item name="android:colorAccent">@color/ms_primary</item>
+        <item name="colorControlActivated">@color/ms_primary</item>
+        <item name="colorControlHighlight">@color/accent_blue_ripple</item>
+        <item name="android:colorControlHighlight">@color/accent_blue_ripple</item>
+        <item name="colorPrimaryInverse">@color/accent_blue_inverse</item>
     </style>
+
     <style name="ThemeOverlay.App.Accent.Green" parent="">
-        <item name="colorSecondary">#4CAF50</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorPrimary">@color/accent_green_primary</item>
+        <item name="colorOnPrimary">@color/accent_green_on_primary</item>
+        <item name="colorPrimaryContainer">@color/accent_green_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/accent_green_on_primary_container</item>
+        <item name="colorSecondary">@color/accent_green_secondary</item>
+        <item name="colorOnSecondary">@color/accent_green_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/accent_green_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/accent_green_on_secondary_container</item>
+        <item name="colorAccent">@color/accent_green_primary</item>
+        <item name="android:colorAccent">@color/accent_green_primary</item>
+        <item name="colorControlActivated">@color/accent_green_primary</item>
+        <item name="colorControlHighlight">@color/accent_green_ripple</item>
+        <item name="android:colorControlHighlight">@color/accent_green_ripple</item>
+        <item name="colorPrimaryInverse">@color/accent_green_inverse</item>
     </style>
+
     <style name="ThemeOverlay.App.Accent.Red" parent="">
-        <item name="colorSecondary">#F44336</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorPrimary">@color/accent_red_primary</item>
+        <item name="colorOnPrimary">@color/accent_red_on_primary</item>
+        <item name="colorPrimaryContainer">@color/accent_red_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/accent_red_on_primary_container</item>
+        <item name="colorSecondary">@color/accent_red_secondary</item>
+        <item name="colorOnSecondary">@color/accent_red_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/accent_red_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/accent_red_on_secondary_container</item>
+        <item name="colorAccent">@color/accent_red_primary</item>
+        <item name="android:colorAccent">@color/accent_red_primary</item>
+        <item name="colorControlActivated">@color/accent_red_primary</item>
+        <item name="colorControlHighlight">@color/accent_red_ripple</item>
+        <item name="android:colorControlHighlight">@color/accent_red_ripple</item>
+        <item name="colorPrimaryInverse">@color/accent_red_inverse</item>
     </style>
+
     <style name="ThemeOverlay.App.Accent.Orange" parent="">
-        <item name="colorSecondary">#FF9800</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorPrimary">@color/accent_orange_primary</item>
+        <item name="colorOnPrimary">@color/accent_orange_on_primary</item>
+        <item name="colorPrimaryContainer">@color/accent_orange_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/accent_orange_on_primary_container</item>
+        <item name="colorSecondary">@color/accent_orange_secondary</item>
+        <item name="colorOnSecondary">@color/accent_orange_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/accent_orange_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/accent_orange_on_secondary_container</item>
+        <item name="colorAccent">@color/accent_orange_primary</item>
+        <item name="android:colorAccent">@color/accent_orange_primary</item>
+        <item name="colorControlActivated">@color/accent_orange_primary</item>
+        <item name="colorControlHighlight">@color/accent_orange_ripple</item>
+        <item name="android:colorControlHighlight">@color/accent_orange_ripple</item>
+        <item name="colorPrimaryInverse">@color/accent_orange_inverse</item>
     </style>
+
     <style name="ThemeOverlay.App.Accent.Purple" parent="">
-        <item name="colorSecondary">#9C27B0</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorPrimary">@color/accent_purple_primary</item>
+        <item name="colorOnPrimary">@color/accent_purple_on_primary</item>
+        <item name="colorPrimaryContainer">@color/accent_purple_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/accent_purple_on_primary_container</item>
+        <item name="colorSecondary">@color/accent_purple_secondary</item>
+        <item name="colorOnSecondary">@color/accent_purple_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/accent_purple_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/accent_purple_on_secondary_container</item>
+        <item name="colorAccent">@color/accent_purple_primary</item>
+        <item name="android:colorAccent">@color/accent_purple_primary</item>
+        <item name="colorControlActivated">@color/accent_purple_primary</item>
+        <item name="colorControlHighlight">@color/accent_purple_ripple</item>
+        <item name="android:colorControlHighlight">@color/accent_purple_ripple</item>
+        <item name="colorPrimaryInverse">@color/accent_purple_inverse</item>
     </style>
 </resources>

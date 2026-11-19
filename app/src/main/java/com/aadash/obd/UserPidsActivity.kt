@@ -31,7 +31,7 @@ import java.util.concurrent.Executors
 class UserPidsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_App_Settings)
-        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
+        com.aadash.prefs.AppAccent.applyTo(this)
         super.onCreate(savedInstanceState)
         title = getString(R.string.obd_user_pids_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

@@ -51,7 +51,9 @@ class DashboardPreviewFragment: Fragment() {
         // предпросмотр ставит Activity тему прибора; после выхода возвращаем тему настроек
         activity?.let {
             it.setTheme(R.style.Theme_App_Settings)
-            com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(it)
+            // setTheme сбрасывает и акцентный overlay — накладываем выбранный акцент заново,
+            // иначе после выхода из предпросмотра настройки остаются с базовым (синим).
+            AppAccent.applyTo(it)
         }
     }
 

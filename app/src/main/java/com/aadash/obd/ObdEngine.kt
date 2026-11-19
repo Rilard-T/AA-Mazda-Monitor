@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.aadash.stats.R
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import timber.log.Timber
 
 /** Опрос блоков через ELM327: инициализация, смена заголовков, кэш, разбор ответов. */
@@ -15,13 +16,15 @@ class ObdEngine(
     val tracker = RegenTracker.get(prefs)
 
     private class Sample(val t: Long, val v: Double?)
-    private val cache = HashMap<String, Sample>()
+    /** Кэш читается без блокировки (навигация опрашивает его каждые 30 мс), поэтому потокобезопасный. */
+    private val cache = ConcurrentHashMap<String, Sample>()
     /** Последнее удачное значение медленных датчиков: при единичном промахе показываем его, а не 0. */
     private val lastGood = HashMap<String, Sample>()
     private val lastWarn = HashMap<String, Long>()
     @Volatile private var lastRaw = ""
     private val HOLD_SLOW_MS = 30_000L
-    private val supported = HashSet<Int>()      // PID режима 01, о которых заявил блок двигателя
+    /** PID режима 01, о которых заявил блок двигателя; заменяется целиком, читается без блокировки. */
+    @Volatile private var supported: Set<Int> = emptySet()
     private var curHdr = ""
     /** Просьба адаптеру вернуть ответ сразу после первого сообщения (последняя hex-цифра «1» в запросе). */
     private var useCount = prefs.getBoolean("fast_adapter", true)
@@ -126,7 +129,7 @@ class ObdEngine(
     /** Раз в 30 с пишет в журнал строку состояния (значения берутся из кэша, запросов к блоку нет). */
     private fun stateLog() {
         val now = System.currentTimeMillis()
-        fun v(id: String): Double? = synchronized(this) { cache[id]?.takeIf { now - it.t < 20_000L }?.v }
+        fun v(id: String): Double? = cache[id]?.takeIf { now - it.t < 20_000L }?.v
         fun f(x: Double?, d: Int = 0): String = x?.let { "%.${d}f".format(java.util.Locale.US, it) } ?: "—"
         val soot = tracker.currentSoot()
         val full = dpfFullGl()
@@ -141,7 +144,11 @@ class ObdEngine(
 
     /** Раз в 30 с пишет в журнал ответы блока на параметры, которые могут пригодиться для сажевого. На экраны не выводится. */
     private fun diagLog() {
+        val known = supported
         for (pid in listOf("78", "7A", "8B", "73")) {
+            // Диагностические PID есть далеко не у всех блоков: не заявлен — не тратим запрос.
+            val number = pid.toIntOrNull(16) ?: continue
+            if (known.isNotEmpty() && number !in known) continue
             val raw = diagRaw("01$pid")
             Timber.i("Диагностика 01%s: %s", pid, raw.replace(Regex("\\s+"), " ").trim().take(160))
             if (pid == "78") parse(raw, "4178")?.takeIf { it.size >= 9 }?.let { b ->
@@ -259,16 +266,30 @@ class ObdEngine(
     fun readId(id: String): Double? = value(id)
     private fun readFresh(id: String): Double? = MazdaPids.byId(id)?.let { read(it, true) }
 
-    @Synchronized
+    /**
+     * Значение датчика. Свежее значение отдаётся из кэша без блокировки: навигация спрашивает
+     * стрелки каждые 30 мс, и ждать, пока завершится запрос к другому датчику (до 1500 мс на
+     * адаптере), она не должна. Запросы к адаптеру по-прежнему сериализованы монитором объекта:
+     * [send] и [fetch] работают только внутри синхронизированных методов или этого блока.
+     */
     fun read(p: PidDef, force: Boolean = false): Double? {
-        val now = System.currentTimeMillis()
         // Масло (01 5C) отвечает редко — держим кэш дольше, чем у прочих быстрых датчиков.
         val ttl = when {
             p.id == "5c" -> 5_000L
             p.slow -> slowMs()
             else -> fastMs()
         }
-        if (!force) cache[p.id]?.let { if (now - it.t < ttl) return it.v }
+        // Быстрый путь: без ожидания монитора, пока данные в кэше ещё годны.
+        if (!force) cache[p.id]?.let { if (System.currentTimeMillis() - it.t < ttl) return it.v }
+        synchronized(this) {
+            // Повторная проверка: пока ждали монитор, кэш мог обновиться.
+            if (!force) cache[p.id]?.let { if (System.currentTimeMillis() - it.t < ttl) return it.v }
+            return readLocked(p)
+        }
+    }
+
+    /** Запрос к адаптеру и обработка результата; вызывать только под монитором объекта. */
+    private fun readLocked(p: PidDef): Double? {
         var failed = false
         var v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
         // Медленные датчики и блок АКПП иногда молчат: один быстрый повтор.
@@ -334,16 +355,18 @@ class ObdEngine(
     }
 
     private fun readSupported(first: IntArray) {
-        supported.clear()
+        // Собираем локально и публикуем готовый набор: [listIds] и [diagLog] читают его из других потоков.
+        val set = HashSet<Int>()
         var bits: IntArray? = first
         var base = 0
         while (bits != null && bits.size >= 4) {
-            for (i in 0 until 32) if ((bits[i shr 3] and (0x80 shr (i and 7))) != 0) supported.add(base + i + 1)
-            if (!supported.contains(base + 32) || base >= 0xA0) break
+            for (i in 0 until 32) if ((bits[i shr 3] and (0x80 shr (i and 7))) != 0) set.add(base + i + 1)
+            if (!set.contains(base + 32) || base >= 0xA0) break
             base += 32
             val h = "%02X".format(base)
             bits = parse(send("7E0", "01$h", 2000), "41$h")
         }
+        supported = set
     }
 
     /** Байты ответа после префикса (например «410C» или «620434»); null, если ответа нет. */

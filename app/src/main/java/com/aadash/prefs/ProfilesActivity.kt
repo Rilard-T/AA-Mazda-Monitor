@@ -16,7 +16,7 @@ import com.aadash.stats.R
 class ProfilesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_App_Settings)
-        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
+        AppAccent.applyTo(this)
         super.onCreate(savedInstanceState)
         title = getString(R.string.profile_settings_cat)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
