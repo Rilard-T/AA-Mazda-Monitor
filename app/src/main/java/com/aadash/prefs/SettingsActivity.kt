@@ -404,7 +404,8 @@ class SettingsActivity : AppCompatActivity(),
         }
         if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
         val downloadItem: String? = if (needsUpdate == true) {
-            "${BuildConfig.REPO_URL}/releases/download/$tagName/${BuildConfig.APK_ASSET}"
+            apkAssetName(tagName, navChannel)
+                ?.let { "${BuildConfig.REPO_URL}/releases/download/$tagName/$it" }
         } else null
 
         if (needsUpdate == true && downloadItem != null) {
@@ -424,16 +425,18 @@ class SettingsActivity : AppCompatActivity(),
                         IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
                         ContextCompat.RECEIVER_EXPORTED
                     )
+                    // Сохраняем под тем же именем, что в релизе: у каналов они разные.
+                    val fileName = downloadItem.substringAfterLast('/')
                     val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
                     downloadRequest.setDestinationInExternalPublicDir(
                         Environment.DIRECTORY_DOWNLOADS,
-                        BuildConfig.APK_ASSET
+                        fileName
                     )
                     downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                     runCatching {
                         java.io.File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                            BuildConfig.APK_ASSET
+                            fileName
                         ).delete()
                     }
                     val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
@@ -460,6 +463,35 @@ class SettingsActivity : AppCompatActivity(),
         }
 
         return true
+    }
+
+    /**
+     * Имя APK в релизе. У nav оно своё (app-nav-release.apk — так называется файл сборки),
+     * а у stable исторически два: старые выпуски выложены как app-release.apk, новые
+     * ci.yml переименовывает в aa-torque.apk. Берём то, что реально есть в выпуске.
+     */
+    private fun apkAssetName(tag: String, navChannel: Boolean): String? {
+        if (navChannel) return BuildConfig.APK_ASSET
+        val candidates = listOf(BuildConfig.APK_ASSET, "app-release.apk")
+        return candidates.firstOrNull { assetExists(tag, it) } ?: candidates.first()
+    }
+
+    /** Есть ли файл с таким именем в релизе (HEAD без скачивания). */
+    private fun assetExists(tag: String, name: String): Boolean {
+        val conn = URL("${BuildConfig.REPO_URL}/releases/download/$tag/$name")
+            .openConnection() as HttpsURLConnection
+        return try {
+            conn.requestMethod = "HEAD"
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            conn.responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: файл %s не проверен (%s)", name, e.message)
+            false
+        } finally {
+            conn.disconnect()
+        }
     }
 
     /**
