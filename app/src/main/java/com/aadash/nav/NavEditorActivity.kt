@@ -1,17 +1,22 @@
 package com.aadash.nav
 
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
-import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Spinner
@@ -21,6 +26,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.aadash.obd.MazdaPids
+import com.google.android.material.button.MaterialButton
 import com.aadash.obd.PidDef
 import com.aadash.obd.PidProbe
 import com.aadash.stats.NotiService
@@ -47,11 +53,13 @@ class NavEditorActivity : AppCompatActivity() {
 
     private lateinit var editor: NavEditorView
     private lateinit var info: TextView
-    private lateinit var previewSwitch: Button
+    private lateinit var previewSwitch: MaterialButton
+    private lateinit var previewFrame: NavAspectFrame
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = getString(R.string.nav_editor_title)
+        // Короткий заголовок: полный («Раскладка приборов») не влезает рядом с «Сохранить»
+        title = "Раскладка"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         NavLayoutStore.load(this)
         loadFromStore()
@@ -113,34 +121,118 @@ class NavEditorActivity : AppCompatActivity() {
         baseline = currentJson()
     }
 
-    private fun buildUi(): LinearLayout {
-        val root = LinearLayout(this)
-        root.orientation = LinearLayout.VERTICAL
+    private fun isLandscape(): Boolean =
+        resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-        // предпросмотр занимает всё свободное место в портрете и в альбоме
+    /** Цвет из темы приложения (тема не меняется, берём готовые токены). */
+    private fun themeColor(attr: Int, fallback: Int): Int {
+        val value = TypedValue()
+        return if (theme.resolveAttribute(attr, value, true)) value.data else fallback
+    }
+
+    /**
+     * Экран редактора: предпросмотр ровно в пропорциях машины (без пустых полос) и панель управления.
+     * В альбоме панель справа от предпросмотра, в портрете - снизу.
+     */
+    private fun buildUi(): View {
+        val landscape = isLandscape()
+        val root = LinearLayout(this)
+        root.orientation = if (landscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        root.setBackgroundColor(themeColor(android.R.attr.colorBackground, Color.TRANSPARENT))
+        root.setPadding(dp(12), dp(12), dp(12), dp(12))
+
         editor = NavEditorView(this)
         editor.forms = forms
         editor.onSelectionChanged = { updateInfo() }
         editor.onLongPressItem = { item -> showItemMenu(item) }
-        root.addView(editor, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        previewSwitch = Button(this)
-        previewSwitch.textSize = 12f
-        previewSwitch.setPadding(dp(12), dp(4), dp(12), dp(4))
+        previewFrame = NavAspectFrame(this)
+        previewFrame.aspect = currentAspect()
+        previewFrame.elevation = dp(4).toFloat()
+        previewFrame.clipToOutline = true
+        previewFrame.background = GradientDrawable().apply {
+            cornerRadius = dp(16).toFloat()
+            setColor(Color.rgb(24, 26, 32))
+        }
+        previewFrame.addView(
+            editor,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+        )
+
+        val holder = FrameLayout(this)
+        holder.addView(
+            previewFrame,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+        )
+
+        val panel = LinearLayout(this)
+        panel.orientation = LinearLayout.VERTICAL
+
+        previewSwitch = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle)
+        previewSwitch.isAllCaps = false
+        previewSwitch.textSize = 15f
+        previewSwitch.insetTop = 0
+        previewSwitch.insetBottom = 0
+        previewSwitch.minHeight = dp(44)
+        previewSwitch.cornerRadius = dp(14)
         previewSwitch.setOnClickListener { togglePreview() }
-        root.addView(previewSwitch, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        panel.addView(
+            previewSwitch,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
 
         info = TextView(this)
-        info.textSize = 12f
-        info.maxLines = 3
-        info.setPadding(dp(12), dp(4), dp(12), dp(6))
-        root.addView(info, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        info.textSize = 13f
+        info.maxLines = if (landscape) 6 else 3
+        info.setLineSpacing(dp(3).toFloat(), 1f)
+        info.setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY))
+        info.setPadding(dp(6), dp(12), dp(6), dp(4))
+        panel.addView(
+            info,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
+
+        if (landscape) {
+            root.addView(holder, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
+            root.addView(
+                panel,
+                LinearLayout.LayoutParams(dp(240), ViewGroup.LayoutParams.MATCH_PARENT).apply { marginStart = dp(12) }
+            )
+        } else {
+            root.addView(holder, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            root.addView(
+                panel,
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
+            )
+        }
         return root
+    }
+
+    /** Поворот телефона: активность не пересоздаётся (configChanges), собираем раскладку заново. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        setContentView(buildUi())
+        applyForm()
+        applyTheme()
+        applyFont()
+        updatePreviewSwitch()
+        // меню собирается заново: в альбоме у «Сохранить» появляется надпись
+        invalidateOptionsMenu()
     }
 
     /** Общие действия: «Сохранить» всегда на виду, остальное в меню «⋯». */
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(Menu.NONE, M_SAVE, 0, getString(R.string.nav_save)).setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        // «Сохранить»: в альбоме надпись, в портрете только иконка - иначе заголовок обрезается
+        val save = menu.add(Menu.NONE, M_SAVE, 0, getString(R.string.nav_save))
+        save.setIcon(R.drawable.ic_nav_check)
+        save.setShowAsAction(
+            MenuItem.SHOW_AS_ACTION_ALWAYS or
+                (if (isLandscape()) MenuItem.SHOW_AS_ACTION_WITH_TEXT else 0)
+        )
         menu.add(Menu.NONE, M_WIDE, 1, getString(R.string.nav_form_wide)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_NARROW, 2, getString(R.string.nav_form_narrow)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         menu.add(Menu.NONE, M_PRESET, 3, getString(R.string.nav_preset)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
@@ -322,6 +414,7 @@ class NavEditorActivity : AppCompatActivity() {
         editor.formKey = formKey
         editor.selectedId = null
         editor.aspect = currentAspect()
+        if (::previewFrame.isInitialized) previewFrame.aspect = editor.aspect
         editor.previewGraph = if (previewIndex >= 0) graphs.getOrNull(previewIndex) else null
         updateInfo()
         updatePreviewSwitch()
@@ -343,9 +436,9 @@ class NavEditorActivity : AppCompatActivity() {
     private fun updatePreviewSwitch() {
         if (!::previewSwitch.isInitialized) return
         val label = if (previewIndex < 0) {
-            "Предпросмотр: приборы"
+            "Приборы"
         } else {
-            "Предпросмотр: " + (graphs.getOrNull(previewIndex)?.name ?: "график")
+            "График: " + (graphs.getOrNull(previewIndex)?.name ?: "график")
         }
         previewSwitch.text = label
     }
@@ -367,6 +460,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun cycleAspects() {
         aspectSource = if (aspectSource == NavAspectSource.LANDSCAPE) NavAspectSource.PORTRAIT else NavAspectSource.LANDSCAPE
         editor.aspect = currentAspect()
+        if (::previewFrame.isInitialized) previewFrame.aspect = editor.aspect
         updateInfo()
     }
 

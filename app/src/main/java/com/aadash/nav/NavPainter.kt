@@ -293,10 +293,18 @@ class NavPainter {
 
     /** График (одиночный или совмещённый): линии по истории pid, сетка, легенда. */
     fun graph(c: Canvas, area: RectF, g: GraphDef) {
+        // Подписи графика считаются от размера области, а не в абсолютных пикселях:
+        // на большом экране машины и в маленьком предпросмотре на телефоне вид одинаковый.
+        val unit = min(area.width(), area.height())
+        if (unit < 32f) return
+        val titleSize = max(11f * pxScale, unit * 0.07f)
+        val subSize = titleSize * 0.72f
+        var legendSize = max(10f * pxScale, unit * 0.055f)
+
         val left = area.left + area.width() * 0.06f
         val right = area.right - area.width() * 0.04f
-        val top = area.top + area.height() * 0.10f
-        val bottom = area.bottom - area.height() * 0.12f
+        val top = area.top + titleSize * 2f
+        val bottom = area.bottom - if (g.pids.size > 1) legendSize * 2.1f else legendSize * 0.8f
         if (right - left < 10f || bottom - top < 10f) return
 
         // окно времени
@@ -367,31 +375,47 @@ class NavPainter {
             stroke.strokeCap = Paint.Cap.BUTT
         }
 
-        // заголовок
+        // заголовок и окно времени
         text.color = Color.WHITE
-        text.textSize = 16f * pxScale
+        text.textSize = titleSize
         text.textAlign = Paint.Align.LEFT
-        c.drawText(g.name, left, area.top + area.height() * 0.07f, text)
-        text.textSize = 11f * pxScale
+        c.drawText(g.name, left, area.top + titleSize * 1.25f, text)
+        text.textSize = subSize
         text.color = Color.rgb(170, 185, 220)
-        c.drawText("${g.windowMin} мин", right, area.top + area.height() * 0.07f, text)
+        text.textAlign = Paint.Align.RIGHT
+        c.drawText("${g.windowMin} мин", right, area.top + titleSize * 1.25f, text)
         text.textAlign = Paint.Align.CENTER
 
-        // легенда (если >1)
+        // легенда (если >1): крупная, во всю ширину графика, с подгонкой по месту
         if (g.pids.size > 1) {
-            var lx = left
-            val ly = area.bottom - area.height() * 0.04f
-            text.textSize = 12f * pxScale
-            text.textAlign = Paint.Align.LEFT
-            for ((idx, pid) in g.pids.withIndex()) {
+            val names = g.pids.map { pid ->
                 val pd = MazdaPids.byId(pid)
-                val nm = if (appContext != null && pd != null) pd.short(appContext!!) else pid
+                if (appContext != null && pd != null) pd.short(appContext!!) else pid
+            }
+            text.textSize = legendSize
+            val dotR = legendSize * 0.32f
+            val gapAfterDot = legendSize * 0.6f
+            val itemGap = legendSize * 1.6f
+            var totalW = 0f
+            for (nm in names) totalW += dotR * 2f + gapAfterDot + text.measureText(nm) + itemGap
+            val availW = right - left
+            if (totalW > availW && totalW > 0f) {
+                legendSize = max(9f * pxScale, legendSize * availW / totalW)
+                text.textSize = legendSize
+            }
+            val r = legendSize * 0.32f
+            val gap = legendSize * 0.6f
+            val step = legendSize * 1.6f
+            val ly = area.bottom - legendSize * 1.05f
+            var lx = left
+            text.textAlign = Paint.Align.LEFT
+            for ((idx, nm) in names.withIndex()) {
                 val color = if (idx < g.colors.size) g.colors[idx] else 0xFF3AA6FF.toInt()
                 fill.color = color
-                c.drawCircle(lx + 6f * pxScale, ly - 4f * pxScale, 5f * pxScale, fill)
+                c.drawCircle(lx + r, ly - legendSize * 0.32f, r, fill)
                 text.color = Color.rgb(200, 210, 240)
-                c.drawText(nm, lx + 16f * pxScale, ly, text)
-                lx += (text.measureText(nm) + 30f * pxScale)
+                c.drawText(nm, lx + r * 2f + gap, ly, text)
+                lx += r * 2f + gap + text.measureText(nm) + step
             }
             text.textAlign = Paint.Align.CENTER
         }
