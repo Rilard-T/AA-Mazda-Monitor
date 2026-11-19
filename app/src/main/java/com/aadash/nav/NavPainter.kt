@@ -42,7 +42,12 @@ class NavPainter {
     private val rectF = RectF()
     private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val stroke = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true }
-    private val text = Paint().apply { isAntiAlias = true; textAlign = Paint.Align.CENTER }
+    // Тень у текста: подписи читаются и на светлом ободе циферблата, и на фоновом рисунке
+    private val text = Paint().apply {
+        isAntiAlias = true
+        textAlign = Paint.Align.CENTER
+        setShadowLayer(3f, 0f, 1.5f, Color.argb(190, 0, 0, 0))
+    }
 
     /** Фон области: тёмный цвет, поверх него фон темы, если он есть. */
     fun background(c: Canvas, rect: RectF) {
@@ -172,17 +177,10 @@ class NavPainter {
         c: Canvas, cx: Float, cy: Float, r: Float, th: NavThemeRes, frac: Float, divisions: Int,
         redFrac: Float = -1f
     ) {
-        // Циферблат темы нарисован под 8 делений (как у стандартных шкал). Если делений другое число
-        // (например, отсечка оборотов 0..6), риски темы не совпадут с подписями — берём пустой
-        // циферблат и рисуем деления сами.
-        // Циферблат темы нарисован под 8 делений. Для другой шкалы (обороты 0..6, скорость 240 и т.п.)
-        // используем пустой циферблат (фон без рисок) и рисуем риски сами — так они не пропадают.
-        // Риски должны совпадать с подписями. Родной диал темы нарисован под 8 делений,
-        // поэтому для другой шкалы (0..6, 0..180) используем пустой циферблат и рисуем риски сами.
-        // Риски рисуем только на пустом циферблате: на темах без пустого (dialTicks) у них
-        // уже есть свои риски, иначе происходит наслоение.
-        val useEmpty = ticksOn && th.dialEmpty != null
-        val dial = if (useEmpty) th.dialEmpty else th.dialTicks
+        // Циферблат темы: пустая картинка без рисок (themedEmptyDialBackground). Риски и подписи
+        // рисуем сами — они всегда совпадают со шкалой прибора и не наслаиваются на риски картинки.
+        // Для тем без пустого циферблата берём картинку с рисками.
+        val dial = th.dialEmpty ?: th.dialTicks
         val l = (cx - r).toInt()
         val t = (cy - r).toInt()
         val rr = (cx + r).toInt()
@@ -191,7 +189,7 @@ class NavPainter {
             dial.setBounds(l, t, rr, b)
             dial.draw(c)
         }
-        if (useEmpty) drawTicks(c, cx, cy, r, divisions)
+        if (ticksOn) drawTicks(c, cx, cy, r, divisions)
         drawRedZone(c, cx, cy, r, redFrac)
         val needle = th.needle
         if (th.imageNeedle && needle != null) {
@@ -257,11 +255,6 @@ class NavPainter {
         }
     }
 
-    private companion object {
-        /** Столько делений нарисовано на циферблатах тем (картинка диала фиксированная). */
-        const val NATIVE_DIVISIONS = 8
-    }
-
     /**
      * Числа шкалы у делений, внутри круга. Число подписей и значения берутся из min/max прибора
      * (в масштабе прибора: обороты в тысячах, своя отсечка у каждой машины). Угол i-й подписи
@@ -274,7 +267,9 @@ class NavPainter {
         if (range <= 0f) return
         val (step, n) = GaugeScale.ticks(range, item.min)
         val intLabels = abs(step - step.roundToInt()) < 1e-4f && abs(item.min - item.min.roundToInt()) < 1e-4f
-        val radius = r * (0.72f - th.tickPaddingDp * 0.008f).coerceIn(0.50f, 0.78f)
+        // Кольцо подписей всегда внутри рисок и на тёмном поле циферблата: у тем
+        // разные обода, поэтому отступ не берём из sv_tickPadding.
+        val radius = r * 0.62f
         text.color = Color.WHITE
         text.textSize = max(r * 0.085f, 9f * pxScale)
         for (i in 0 until n) {
@@ -430,6 +425,7 @@ class NavPainter {
         text.textSize = r * 0.13f
         c.drawText(item.unit, cx, cy + r * 0.30f, text)
         text.textSize = r * 0.14f
-        c.drawText(item.label, cx, cy + r * 0.86f, text)
+        // Название прибора — в нижнем разрыве шкалы, не на ободе циферблата
+        c.drawText(item.label, cx, cy + r * 0.66f, text)
     }
 }

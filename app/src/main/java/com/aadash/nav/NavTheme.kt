@@ -18,8 +18,6 @@ class NavThemeRes(
     val indicatorColor: Int,
     val indicatorWidth: Float,
     val carBackground: Drawable?,
-    /** Отступ подписей шкалы от края (sv_tickPadding), в dp. */
-    val tickPaddingDp: Float = 14f,
     /** Поворачивать подписи вместе с делением (sv_tickRotation). */
     val tickRotation: Boolean = false
 ) {
@@ -62,8 +60,6 @@ object NavThemes {
                 color(themed, "sv_indicatorColor", 0),
                 dimension(themed, "sv_indicatorWidth", 0f),
                 drawable(themed, "themedCarBackground"),
-                dimension(themed, "sv_tickPadding", 14f * themed.resources.displayMetrics.density) /
-                    themed.resources.displayMetrics.density,
                 bool(themed, "sv_tickRotation", false)
             )
         } catch (e: Exception) {
