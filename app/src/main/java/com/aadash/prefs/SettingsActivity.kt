@@ -378,6 +378,34 @@ class SettingsActivity : AppCompatActivity(),
         return true
     }
 
+    /**
+     * Имя APK в релизе. Исторически оно разное: старые выпуски (0.8.9) выложены как
+     * app-release.apk, а ci.yml с шагом «Rename release» кладёт aa-torque.apk.
+     * Берём то, что реально есть в выпуске.
+     */
+    private fun apkAssetName(tag: String): String {
+        val candidates = listOf("aa-torque.apk", "app-release.apk")
+        return candidates.firstOrNull { assetExists(tag, it) } ?: candidates.first()
+    }
+
+    /** Есть ли файл с таким именем в релизе (HEAD без скачивания). */
+    private fun assetExists(tag: String, name: String): Boolean {
+        val conn = URL("${BuildConfig.REPO_URL}/releases/download/$tag/$name")
+            .openConnection() as HttpsURLConnection
+        return try {
+            conn.requestMethod = "HEAD"
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            conn.responseCode == HttpURLConnection.HTTP_OK
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: файл %s не проверен (%s)", name, e.message)
+            false
+        } finally {
+            conn.disconnect()
+        }
+    }
+
     private fun checkUpdate(force: Boolean =false): Boolean {
         Timber.i("Checking for update")
 
@@ -416,9 +444,7 @@ class SettingsActivity : AppCompatActivity(),
                 // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
                 needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
                 if (needsUpdate == true && !tagName.isNullOrBlank()) {
-                    // Имя файла в релизе задаёт ci.yml (шаг «Rename release»): aa-torque.apk,
-                    // а не app-release.apk — иначе кнопка «Скачать» ведёт на 404.
-                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/aa-torque.apk"
+                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/${apkAssetName(tagName)}"
                 }
                 if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
             } else {
