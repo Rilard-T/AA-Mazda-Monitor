@@ -42,12 +42,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.IOException
-import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.UnknownHostException
 import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLException
 
 
 class SettingsActivity : AppCompatActivity(),
@@ -386,60 +383,29 @@ class SettingsActivity : AppCompatActivity(),
 
     private fun checkUpdate(force: Boolean =false): Boolean {
         Timber.i("Checking for update")
-        if (!BuildConfig.OTA_ENABLED) {
-            if (force) runOnUiThread {
-                Toast.makeText(this, "Бета: обновление отключено", Toast.LENGTH_LONG).show()
-            }
-            return true
-        }
+        if (!BuildConfig.OTA_ENABLED) return true
 
-        var needsUpdate: Boolean? = null
-        var checked = false
-        var downloadItem: String? = null
+        // Каналы обновляются из одного репозитория, но по-разному: stable берёт последний
+        // обычный выпуск, nav — предрелиз со своим тегом и своим именем файла.
+        val navChannel = BuildConfig.FLAVOR == "nav"
+        val tagName = if (navChannel) latestNavTag() else stableTag()
+        if (tagName.isNullOrBlank()) return false   // нет связи или в выпуске нет подходящего тега
 
-        val url = URL(BuildConfig.RELEASE_URL)
-        val urlConnection = url.openConnection() as HttpsURLConnection
-        // Не следуем редиректу автоматически — читаем Location, чтобы получить тег релиза.
-        // Это обходит лимит GitHub API (60 req/ч без токена), который давал 403.
-        urlConnection.instanceFollowRedirects = false
-        try {
-            urlConnection.connect()
-        } catch (e: UnknownHostException) {
-            Timber.w("Проверка обновлений: нет сети (%s)", e.message)
-            return false
-        } catch (e: ConnectException) {
-            Timber.w("Проверка обновлений: GitHub недоступен (%s)", e.message)
-            return false
-        } catch (e: SSLException) {
-            Timber.w("Проверка обновлений: ошибка TLS (%s)", e.message)
-            return false
-        } catch (e: IOException) {
-            Timber.w("Проверка обновлений: ошибка сети (%s)", e.message)
-            return false
+        // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
+        // «0.10.0» новее «0.9.1», хотя посимвольно это не так. Для nav важен ещё номер сборки.
+        val needsUpdate = if (navChannel) {
+            UpdateCheck.isNewerNav(
+                tagName,
+                BuildConfig.VERSION_CODE,
+                UpdateCheck.navBuildOf(BuildConfig.VERSION_NAME)
+            )
+        } else {
+            UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
         }
-        try {
-            val code = urlConnection.responseCode
-            if (code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM || code == 302 || code == 301) {
-                val location = urlConnection.getHeaderField("Location")
-                // Location: https://github.com/.../releases/tag/0.8.6
-                val tagName = location?.substringAfterLast("/tag/")?.substringBefore("?")
-                checked = true
-                // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
-                // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
-                needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
-                if (needsUpdate == true && !tagName.isNullOrBlank()) {
-                    downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/app-release.apk"
-                }
-                if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
-            } else {
-                Timber.w("Проверка обновлений: GitHub ответил %d", code)
-            }
-        } catch (e: Exception) {
-            Timber.e("Failed on update check: %s", e.message)
-        } finally {
-            urlConnection.disconnect()
-        }
-
+        if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
+        val downloadItem: String? = if (needsUpdate == true) {
+            "${BuildConfig.REPO_URL}/releases/download/$tagName/${BuildConfig.APK_ASSET}"
+        } else null
 
         if (needsUpdate == true && downloadItem != null) {
             Snackbar.make(
@@ -461,13 +427,13 @@ class SettingsActivity : AppCompatActivity(),
                     val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
                     downloadRequest.setDestinationInExternalPublicDir(
                         Environment.DIRECTORY_DOWNLOADS,
-                        "aa-mazda-monitor.apk"
+                        BuildConfig.APK_ASSET
                     )
                     downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                     runCatching {
                         java.io.File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                            "aa-mazda-monitor.apk"
+                            BuildConfig.APK_ASSET
                         ).delete()
                     }
                     val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
@@ -484,7 +450,6 @@ class SettingsActivity : AppCompatActivity(),
         }
 
         if (needsUpdate != true && force) {
-            if (!checked) return false        // нет связи, нет выпуска или в нём нет APK
             runOnUiThread {
                 Toast.makeText(
                     this,
@@ -495,6 +460,54 @@ class SettingsActivity : AppCompatActivity(),
         }
 
         return true
+    }
+
+    /**
+     * Тег последнего обычного выпуска: GitHub отвечает редиректом с /releases/latest
+     * на /releases/tag/<тег>. Редирект не выполняется — тег читается из Location,
+     * чтобы не тратить лимит GitHub API (60 запросов в час без токена).
+     */
+    private fun stableTag(): String? {
+        val conn = URL(BuildConfig.RELEASE_URL).openConnection() as HttpsURLConnection
+        conn.instanceFollowRedirects = false
+        return try {
+            conn.connect()
+            val code = conn.responseCode
+            if (code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM) {
+                // Location: https://github.com/.../releases/tag/0.8.6
+                conn.getHeaderField("Location")?.substringAfterLast("/tag/")?.substringBefore("?")
+            } else {
+                Timber.w("Проверка обновлений: GitHub ответил %d", code)
+                null
+            }
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: ошибка сети (%s)", e.message)
+            null
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    /**
+     * Тег последней сборки канала nav. Все выпуски nav помечены как предрелизы, поэтому
+     * /releases/latest их не видит, а страница /releases не отдаёт редирект на тег.
+     * Atom-лента релизов отдаётся как обычный файл и не расходует лимит GitHub API.
+     */
+    private fun latestNavTag(): String? {
+        val conn = URL(BuildConfig.RELEASES_FEED).openConnection() as HttpsURLConnection
+        conn.connectTimeout = 10_000
+        conn.readTimeout = 10_000
+        return try {
+            conn.inputStream.bufferedReader().use { UpdateCheck.newestNavTag(it.readText()) }
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: лента недоступна (%s)", e.message)
+            null
+        } catch (e: RuntimeException) {
+            Timber.w("Проверка обновлений: лента не разобрана (%s)", e.message)
+            null
+        } finally {
+            conn.disconnect()
+        }
     }
 
     fun logsToClipboard() {

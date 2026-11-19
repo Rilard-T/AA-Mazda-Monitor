@@ -13,6 +13,24 @@ Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [
 
 ---
 
+## Two independent branches
+
+This repository holds **two separate apps** built from shared code. They are not versions of one app: different names, packages, icons and update channels. They do not replace each other, they can be installed side by side, and the branches are not merged into each other.
+
+|  | `master` — **AA Mazda Monitor** | `nav` — **AA Dash Nav** |
+|---|---|---|
+| Package | `com.aamazda.monitor` | `com.aadash.nav` |
+| Android Auto screen | gauges (projection) | Car App Library templates: gauges, graphs, navigation |
+| Inside | Mazda SkyActiv-D sensors, DPF regeneration, graphs, car profiles | its own PID sets, car profiles, layout and aspect editor |
+| Icon | dark dial | blue dial with a **β** mark |
+| Releases | regular, tag like `0.9.0`, asset `aa-torque.apk` | pre-releases, tag like `nav-0.9.0-12`, asset `app-nav-release.apk` |
+| Update check | latest regular release | latest `nav` pre-release, build number is compared too |
+| Build | `./gradlew :app:assembleStableDebug` | `./gradlew :app:assembleNavDebug` |
+
+Nothing from `nav` is merged into `master` automatically: it is a separate product with a different screen engine.
+
+---
+
 ## What it looks like
 
 ![Gauges and navigation on the car screen](docs/screenshots/car-navigation.jpg)
@@ -49,7 +67,7 @@ Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [
 - The app is renamed to **AA Mazda Monitor**, package `com.aamazda.monitor`. The "About" window is updated: the author of the modification and a change notice are added, the donation button is removed, and the sources and icon authors are kept.
 
 **Updates**
-- Over-the-air updates come from the **Releases of this repository** ("⋮ → Check for updates"). The version is compared with the tag of the latest release (like `0.8.4`), pre-releases are ignored.
+- Over-the-air updates come from the **Releases of this repository** ("⋮ → Check for updates"). The version is compared with the tag of the latest regular release (like `0.9.0`); pre-releases are not used here — they belong to the other channel (AA Dash Nav, branch `nav`).
 - All releases are signed with the same key and the version code (`versionCode`) only grows, so a new version installs **over** the old one without uninstalling and without losing settings.
 - Versions before 0.6.0 computed the version code with a different formula; since 0.6.0 it is `major × 100000 + minor × 1000 + patch`.
 

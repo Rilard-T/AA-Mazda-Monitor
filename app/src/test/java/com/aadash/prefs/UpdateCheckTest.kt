@@ -41,4 +41,29 @@ class UpdateCheckTest {
         assertEquals(8004, UpdateCheck.versionCode(0, 8, 4))
         assertEquals(8003, UpdateCheck.versionCode(0, 8, 3))
     }
+
+    @Test
+    fun navTagsCompareVersionThenBuild() {
+        assertEquals(9000 to 12, UpdateCheck.navTagParams("nav-0.9.0-12"))
+        assertNull(UpdateCheck.navTagParams("0.9.0"))
+        assertTrue(UpdateCheck.isNewerNav("nav-0.9.0-13", 9000, 12)!!)
+        assertFalse(UpdateCheck.isNewerNav("nav-0.9.0-12", 9000, 12)!!)
+        assertTrue(UpdateCheck.isNewerNav("nav-0.9.1-1", 9000, 40)!!)
+        assertFalse(UpdateCheck.isNewerNav("nav-0.8.9-40", 9000, 1)!!)
+        assertEquals(12, UpdateCheck.navBuildOf("0.9.0-nav.12"))
+        assertEquals(0, UpdateCheck.navBuildOf("0.9.0"))
+    }
+
+    @Test
+    fun newestNavTagFromAtomFeed() {
+        val feed = """<?xml version="1.0"?><feed>
+            <entry><title>nav-0.8.9-9</title></entry>
+            <entry><title>nav-0.9.0-12</title></entry>
+            <entry><title>0.9.0</title></entry>
+            <entry><title>nav-0.8.10-57</title></entry>
+        </feed>"""
+        assertEquals("nav-0.9.0-12", UpdateCheck.newestNavTag(feed))
+        assertNull(UpdateCheck.newestNavTag("<feed><title>0.9.0</title></feed>"))
+        assertNull(UpdateCheck.newestNavTag(null))
+    }
 }
