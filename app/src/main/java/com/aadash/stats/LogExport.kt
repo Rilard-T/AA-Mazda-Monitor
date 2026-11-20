@@ -13,11 +13,15 @@ import java.util.Locale
 object LogExport {
     private fun mask(s: String) = com.aadash.obd.ErrorReport.redact(s)
 
-    fun buildText(context: Context, tree: CacheLogTree, extra: String = "", createdLabel: String = ""): String {
+    fun buildText(
+        tree: CacheLogTree,
+        appLabel: String,
+        extra: String = "",
+        createdLabel: String = ""
+    ): String {
         val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
-        val appName = context.getString(R.string.app_name)
         val sb = StringBuilder()
-        sb.append(appName).append(' ').append(BuildConfig.VERSION_NAME).append('\n')
+        sb.append(appLabel).append(' ').append(BuildConfig.VERSION_NAME).append('\n')
         sb.append("Android ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n")
         sb.append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n')
         sb.append(createdLabel).append(SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())).append('\n')
@@ -36,9 +40,17 @@ object LogExport {
     fun share(context: Context, tree: CacheLogTree, extra: String = "") {
         val dir = File(context.cacheDir, "logs").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }
-        val name = context.getString(R.string.log_file_prefix) + "-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".txt"
+        val name = context.getString(R.string.log_file_prefix) +
+            SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".txt"
         val file = File(dir, name)
-        file.writeText(buildText(context, tree, extra, context.getString(R.string.log_export_created)))
+        file.writeText(
+            buildText(
+                tree,
+                appLabel = context.getString(R.string.app_name),
+                extra = extra,
+                createdLabel = context.getString(R.string.log_export_created)
+            )
+        )
         val uri = FileProvider.getUriForFile(context, context.packageName + ".logfileprovider", file)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"

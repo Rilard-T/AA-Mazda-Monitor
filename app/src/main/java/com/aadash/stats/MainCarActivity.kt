@@ -93,8 +93,6 @@ class MainCarActivity : CarActivity() {
         if (!preferences.getBoolean("rotaryInput", false)) {
             menuController.showMenuButton();
         } */
-        val statusBarController = carUiController.statusBarController
-        carfragment.setupStatusBar(statusBarController)
         setIgnoreConfigChanges(0xFFFF)
     }
 

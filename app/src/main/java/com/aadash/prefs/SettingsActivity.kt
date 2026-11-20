@@ -52,38 +52,50 @@ import javax.net.ssl.SSLException
 class SettingsActivity : AppCompatActivity(),
     PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
+    /** AAEnabler: без него обновление не появится в Android Auto. */
+    private val aaEnablerPackage = "com.aaenabler.app"
+
     val br: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.`package` == BuildConfig.APPLICATION_ID) {
+                val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
                 AlertDialog.Builder(this@SettingsActivity).setTitle(R.string.download_complete)
                     .setMessage(R.string.download_dialog)
-                    .setPositiveButton(android.R.string.ok, object: DialogInterface.OnClickListener{
-                        override fun onClick(p0: DialogInterface?, p1: Int) {
-                            val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
-                            if (downloadId == -1L) return
-                            val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).getUriForDownloadedFile(downloadId)
-                            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                Intent(Intent.ACTION_INSTALL_PACKAGE).also {
-                                    it.data = uri
-                                    it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
-                                }
-                            } else {
-                                Intent(Intent.ACTION_VIEW).also {
-                                    it.setDataAndTypeAndNormalize(
-                                        uri,
-                                        "application/vnd.android.package-archive"
-                                    )
-                                    it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                            }
-                            intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-                            intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
-                            applicationContext.startActivity(intent)
-                        }
-                    }).setNegativeButton(android.R.string.cancel
-                    ) { p0, p1 -> p0?.dismiss() }.show()
+                    .setPositiveButton(R.string.download_open_enabler) { p0, _ ->
+                        p0?.dismiss()
+                        if (downloadId != -1L) installDownloaded(downloadId)
+                    }.setNegativeButton(android.R.string.cancel
+                    ) { p0, _ -> p0?.dismiss() }.show()
             }
         }
+    }
+
+    /** Сначала AAEnabler (он ставит APK с AA-метаданными), иначе — обычная установка пакета. */
+    private fun installDownloaded(downloadId: Long) {
+        val enabler = packageManager.getLaunchIntentForPackage(aaEnablerPackage)
+        if (enabler != null) {
+            enabler.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(enabler)
+            return
+        }
+        val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).getUriForDownloadedFile(downloadId)
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Intent(Intent.ACTION_INSTALL_PACKAGE).also {
+                it.data = uri
+                it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(Intent.ACTION_VIEW).also {
+                it.setDataAndTypeAndNormalize(
+                    uri,
+                    "application/vnd.android.package-archive"
+                )
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+        intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
+        applicationContext.startActivity(intent)
     }
 
     public override fun onCreate(savedInstanceState: Bundle?) {

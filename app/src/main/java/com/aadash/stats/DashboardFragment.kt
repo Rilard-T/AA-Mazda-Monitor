@@ -34,7 +34,6 @@ import com.aadash.prefs.SettingsViewModel
 import com.aadash.prefs.dataStore
 import com.aadash.stats.databinding.FragmentDashboardBinding
 import com.aadash.utils.CountDownLatch
-import com.google.android.apps.auto.sdk.StatusBarController
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -375,10 +374,6 @@ open class DashboardFragment : AlbumArt() {
                 }
             }
         })
-    }
-
-    override fun setupStatusBar(sc: StatusBarController) {
-        sc.hideTitle()
     }
 
     override fun onResume() {

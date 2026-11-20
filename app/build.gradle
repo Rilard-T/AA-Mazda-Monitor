@@ -13,6 +13,7 @@ props.load(new FileInputStream("$project.rootDir/version.properties"))
 def versionMajor = props.getProperty("majorVersion") as Integer
 def versionMinor = props.getProperty("minorVersion") as Integer
 def versionPatch = props.getProperty("patchVersion") as Integer
+def buildNumber = (props.getProperty("buildNumber") ?: "0").toString().trim()
 def ghOwner = "Rilard-T"
 def ghPackage = "AA-Mazda-Monitor"
 
@@ -25,6 +26,7 @@ android {
         targetSdkVersion 34
         versionCode versionMajor * 100000 + versionMinor * 1000 + versionPatch
         versionName "${versionMajor}.${versionMinor}.${versionPatch}"
+        buildConfigField "int", "BUILD_NUMBER", "${buildNumber.isEmpty() ? 0 : buildNumber}"
         vectorDrawables {
             useSupportLibrary true
         }

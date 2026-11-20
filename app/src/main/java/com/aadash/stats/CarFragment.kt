@@ -2,7 +2,6 @@ package com.aadash.stats
 
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
-import com.google.android.apps.auto.sdk.StatusBarController
 
 abstract class CarFragment : Fragment() {
 
@@ -10,6 +9,4 @@ abstract class CarFragment : Fragment() {
     fun setTitle(@StringRes resId: Int) {
         title = requireContext().getString(resId)
     }
-
-    abstract fun setupStatusBar(sc: StatusBarController)
 }
