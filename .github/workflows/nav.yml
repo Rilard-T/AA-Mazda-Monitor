@@ -38,6 +38,11 @@ jobs:
         run: |
           v() { grep -E "^$1" version.properties | cut -d= -f2 | tr -d '[:space:]'; }
           tag="nav-$(v majorVersion).$(v minorVersion).$(v patchVersion)-$GITHUB_RUN_NUMBER"
+          {
+            echo "AA Dash Nav $tag"
+            echo
+            cat docs/NAV_FEATURES.md
+          } > "$RUNNER_TEMP/release-notes.md"
           gh release create "$tag" app/build/outputs/apk/nav/release/*.apk \
             --target "$GITHUB_SHA" --title "$tag" \
-            --notes "AA Dash Nav $tag"
+            --notes-file "$RUNNER_TEMP/release-notes.md"
