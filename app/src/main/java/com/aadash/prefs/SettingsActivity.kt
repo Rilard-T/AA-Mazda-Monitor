@@ -533,9 +533,9 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     /**
-     * Тег последней сборки канала nav. Все выпуски nav помечены как предрелизы, поэтому
-     * /releases/latest их не видит, а страница /releases не отдаёт редирект на тег.
-     * Atom-лента релизов отдаётся как обычный файл и не расходует лимит GitHub API.
+     * Тег последней сборки канала nav. У nav свой префикс тега (nav-…), поэтому его выпуски
+     * берутся из atom-ленты релизов, а не из /releases/latest; лента отдаётся как обычный
+     * файл и не расходует лимит GitHub API.
      */
     private fun latestNavTag(): String? {
         val conn = URL(BuildConfig.RELEASES_FEED).openConnection() as HttpsURLConnection

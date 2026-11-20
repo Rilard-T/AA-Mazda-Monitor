@@ -73,6 +73,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var regenTextBtn: MaterialButton? = null
     private var regenBorderBtn: MaterialButton? = null
     private var regenSizeBtn: MaterialButton? = null
+    private var regenPlaceBtn: MaterialButton? = null
     private var aspectBtn: MaterialButton? = null
     private lateinit var previewFrame: NavAspectFrame
 
@@ -335,7 +336,13 @@ class NavEditorActivity : AppCompatActivity() {
                 chooseRegenColor("Цвет рамки", regenBanner.border) { regenBanner = regenBanner.copy(border = it); applyRegen() }
             }
             regenSizeBtn = mkBtn(regenSizeLabel()) { chooseRegenSize() }
-            for (b in listOf(regenBtn, regenPosBtn, regenFillBtn, regenTextBtn, regenBorderBtn, regenSizeBtn)) {
+            regenPlaceBtn = mkBtn(regenPlaceLabel()) {
+                regenBanner = regenBanner.copy(
+                    placement = if (regenBanner.placement == RegenBanner.PLACEMENT_HEADER) RegenBanner.PLACEMENT_FIRST_ROW else RegenBanner.PLACEMENT_HEADER
+                )
+                applyRegen()
+            }
+            for (b in listOf(regenBtn, regenPosBtn, regenFillBtn, regenTextBtn, regenBorderBtn, regenSizeBtn, regenPlaceBtn)) {
                 g.addView(b, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }
         }
@@ -402,6 +409,9 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun regenSizeLabel(): String = "Размер: " + Math.round(regenBanner.scale * 100f) + "%"
 
+    private fun regenPlaceLabel(): String =
+        "Место: " + if (regenBanner.placement == RegenBanner.PLACEMENT_HEADER) "шапка" else "первая строка"
+
     /** Изменение вида уведомления: сразу в предпросмотр и на кнопки. */
     private fun applyRegen() {
         editor.regen = regenBanner
@@ -411,6 +421,7 @@ class NavEditorActivity : AppCompatActivity() {
         regenTextBtn?.text = regenColorLabel("Текст", regenBanner.text)
         regenBorderBtn?.text = regenColorLabel("Рамка", regenBanner.border)
         regenSizeBtn?.text = regenSizeLabel()
+        regenPlaceBtn?.text = regenPlaceLabel()
         refreshStateButtons()
     }
 

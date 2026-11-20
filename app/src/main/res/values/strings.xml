@@ -125,6 +125,7 @@
     <string name="app_theme_mode_title">App theme</string>
     <string name="accent_reset">Сброс</string>
     <string name="regen_banner_text">Regeneration in progress — do not turn off the engine</string>
+    <string name="regen_banner_done">Regeneration complete</string>
     <string name="export_dashboards">Export dashboards</string>
     <string name="import_dashboards">Import dashboards</string>
     <string name="export_regen_log">Export regeneration log</string>

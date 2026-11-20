@@ -53,6 +53,7 @@ data class GraphDef(
  */
 data class RegenBanner(
     val enabled: Boolean = true,
+    val placement: String = PLACEMENT_HEADER,
     val x: Float = 0f,
     val scale: Float = 1f,
     val fill: Int = 0xB4281E0A.toInt(),
@@ -62,7 +63,15 @@ data class RegenBanner(
     companion object {
         const val MIN_SCALE = 0.6f
         const val MAX_SCALE = 2f
+        const val PLACEMENT_HEADER = "header"
+        const val PLACEMENT_FIRST_ROW = "firstRow"
         val DEFAULT = RegenBanner()
+
+        fun legacyCorner(hasX: Boolean, corner: Int): Int = if (hasX) -1 else corner
+
+        fun migrateX(hasX: Boolean, x: Double, oldCorner: Int): Float =
+            if (hasX) x.toFloat().coerceIn(0f, 1f)
+            else if (oldCorner == 1 || oldCorner == 3) 1f else 0f
     }
 }
 
@@ -203,6 +212,7 @@ object NavLayoutStore {
         }
         val regen = JSONObject()
             .put("on", l.regen.enabled)
+            .put("place", l.regen.placement)
             .put("x", l.regen.x.coerceIn(0f, 1f).toDouble())
             .put("scale", l.regen.scale.toDouble())
             .put("fill", l.regen.fill)
@@ -288,11 +298,12 @@ object NavLayoutStore {
 
             val regenJson = root.optJSONObject("regen")
             // Старые раскладки хранили угол (0..3): слева — по левому краю, справа — по правому.
-            val oldCorner = if (regenJson?.has("x") == false) regenJson.optInt("corner", 0) else -1
+            val hasX = regenJson?.has("x") == true
+            val oldCorner = RegenBanner.legacyCorner(hasX, regenJson?.optInt("corner", 0) ?: 0)
             val regen = if (regenJson == null) RegenBanner.DEFAULT else RegenBanner(
                 enabled = regenJson.optBoolean("on", true),
-                x = if (regenJson.has("x")) regenJson.optDouble("x", 0.0).toFloat().coerceIn(0f, 1f)
-                    else if (oldCorner == 1 || oldCorner == 3) 1f else 0f,
+                placement = regenJson.optString("place", RegenBanner.PLACEMENT_HEADER),
+                x = RegenBanner.migrateX(hasX, regenJson.optDouble("x", 0.0), oldCorner),
                 scale = regenJson.optDouble("scale", 1.0).toFloat()
                     .coerceIn(RegenBanner.MIN_SCALE, RegenBanner.MAX_SCALE),
                 fill = regenJson.optInt("fill", RegenBanner.DEFAULT.fill),

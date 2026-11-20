@@ -43,8 +43,9 @@ object RegenBannerPainter {
      * (0 — у левого края полосы, 1 — у правого), по вертикали — по центру полосы.
      * Кегль в [text] выставляется только для замера ширины надписи.
      */
-    fun bounds(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, out: RectF) {
-        val w = naturalWidth(banner, dp, label, text)
+    fun bounds(band: RectF, banner: RegenBanner, dp: Float, labelWidth: Float, out: RectF) {
+        val s = scaleOf(banner)
+        val w = labelWidth + 2f * PADDING_DP * s * dp
         val h = height(banner, dp)
         val m = MARGIN_DP * dp
         val span = (band.width() - w - 2f * m).coerceAtLeast(0f)
@@ -53,13 +54,24 @@ object RegenBannerPainter {
         out.set(left, top, left + w, top + h)
     }
 
+    fun bounds(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, out: RectF) {
+        text.textSize = textSizeAt(banner, dp)
+        bounds(band, banner, dp, text.measureText(label), out)
+    }
+
     /** Сдвиг для перетаскивания пальцем: положение левого края плашки по координате касания. */
-    fun xFor(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, touchX: Float): Float {
-        val w = naturalWidth(banner, dp, label, text)
+    fun xFor(band: RectF, banner: RegenBanner, dp: Float, labelWidth: Float, touchX: Float): Float {
+        val s = scaleOf(banner)
+        val w = labelWidth + 2f * PADDING_DP * s * dp
         val m = MARGIN_DP * dp
         val span = band.width() - w - 2f * m
         if (span <= 0f) return 0f
         return ((touchX - w / 2f - band.left - m) / span).coerceIn(0f, 1f)
+    }
+
+    fun xFor(band: RectF, banner: RegenBanner, dp: Float, label: String, text: Paint, touchX: Float): Float {
+        text.textSize = textSizeAt(banner, dp)
+        return xFor(band, banner, dp, text.measureText(label), touchX)
     }
 
     /**
@@ -75,17 +87,21 @@ object RegenBannerPainter {
         label: String,
         fill: Paint,
         border: Paint,
-        text: Paint
+        text: Paint,
+        alpha: Float = 1f
     ) {
         val s = scaleOf(banner)
         val radius = RADIUS_DP * s * dp
         fill.color = banner.fill
+        fill.alpha = (android.graphics.Color.alpha(banner.fill) * alpha).toInt().coerceIn(0, 255)
         canvas.drawRoundRect(rect, radius, radius, fill)
         border.style = Paint.Style.STROKE
         border.strokeWidth = BORDER_DP * s * dp
         border.color = banner.border
+        border.alpha = (android.graphics.Color.alpha(banner.border) * alpha).toInt().coerceIn(0, 255)
         canvas.drawRoundRect(rect, radius, radius, border)
         text.color = banner.text
+        text.alpha = (android.graphics.Color.alpha(banner.text) * alpha).toInt().coerceIn(0, 255)
         text.textAlign = Paint.Align.LEFT
         text.textSize = textSizeAt(banner, dp)
         val baseline = rect.centerY() - (text.descent() + text.ascent()) / 2f

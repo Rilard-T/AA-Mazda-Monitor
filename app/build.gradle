@@ -58,7 +58,7 @@ android {
         // (workflows переименовывают stable-APK в aa-torque.apk).
         variant.buildConfigField "boolean", "OTA_ENABLED", "true"
         variant.buildConfigField "String", "APK_ASSET", navChannel ? "\"app-nav-release.apk\"" : "\"aa-torque.apk\""
-        // Выпуски nav — предрелизы, поэтому /releases/latest их не находит: берём atom-ленту релизов.
+        // Выпуски nav имеют префикс тега nav-… и отдельный канал обновления: берём atom-ленту релизов.
         variant.buildConfigField "String", "RELEASES_FEED", "\"https://github.com/${ghOwner}/${ghPackage}/releases.atom\""
         variant.buildConfigField "String", "REPO_URL", "\"https://github.com/${ghOwner}/${ghPackage}\""
         variant.resValue "string", "app_version", variant.versionName

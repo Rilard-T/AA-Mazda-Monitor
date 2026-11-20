@@ -1,5 +1,5 @@
 name: nav
-# Сборка nav-приложения (AA Dash Nav) и публикация prerelease по пушу.
+# Сборка nav-приложения (AA Dash Nav) и публикация релиза по пушу.
 on:
   push:
     branches: [beta, nav]
@@ -39,5 +39,5 @@ jobs:
           v() { grep -E "^$1" version.properties | cut -d= -f2 | tr -d '[:space:]'; }
           tag="nav-$(v majorVersion).$(v minorVersion).$(v patchVersion)-$GITHUB_RUN_NUMBER"
           gh release create "$tag" app/build/outputs/apk/nav/release/*.apk \
-            --prerelease --target "$GITHUB_SHA" --title "$tag" \
+            --target "$GITHUB_SHA" --title "$tag" \
             --notes "AA Dash Nav $tag"

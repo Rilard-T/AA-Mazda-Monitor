@@ -41,6 +41,9 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private val bannerRect = RectF()
     private var loadedTheme: String? = null
     private var regenTracker: RegenTracker? = null
+    private var prevRegenStatus = 0
+    private var regenDoneUntil = 0L
+    private var bannerAlpha = 0f
 
     private var debugOverlay = false
 
@@ -224,12 +227,29 @@ class NavRenderer(context: Context) : SurfaceCallback {
             // сам статус дописывается в скобках. Включение, сдвиг и цвета — в редакторе раскладки.
             val banner = layout.regen
             val status = if (regenTracker?.regenStatusAvailable() == true) regenTracker?.regenStatus() ?: 0 else 0
-            if (banner.enabled && (status == 1 || status == 2)) {
+            // Автоскрытие: после завершения прожига показываем «завершён» ещё 5 секунд.
+            val now = System.currentTimeMillis()
+            if (banner.enabled) {
+                if ((prevRegenStatus == 1 || prevRegenStatus == 2) && status == 0 && regenDoneUntil == 0L) {
+                    regenDoneUntil = now + 5000L
+                }
+                if (status == 1 || status == 2) regenDoneUntil = 0L
+            }
+            prevRegenStatus = status
+            val showBanner = banner.enabled && ((status == 1 || status == 2) || (status == 0 && now < regenDoneUntil))
+            val targetAlpha = if (showBanner) 1f else 0f
+            val ka = 1f - kotlin.math.exp(-dt / 0.18f)
+            bannerAlpha += (targetAlpha - bannerAlpha) * ka
+            if (bannerAlpha > 0.01f) {
                 // Видимая область начинается ниже шапки: полоса шапки — от верха поверхности до visible.top.
-                bannerBand.set(0f, 0f, width.toFloat(), visible.top.toFloat().coerceAtLeast(0f))
-                val label = appContext.getString(R.string.regen_banner_text) + " (" + status + ")"
+                if (banner.placement == RegenBanner.PLACEMENT_FIRST_ROW) {
+                    bannerBand.set(area.left, area.top, area.right, area.top + RegenBannerPainter.height(banner, painter.pxScale) + 4f * painter.pxScale)
+                } else {
+                    bannerBand.set(0f, 0f, width.toFloat(), visible.top.toFloat().coerceAtLeast(0f))
+                }
+                val label = if (status == 1 || status == 2) appContext.getString(R.string.regen_banner_text) + " (" + status + ")" else appContext.getString(R.string.regen_banner_done)
                 RegenBannerPainter.bounds(bannerBand, banner, painter.pxScale, label, bannerText, bannerRect)
-                RegenBannerPainter.draw(c, bannerRect, banner, painter.pxScale, label, bannerFill, stroke, bannerText)
+                RegenBannerPainter.draw(c, bannerRect, banner, painter.pxScale, label, bannerFill, stroke, bannerText, bannerAlpha)
             }
 
             if (debugOverlay) {

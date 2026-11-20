@@ -111,7 +111,7 @@ class NavEditorView(context: Context) : View(context) {
         // Сначала полотно без полосы шапки, чтобы масштаб плашки шёл от самого полотна (как от
         // области на экране машины), затем тесним полотно под эту полосу.
         layoutArea(pad, 0f)
-        val header = if (regen.enabled) bannerHeight() + pad / 2f else 0f
+        val header = if (regen.enabled && regen.placement == RegenBanner.PLACEMENT_HEADER) bannerHeight() + pad / 2f else 0f
         layoutArea(pad, header)
     }
 
@@ -138,10 +138,15 @@ class NavEditorView(context: Context) : View(context) {
 
     private fun bannerHeight(): Float = RegenBannerPainter.height(regen, bannerScale())
 
-    /** Полоса шапки над полотном: там рисуется и ловится пальцем плашка. */
+    /** Полоса, где рисуется и ловится пальцем плашка: шапка над полотном или первая строка. */
     private fun headerBand(): RectF {
         val h = bannerHeight()
-        val top = (area.top - h - 4f * bannerScale()).coerceAtLeast(0f)
+        val scale = bannerScale()
+        if (regen.placement == RegenBanner.PLACEMENT_FIRST_ROW) {
+            bannerBand.set(area.left, area.top, area.right, area.top + h + 4f * scale)
+            return bannerBand
+        }
+        val top = (area.top - h - 4f * scale).coerceAtLeast(0f)
         bannerBand.set(area.left, top, area.right, area.top)
         return bannerBand
     }

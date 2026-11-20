@@ -351,7 +351,7 @@ class NavPainter {
         c.drawRect(left, top, right, bottom, stroke)
 
         // линии
-        for ((idx, pid) in g.pids.withIndex()) {
+        for (idx in g.pids.indices) {
             val pts = series[idx].second
             if (pts.size < 2) continue
             val color = if (idx < g.colors.size) g.colors[idx] else 0xFF3AA6FF.toInt()

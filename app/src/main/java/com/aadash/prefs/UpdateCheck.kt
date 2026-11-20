@@ -45,8 +45,9 @@ object UpdateCheck {
     }
 
     /**
-     * Самый новый тег канала nav из atom-ленты релизов. Выпуски nav — предрелизы,
-     * поэтому /releases/latest их не находит, а лента отдаётся без лимита GitHub API.
+     * Самый новый тег канала nav из atom-ленты релизов. У nav свой префикс тега (nav-…),
+     * поэтому его выпуски не смешиваются с обычными выпусками master; лента отдаётся
+     * без лимита GitHub API.
      */
     fun newestNavTag(feed: String?): String? {
         if (feed == null) return null
