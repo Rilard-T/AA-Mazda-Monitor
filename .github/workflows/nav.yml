@@ -48,15 +48,8 @@ jobs:
             fi
           done
           {
-            echo "AA Dash Nav $tag"
-            echo
-            # Двуязычный список изменений готовится в репозитории к каждому пушу.
+            # К релизу прикладываются только списки изменений на двух языках.
             cat docs/release-notes-nav.md
-            echo
-            echo "## Возможности"
-            echo
-            # Заголовок файла заменяем своим, чтобы не дублировать название.
-            sed '1{/^# /d;}' docs/NAV_FEATURES.md
           } > "$RUNNER_TEMP/release-notes.md"
           gh release create "$tag" app/build/outputs/apk/nav/release/*.apk \
             --target "$GITHUB_SHA" --title "$tag" \
