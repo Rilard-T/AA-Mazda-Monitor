@@ -175,6 +175,7 @@ In both apps: **"OBD connection" → "Custom PIDs"**. A sensor can be added by h
 - **Torque formulas.** `A`…`P` are the response bytes; `SIGNED(x)`, `BIT(x,n)`, `INT(x)`, `ABS`, `MIN`, `MAX`, `ROUND`, `SQRT` work. Header `7E0` is the engine unit, `7E1` the transmission.
 - **No duplicates.** Importing again updates sensors with the same "mode + PID" instead of adding copies.
 - **Where they appear.** An imported sensor is immediately visible in "Sensor check", in the gauge PID picker and in the AA Dash Nav layout editor. Each sensor also has a one-shot "does the unit answer" test and a live value test.
+- **Response bytes only.** Formulas that reference other sensors (for example `[0C]` in Torque notation) are **not supported yet**: a formula must be computed from the response bytes `A`…`P` and numeric constants. Such rows are skipped during import.
 
 ---
 
@@ -211,6 +212,7 @@ Where to start: download an APK from the table above, install it with AAEnabler,
 - Reading and clearing trouble codes (DTC) is not supported.
 - BLE and Wi-Fi have not been tested with every adapter model.
 - The default 6.5 g/L soot threshold is an average; the unit may also start a regeneration by distance, so treat "DPF, %" as an estimate.
+- Custom PIDs are computed from the response bytes only: formulas that reference other sensors are not supported yet.
 - The media player needs notification access and system media session support in the player.
 - The interface was checked on a real car head unit and a Samsung phone; other head units and Android Auto versions may lay out or size things differently.
 - AA Mazda Monitor projects its dashboard through an unofficial Android Auto interface: Android Auto updates may break it.
