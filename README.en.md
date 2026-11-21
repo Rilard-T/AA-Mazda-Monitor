@@ -1,153 +1,220 @@
-<!-- fork-notice -->
-[Русский](README.md) | **English**
+[Русский](README.md) | [English](README.en.md)
 
-# AA Mazda Monitor
+# AA Mazda Monitor and AA Dash Nav
 
-> **EN:** AA Mazda Monitor is a modified fork of [AA Torque](https://github.com/agronick/aa-torque) by Kyle Agronick, licensed under GPL-3.0 (see [`LICENSE.md`](LICENSE.md)). Modified in 2026 by Rilard-T: direct ELM327 connection (no Torque Pro needed), Mazda SkyActiv-D data, renamed app, BLE and Wi-Fi adapter support, own update channel. Icons are credited in the in-app Credits screen (CC BY 3.0, Noun Project).
+Two **Android Auto** apps that show car data on the head unit screen. Both talk directly to an **ELM327** adapter over Bluetooth, BLE or Wi-Fi — no Torque Pro. Parameters are tuned for the **Mazda SkyActiv-D** diesel (verified on a Mazda 3 BP 2020, 1.8): DPF, regenerations, temperatures, boost, fuel consumption.
 
-A gauge dashboard on your car's screen via **Android Auto**. Unlike the original, the data comes **directly from an ELM327 adapter over Bluetooth/BLE/Wi-Fi**, so Torque Pro is not needed. The parameters are tuned for the **Mazda 3 (BP) 2020, SkyActiv-D 1.8 diesel**: diesel particulate filter (DPF) fill level, regeneration intervals, automatic transmission temperature.
+[**AA Mazda Monitor**](#aa-mazda-monitor-master) is the mature app with a projected gauge dashboard. [**AA Dash Nav**](#aa-dash-nav-nav) is the newer app built on Car App Library templates, with a layout editor and graphs. They are two independent products: both can live on the same phone, and their settings and logs do not overlap.
 
-Repository: <https://github.com/Rilard-T/AA-Mazda-Monitor> · Ready-made APKs: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases)
+[Download](#downloads) · [Which one](#which-one) · [Comparison](#the-two-apps-side-by-side) · [Installation](#installation) · [Adapter connection](#connecting-the-adapter) · [Repository map](#repository-map) · [All releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases) · [Issues](https://github.com/Rilard-T/AA-Mazda-Monitor/issues)
 
-> The app interface is available in Russian and English (it follows the phone's language): settings, the gauges, the OBD connection screen, the experimental features, link statuses, the notification and the sensor names.
+---
+
+## Downloads
+
+| App | Version | APK | Release |
+|---|---|---|---|
+| **AA Mazda Monitor** (`master` branch) | 0.9.0 | [app-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/0.9.0/app-release.apk) | [0.9.0](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/0.9.0) |
+| **AA Dash Nav** (`nav` branch) | 0.9.0-nav.20 | [app-nav-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/nav-0.9.0-20/app-nav-release.apk) | [nav-0.9.0-20](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/nav-0.9.0-20) |
+
+All builds: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases). Both are signed with the same key, so a new build installs over the previous one without uninstalling the app or losing settings.
+
+---
+
+## Which one
+
+| What you want | App |
+|---|---|
+| Gauges on screen, familiar analog dials, the widest set of ready-made sensors and info tiles around the gauges | **AA Mazda Monitor** |
+| Your own layout for wide and narrow screens, separate graph screens, tabs in the Android Auto UI | **AA Dash Nav** |
+| Both | Install both: they do not conflict |
+
+Both apps are free, open source and update from this repository.
 
 ---
 
 ## What it looks like
 
-![Gauges and navigation on the car screen](docs/screenshots/car-navigation.jpg)
-*On the car screen: navigation on the left, the gauges in the center (RPM, speed, temperature) with information tiles around them and the title of the playing track.*
+### AA Mazda Monitor (`master`)
 
-![Gauges on the car screen](docs/screenshots/car-parked.jpg)
+![Gauges and navigation on the head unit](docs/screenshots/car-navigation.jpg)
+*On the car screen: navigation on the left, gauges in the centre (RPM, speed, temperature), info tiles around them and the now-playing track line.*
+
+![Gauges on the head unit](docs/screenshots/car-parked.jpg)
 *The same screen while parked.*
 
-![Android Auto screenshot](docs/screenshots/android-auto-screenshot.jpg)
-*A screenshot with a different gauge style, taken while connecting to the control unit (the "Соединение с ECU" / "Connecting to ECU" label).*
+![Android Auto screen capture](docs/screenshots/android-auto-screenshot.jpg)
+*Another gauge style and the moment of connecting to the engine unit ("Connecting to ECU").*
+
+### AA Dash Nav (`nav`)
+
+![AA Dash Nav gauges on the head unit](docs/screenshots/nav-gauges.jpg)
+*Gauges on the car screen: RPM, speed and coolant temperature; below — DPF %, oil temperature, transmission temperature and distance since the last regeneration.*
+
+![Gauges with the media player](docs/screenshots/nav-gauges-media.jpg)
+*The same screen with the player: "Gauges", "Graph 1" and "Exit" tabs and the now-playing card.*
+
+![Graph on the head unit](docs/screenshots/nav-graph.jpg)
+*A separate graph screen: RPM, speed and DPF % for the last 2 minutes.*
 
 ---
 
-## What is changed compared to AA Torque
+## The two apps side by side
 
-**Data and connection**
-- Own adapter communication module (Bluetooth Classic, BLE and Wi-Fi) instead of Torque Pro: the app opens the channel itself, initializes the ELM327 and polls the control units.
-- Mazda parameters (mode 22, confirmed on a 2020 Mazda 3 1.8 diesel): soot accumulation and generation (g/L), regeneration counter, distance since the last regeneration, automatic transmission oil temperature.
-- Standard parameters: coolant temperature, RPM, speed, engine load, rail pressure, boost, air flow, intake and oil temperature, fuel level, system voltage, differential pressure across the particulate filter.
-- Calculated: "DPF, %" (relative to a soot threshold, 6.5 g/L by default), interval between regenerations (the last one and the average of 5). The regeneration log is kept automatically.
-- Slow sensors (transmission, soot and others) show the last good value (up to 30 seconds) instead of 0 on a single missed poll; the transmission request is retried right away. The reasons for missed readings are written to the log.
-- A background service with a status notification and a "Stop" button, so the system does not unload it.
+These are not an "old" and a "new" version of one product, but two different approaches to the same screen.
 
-**Interface**
-- **New settings look:** the items of each section are grouped into one rounded card (the press ripple follows the card, the lines between sections are gone), switches instead of checkboxes, Material 3 dialogs, text on the left and icons on the right. On Android 12+ colours come from the wallpaper; light and dark themes are supported. The gauges on the car screen are unchanged.
-- The **"Settings"** button (a gear on the main screen toolbar, next to the info icon) opens the **"OBD connection"** screen: link status, adapter selection, start/stop, polling settings, soot threshold, sensor values for checking without the car.
-- Polling settings: update rate for main and slow sensors, "faster adapter responses".
-- An **"Exit"** button ("⋮" menu and the connection screen) and an exit confirmation on "Back" on the main screen.
-- The information tiles **"View 1–4"** on the Android Auto screen are placed around the gauges: "View 1" above the left gauge, "View 2" above the right one, "View 3" below the left one, "View 4" below the right one. Labels are no longer cut off: they wrap onto a second line, and the values are larger. When an icon (rather than a text label) is chosen for an element, the icon and the value are shown on one line, centered under the gauge.
-- The **"Element sizes"** settings: size of the gauges, tile values and tile labels (50–150%) and a "Hide top row" switch. Sizes change how elements look, not where they sit on the screen, so heavily enlarged gauges may overlap the tiles.
-- The **"Now playing"** option (Settings → Media, off by default): shows the artist and the title of the playing track under the center gauge. It works with players that publish a system media session (Spotify, Yandex Music, Poweramp, the system player) and needs notification access.
-- The **"⋮ → Report a problem"** button: opens a new issue page in this repository with the app version, phone model and the last lines of the log (Bluetooth addresses and VIN are hidden). The dialog also has a **".txt file"** button: the whole log is saved to a file and passed on through the Share menu, with timestamps, the app version, the Android version, the phone model and the link status. The full log is still copied to the clipboard. There is no automatic sending, nothing leaves the phone without your action.
-- The interface is fully translated into **Russian and English**: the "OBD connection" screen, the experimental features, link statuses, the service notification, dialogs and buttons, menu items, the names and units of all sensors, error messages and the log export. The language follows the phone's system settings (Russian for a Russian system language, English otherwise). Technical messages in the app log stay in Russian.
-- The app is renamed to **AA Mazda Monitor**, package `com.aamazda.monitor`. The "About" window is updated: the author of the modification and a change notice are added, the donation button is removed, and the sources and icon authors are kept.
+**AA Mazda Monitor** draws the dashboard itself and projects it into Android Auto: the app controls every pixel, so the dials look like real analog gauges, with "View 1–4" info tiles and the track line around them. Element positions are fixed; only their sizes change.
 
-**Updates**
-- Over-the-air updates come from the **Releases of this repository** ("⋮ → Check for updates"). The version is compared with the tag of the latest release (like `0.8.4`), pre-releases are ignored.
-- All releases are signed with the same key and the version code (`versionCode`) only grows, so a new version installs **over** the old one without uninstalling and without losing settings.
-- Versions before 0.6.0 computed the version code with a different formula; since 0.6.0 it is `major × 100000 + minor × 1000 + patch`.
+**AA Dash Nav** uses the stock **Car App Library** templates: Android Auto draws the frame, tabs and cards, and the app fills them. The result looks more system-native and depends more on the Android Auto version, but it gains tab screens and a layout editor where gauges, values and media are placed by hand for wide and narrow screen shapes.
+
+| | **AA Mazda Monitor** (`master`) | **AA Dash Nav** (`nav`) |
+|---|---|---|
+| Android Auto screen | projection of its own gauge dashboard | Car App Library templates: gauges, graphs, several tabs |
+| Layout | fixed, with element size settings | editor: forms, proportions, elements, graphs, tools |
+| Graphs | on the main screen | separate tab screens |
+| Media | line under the centre gauge | now-playing card |
+| Sensors and tiles | more ready-made "View 1–4" tiles, experimental soot tools | gauges, values and media in the layout, sensor per element |
+| Package and icon | `com.aamazda.monitor`, dark dial | `com.aadash.nav`, blue dial with a **β** mark |
+| Release tag and file | `0.9.0`, `app-release.apk` | `nav-0.9.0-20`, `app-nav-release.apk` |
+| Updates | latest regular release | latest `nav` channel release, build number is compared too |
+
+Each channel has its own CI and releases; the `nav` branch is not merged into `master`.
 
 ---
 
-## Quick start
+## AA Mazda Monitor (`master`)
 
-1. **Adapter.** Plug the ELM327 (Bluetooth Classic) into the diagnostic port, turn on the ignition or start the engine.
-2. **Pairing.** In your phone's Bluetooth settings find the adapter (usually `OBDII`, PIN `1234` or `0000`) and pair it.
-3. **Installation.** Download the APK from [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases) and install it with Shizuku and AAEnabler (details below). Without this the app will not appear in the Android Auto app list.
-4. **Permissions.** On first launch allow Bluetooth and notifications.
-5. **Connection.** Tap **"Settings"** (the gear) on the main screen toolbar → choose the adapter (or leave "Automatic") → **"Start / connect"**. The "Adapter link" line should show "Connected", and sensor values appear below.
-6. **Gauges.** In the app settings choose the parameters for the gauges (for example "Coolant temperature", "Soot accumulation", "Transmission oil temperature").
-7. **Android Auto.** Enable developer mode once (in the Android Auto settings tap the version number ten times) and allow **"Unknown sources"**. Connect the phone to the car and open AA Mazda Monitor in the app list.
+The workhorse: a projected gauge dashboard with parameter tiles around the gauges and the now-playing track under the centre gauge. Mazda parameters (`22` mode) are verified on a Mazda 3 2020 diesel 1.8: soot accumulation and generation, regeneration counter, distance since regeneration, transmission oil temperature.
 
-**Important:** the adapter holds one connection. Close any other OBD apps.
+**Features**
 
-### Installing with Shizuku and AAEnabler
+- Gauges and "View 1–4" info tiles on the Android Auto screen; gauge, value and label sizes 50–150%, hide the top row.
+- **"OBD connection"** screen: link status, adapter selection, start/stop, polling rate, soot threshold, sensor check without a car.
+- The regeneration log is kept automatically; "DPF, %" is computed from the soot threshold (6.5 g/L by default).
+- Experimental tools: record soot at regeneration start to find the real threshold for your engine.
+- Now-playing track line (Settings → Media), notification access required.
+- Problem report and full log export to `.txt` from the app.
+- Russian and English UI, light and dark themes, wallpaper colours on Android 12+.
+- Over-the-air updates from the regular releases of this repository.
 
-Android Auto lists only apps that were installed in a special way, so a regular APK install will not work. You need two apps:
-- **Shizuku** (enables ADB on the phone itself), available on Google Play;
-- **AAEnabler**: <https://github.com/malebuffy/AAEnabler>.
+Detailed description, a connection-error table and FAQ are in [`docs/AA_MAZDA_MONITOR.en.md`](docs/AA_MAZDA_MONITOR.en.md) ([Russian version](docs/AA_MAZDA_MONITOR.md)). Version history is in [`CHANGELOG.md`](CHANGELOG.md).
 
-1. Install Shizuku and AAEnabler.
-2. In Shizuku tap **"Pairing"** and follow the in-app instructions. Then tap **"Start"**.
-3. Once Shizuku is running, an item showing the number of apps that request access appears ("X apps available" in the Russian interface). Open it and grant AAEnabler the permission.
-4. Open AAEnabler, choose **"Select local APK"** and pick the downloaded APK. Under the button a card appears with the app name, version, SDK version and the line **"Android Auto metadata detected"**. If everything looks right, tap **"Install app"**.
-5. Check that AA Mazda Monitor appears in the Android Auto app list.
+---
 
-> Shizuku is needed only during installation, not for running the app. Installing a new version via "Check for updates" may reset the install source, and the app will disappear from the Android Auto list. In that case repeat steps 2–5.
+## AA Dash Nav (`nav`)
 
-### If it does not connect
+The app for those who want their own layout. The screen consists of tabs: gauges and graphs. Position, size and look of elements are configured in the editor; wide and narrow screen areas can have different layouts.
 
-| Status message | What to do |
+**Features**
+
+- **Gauges on the Android Auto screen** — round dials and separate values, layouts for wide and narrow screen shapes.
+- **Layout editor** — touch preview: drag, resize, align, grid and snapping, widget borders, add gauges, values and media.
+- **Per-gauge setup** — sensor, scale maximum, red zone, dial size, labels and ticks; sensors can be copied to all forms with one command.
+- **Graphs** — separate tab screens with selected sensors and a graph name.
+- **Gauge themes** — 24 built-in themes and a flat look; font, ticks and a debug grid are switched in the editor.
+- **Car profiles** — several profiles with their own settings, layout and log; the active profile is switched in settings.
+- **App appearance** — light, dark or system theme, an accent colour picked from a palette (any hue, 5 quick presets), gauge and tile sizes, hiding the top row.
+- **Media** — artist and track title on the Android Auto screen (notification access required).
+- **DPF regeneration** — a status 1/2 banner in the header or first row, adjustable shift, size and colours, auto-hide after it ends; a regeneration log with export and import.
+- **Over-the-air updates** — from the `nav` channel of this repository; version and build number are compared.
+- **Diagnostics** — a check of which PIDs answer, the full app log with `.txt` export and a problem report.
+
+**Screen and editor.** The editor opens from settings: **"AA NAV dashboards" → "Gauge layout"**.
+
+- **Form** — separate layouts for the wide and narrow screen area.
+- **Proportions** — preview for the car screen, phone landscape or phone portrait.
+- **Look** — gauge theme, font, ticks, debug grid, regeneration banner (enable, position, shift, size, background, text, border).
+- **Elements** — add a gauge, value or media, align it, set widget borders.
+- **Graphs** — create and configure graph screens and choose their sensors.
+- **Tools** — grid, snapping, copying sensors to all forms, resetting the layout.
+
+Long-press an element to open its menu, drag to move it, use the corner handle to resize. Do not forget to tap **"Save"**.
+
+**Regeneration.** The regeneration status from the engine unit (`22 0380`) is shown as a banner: `0` — no regeneration, `1` or `2` — a regeneration is running. The banner can be placed in the header or the first row, and its shift, size and colours can be changed; it hides itself after the regeneration ends. The regeneration log is kept automatically; export and import are in settings, in the regeneration log section.
+
+**Updates.** The app checks the releases of the `nav` channel; tags look like `nav-0.9.0-20`, and the version and build number are compared. Manual check: **"About" → "Check for updates"**.
+
+A short feature summary for release notes is in [`docs/NAV_FEATURES.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/NAV_FEATURES.md), the roadmap is in [`docs/PLAN_NAV.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/PLAN_NAV.md); both live in the `nav` branch.
+
+---
+
+## Installation
+
+Android Auto only lists apps installed in a special way, so a regular APK install will not work. The APK is installed with **AAEnabler** (<https://github.com/malebuffy/AAEnabler>); the procedure is the same for both apps.
+
+1. Install AAEnabler and allow it to install apps from this source.
+2. Open AAEnabler → **"Select local APK"** → pick `app-release.apk` or `app-nav-release.apk`. A card with the app name, version, SDK and **"Android Auto metadata detected"** should appear. Tap **"Install app"**.
+3. Enable developer mode in Android Auto (tap the version number ten times) and allow **"Unknown sources"**. The app will appear in the AA list.
+
+**About Shizuku.** Installation used to require **Shizuku** (ADB on the phone itself, available on Google Play), and older instructions go through it: Shizuku → "Pairing" → "Start" → "X apps available" → grant the permission to AAEnabler. **Shizuku is not required now:** AAEnabler does not need it and installs the APK itself; permission to install from this source is enough. Shizuku remains a handy fallback if the installer misbehaves, and is useful for other ADB tasks.
+
+> Updating via "Check for updates" may reset the install source; in that case repeat steps 1–3. You do not need to uninstall the app or lose settings.
+
+---
+
+## Connecting the adapter
+
+1. Plug the ELM327 into the diagnostic port and turn on the ignition or start the engine.
+2. Pair the adapter in the phone's Bluetooth settings (usually `OBDII`, PIN `1234` or `0000`), or connect the phone to the adapter's Wi-Fi network.
+3. In the app open **"OBD connection"**, choose the connection type and adapter, then tap **"Start / connect"**.
+4. Wait for the "Connected" status and sensor values.
+
+**Bluetooth Classic**, **BLE** and **Wi-Fi** are supported. The adapter holds one connection — close other OBD apps. To show the now-playing track, grant notification access (Settings → "Notification access (media)").
+
+For Wi-Fi: the phone joins the adapter's network (usually `192.168.0.10`, port `35000`) and mobile data stays available. On Samsung, disable auto-switching to mobile data. With wireless Android Auto the phone's Wi-Fi is busy with the head unit, so only Bluetooth works there.
+
+---
+
+## Repository map
+
+| Where | What is there |
 |---|---|
-| Adapter not found | Pair the adapter in Bluetooth or select it manually in the list |
-| No BLUETOOTH_CONNECT permission | Grant the permission to the app in Android settings |
-| Could not open the Bluetooth channel | Turn on the ignition, close other OBD apps, wait 10 seconds |
-| Engine control unit does not respond | Turn on the ignition or start the engine |
-| Values are zero | Try turning off "Faster adapter responses" |
+| `master` | **AA Mazda Monitor**, the stable branch and the repository main page |
+| `nav` | **AA Dash Nav**, a separate product and the `nav-…` update channel |
+| [`app/`](app) | app sources; the `stable` flavor builds AA Mazda Monitor, `nav` builds AA Dash Nav |
+| [`app/src/nav`](app/src/nav) | NAV variant resources: icon and name; [`app/src/stable`](app/src/stable) — AA Mazda Monitor resources; shared code lives in `app/src/main` |
+| [`lib/speedviewlib`](lib/speedviewlib) | gauge library (SpeedView fork) |
+| [`docs/screenshots`](docs/screenshots) | screen photos used in this README |
+| [`docs/NAV_FEATURES.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/NAV_FEATURES.md) | short feature list of AA Dash Nav and its differences from AA Mazda Monitor (`nav` branch) |
+| [`docs/PLAN_NAV.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/PLAN_NAV.md) | AA Dash Nav roadmap (`nav` branch) |
+| [`docs/PID_PROFILES.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/PID_PROFILES.md) | how to add a sensor and prepare a PID profile for another SkyActiv-D model (`nav` branch) |
+| [`docs/RELEASING.md`](docs/RELEASING.md) | release rules and the signing key (owner document) |
+| [`docs/AA_MAZDA_MONITOR.en.md`](docs/AA_MAZDA_MONITOR.en.md) | full AA Mazda Monitor description: installation, connection types, experimental tools, FAQ; [Russian version](docs/AA_MAZDA_MONITOR.md) |
+| [`docs/HANDOFF_MASTER.md`](docs/HANDOFF_MASTER.md), [`docs/NAV_TO_MASTER.md`](docs/NAV_TO_MASTER.md) | internal notes on moving `nav` changes into `master` |
+| [`docs/release-notes-*.md`](docs) | AA Mazda Monitor release notes |
+| [`CHANGELOG.md`](CHANGELOG.md) | AA Mazda Monitor version history |
+| [`version.properties`](version.properties) | current version; bumped on release |
+| [`.github/workflows`](.github/workflows) | CI: `build.yml`, `ci.yml`, `pr-checks.yml`, `release.yml`; the `nav` channel is built by `nav.yml` in the `nav` branch |
+| [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases) | ready-to-install APKs for both apps |
+| [Issues](https://github.com/Rilard-T/AA-Mazda-Monitor/issues) | bugs and suggestions |
+
+Where to start: download an APK from the table above, install it with AAEnabler, connect the adapter. If something does not work, check the limitations below and [the AA Mazda Monitor description](docs/AA_MAZDA_MONITOR.en.md), which has a connection-message table and an FAQ.
 
 ---
-
-<!-- link-types -->
-## Connection types
-
-The type is chosen in "OBD connection → Connection type".
-- **Bluetooth Classic** (default): the adapter is paired in the phone's Bluetooth settings and chosen in the "Adapter" list.
-- **Bluetooth LE (BLE):** tap "Find BLE adapters" and choose the adapter from the list. Common adapters are supported (services FFF0, FFE0, 18F0, Nordic UART), others are detected automatically. BLE is usually slower than Classic.
-- **Wi-Fi:** connect the phone to the adapter's network (a name like `WiFi_OBDII` or `V-LINK`), the default address is `192.168.0.10`, port `35000`. The app works specifically through the adapter's network, so mobile internet stays available. On Samsung turn off the automatic switch to mobile data, otherwise the phone may disconnect from a network without internet. A Wi-Fi adapter only suits wired Android Auto: with wireless Android Auto the phone's Wi-Fi is busy with the head unit link.
-
-BLE and Wi-Fi connections are written to standard adapter schemes and have not been tested on every model. Please report problems via "⋮ → Report a problem".
-
-## DPF fill percentage
-
-The car reports soot accumulation in g/L, not in percent. For the "DPF, %" parameter the default threshold is **6.5 g/L**. This is an average value, and the real one for your car may differ. If the counter is wrong, use the **experimental features** (below): they record the soot at the moment a regeneration starts. You can enter your own threshold in **"OBD connection → Particulate filter → Soot threshold"**; an empty field means 6.5. To find it yourself, watch the "Soot accumulation" value for a few days and note the maximum before a regeneration (a regeneration is indicated by the regeneration status from the unit and a rising regeneration counter).
-
-<!-- experimental-section -->
-## Experimental features
-
-The "⋮ → Experimental features" menu (and the "OBD connection" screen) collects data about **soot at the moment a regeneration starts**, until the real threshold for your engine is known:
-- **Trigger:** the regeneration status reported by the engine unit (parameter `22 0380`: 0 — none, non-zero — a regeneration is running; values 1 and 2 both mean active, their exact difference is not confirmed). A regeneration is considered started when the status stays 1 or 2 for 30 seconds in a row and finished when it stays 0 for 10 minutes (under high engine load the unit may pause a regeneration for a while). At the start, the log records the maximum accumulated soot and the distance since the previous regeneration;
-- **Record state:** "completed" (the regeneration counter grew, or the engine was switched off within 10 minutes after the regeneration ended) or "interrupted" (the engine was switched off during the regeneration, or the counter did not grow within 3 minutes after it ended). The remaining soot does not affect the state; after an interrupted regeneration the maximum soot since the last regeneration is counted anew from the current soot. The engine counts as switched off when the unit does not answer or there is no RPM for 10 seconds in a row. All completed regenerations take part in the average and the threshold. If the status briefly drops and returns (less than 10 minutes), it is the same regeneration and no new record is created. After the soot drops by half, the maximum soot since the last regeneration goes down with it and grows again as soot accumulates;
-- if the app connected in the middle of a regeneration, nothing is recorded (the maximum soot is unknown); if the regeneration status is unavailable, the record is made from the counter growth;
-- the "Apply as manual threshold" button, the "DPF % threshold from observations" mode and the gauge parameters "Soot before the last regeneration (exp.)", "Soot maximum since the last regeneration (exp.)".
-
-Recording works only while the connection service is running (the app is started and the adapter is connected). The data is approximate: the soot accumulation in the unit is computed from the differential pressure across the filter.
-
-## FAQ
-
-**How do I know if a regeneration is running?** — The regeneration status (0/1/2) on the gauge screen should be 0 outside a regeneration. A non-zero value means a regeneration is running. The regeneration counter and exhaust temperature also rise.
-
-**The DPF % counter is wrong. What should I do?** — Enter your own threshold in "OBD connection → Particulate filter → Soot threshold" or use the experimental features for automatic threshold detection.
-
-**The app won't connect to the adapter.** — Check: ignition is on, adapter is paired in Bluetooth, correct connection type is selected. Try disabling "Adapter response acceleration".
-
-**Android Auto doesn't work.** — Enable developer mode in Android Auto (tap version 10 times in settings). See the "Installation" section for details.
-
-## Feedback
-
-Found a bug or have a suggestion? Use "⋮ → Report a problem" in the app or create an [issue](https://github.com/Rilard-T/AA-Mazda-Monitor/issues) manually. Include the app version, the phone and adapter models, the connection type and the log.
 
 ## Limitations
 
-- ELM327 over **Bluetooth Classic**, **BLE** and **Wi-Fi** (BLE and Wi-Fi have not been tested on every adapter model).
+- The parameters were verified on a **Mazda 3 (BP) 2020, SkyActiv-D 1.8**. Other SkyActiv-D models may have different PID sets, and some PIDs may not answer.
 - Reading and clearing trouble codes (DTC) is not supported.
-- The parameters were checked on a 2020 Mazda 3 (S8DPTS 1.8L engine); they should work across the SkyActiv-D range, and the main PIDs should work on the vast majority of cars.
-- The temperature before the particulate filter (`01 7C`) is not read: the 1.8 engine unit refuses the request (`7F 01 12`) and does not have this parameter (the 1.5 does); the row was removed from the parameters in 0.7.5. Exhaust gas temperatures (`01 78`, three sensors), however, are reported by the unit: they are written to the diagnostic log but not shown on the gauges.
-- Some observations (soot going down, exhaust temperatures, the `01 8B` burn-off state byte) were made on a car with a modified firmware and may differ on a stock one.
-- The difference between values 1 and 2 of the regeneration status (`22 0380`) is not confirmed on this car. According to FORScan developers, 0x02 (value 2) = regeneration requested/active (REG_REQ_A). A Japanese Torque Pro source reports 1 = active. Different engine variants may return different values. On the "OBD connection" screen check the "Regeneration status (0/1/2)" line; outside a regeneration it should show 0.
-- The default soot threshold of 6.5 g/L is an average; the real threshold for the 1.8 is not determined yet. The unit may also start a regeneration by mileage regardless of soot; such regenerations lower the observed threshold.
-- The "Now playing" line has not been tested with every player; after a pause the last track stays until the player is closed or the track changes.
-- The Android Auto projection uses an unofficial interface. Android Auto updates may break it, and third-party APKs require developer mode.
+- BLE and Wi-Fi have not been tested with every adapter model.
+- The default 6.5 g/L soot threshold is an average; the unit may also start a regeneration by distance, so treat "DPF, %" as an estimate.
+- The media player needs notification access and system media session support in the player.
+- The interface was checked on a real car head unit and a Samsung phone; other head units and Android Auto versions may lay out or size things differently.
+- AA Mazda Monitor projects its dashboard through an unofficial Android Auto interface: Android Auto updates may break it.
+- AA Dash Nav builds its screen on Car App Library templates, so its look depends on the Android Auto version and the head unit.
+
+---
+
+## Feedback
+
+Bugs and suggestions: [Issues](https://github.com/Rilard-T/AA-Mazda-Monitor/issues) or **"⋮ → Report a problem"** in the app (AA Mazda Monitor) and the problem report in settings (AA Dash Nav). Include the app version, phone and adapter model, connection type and the log.
+
+---
 
 ## License and credits
 
 - The project is distributed under **GPL-3.0** ([`LICENSE.md`](LICENSE.md)). The source code is available in this repository, and the changes are published under the same license.
-- Original project: [AA Torque](https://github.com/agronick/aa-torque) by Kyle Agronick. Based on the Chillout app and the Martoreto SDK/demo. Acknowledgements and the list of translators are in the "About" window.
+- Based on [AA Torque](https://github.com/agronick/aa-torque) by Kyle Agronick; the Chillout app and the Martoreto SDK/demo. Acknowledgements and translators are listed in the "About" window.
 - Icons (CC BY 3.0, Noun Project): *Horse* — Peleg Red; *engine cylinder* — Thuy Nguyen; *transmission* — Gustyne Pissesa Ardhaneswari.
-- Fork modification and maintenance: **Rilard-T**, 2026.
-- Part of the code and documentation was prepared with the help of the AI assistant Claude (Anthropic); building, verification and testing were done by the author.
+- Modification and maintenance: **Rilard-T**, 2026.
+- Part of the code and documentation was prepared with the help of an AI assistant; building, verification and testing were done by the author.
