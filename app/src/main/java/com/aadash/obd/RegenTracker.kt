@@ -45,6 +45,8 @@ class RegenTracker internal constructor(
     private val log = ArrayList<RegenEntry>().apply { addAll(parseLog(prefs.getString("rg_soot_log", "") ?: "")) }
 
     private var lastStatus: Int? = null          // статус прожига от блока (DID 0380): 0 нет, не 0 идёт (различие 1 и 2 не подтверждено)
+    private var lastNonZeroStatus: Int = 0        // последний ненулевой статус — для гистерезиса короткого сброса
+    private var activeSince: Long = 0L            // момент, когда прожиг стал активным
     private var statusSeenAt = 0L
     private var midSession = false         // подключились, когда прожиг уже шёл: запись не ведём, но флаг ставим по выдержке
     private var active = false             // сейчас идёт прожиг (по статусу блока)
@@ -97,6 +99,7 @@ class RegenTracker internal constructor(
         val now = clock()
         val newSession = statusSeenAt == 0L || now - statusSeenAt > 60_000
         statusSeenAt = now
+        if (s >= 1) lastNonZeroStatus = s
         if (lastStatus != s) Timber.i(
             "Статус прожига: %s -> %s (%s); сажа %.2f г/л, EGT %s °C, скорость %s км/ч",
             lastStatus, s,
@@ -108,13 +111,19 @@ class RegenTracker internal constructor(
         lastStatus = s
         if (!active) {
             if (s >= 1) {
-                if (hotSince == 0L) {
+                // пороги скорости/EGT: если данные переданы и ниже порогов — не начинаем прожиг
+                val speedOk = speed == null || speed >= MIN_SPEED_KMH
+                val egtOk = egt == null || egt >= MIN_EGT_C
+                if (!speedOk || !egtOk) {
+                    hotSince = 0L
+                    midSession = false
+                } else if (hotSince == 0L) {
                     hotSince = now
                     // подключились посреди прожига: максимум сажи неизвестен, запись не ведём
                     midSession = newSession
                 } else if (now - hotSince >= STATUS_HOLD_MS) {
                     if (midSession) {
-                        active = true; hotSince = 0L; coldSince = 0L
+                        active = true; hotSince = 0L; coldSince = 0L; activeSince = now
                         skipping = true; skipMax = 0.0; sootPeak = 0.0
                         midSession = false
                     } else startRegen(now)
@@ -125,8 +134,16 @@ class RegenTracker internal constructor(
             }
         } else {
             if (s == 0) {
-                if (coldSince == 0L) coldSince = now
-                else if (now - coldSince >= STATUS_END_HOLD_MS) endRegen(now)
+                val shortRegen = activeSince > 0L && now - activeSince < MIN_REGEN_DURATION_MS
+                val conditionsHold = (speed != null && speed >= MIN_SPEED_KMH) || (egt != null && egt >= MIN_EGT_C)
+                if (shortRegen || conditionsHold) {
+                    // короткий сброс / условия ещё держатся — не считаем завершением прожига
+                    coldSince = 0L
+                } else if (coldSince == 0L) {
+                    coldSince = now
+                } else if (now - coldSince >= STATUS_END_HOLD_MS) {
+                    endRegen(now)
+                }
             } else coldSince = 0L
         }
         checkTimeout(now)
@@ -152,7 +169,7 @@ class RegenTracker internal constructor(
         Timber.i("Двигатель выключен")
         if (active) {
             closeRecord(if ((lastStatus ?: 0) != 0) RegenState.INTERRUPTED else RegenState.COMPLETE)
-            active = false; coldSince = 0L; endedAt = 0L
+            active = false; coldSince = 0L; endedAt = 0L; activeSince = 0L
         }
         hotSince = 0L
         if (skipping) { skipping = false; sootPeak = lastSoot ?: 0.0 }
@@ -170,13 +187,13 @@ class RegenTracker internal constructor(
     }
 
     private fun endRegen(now: Long) {
-        active = false; coldSince = 0L; endedAt = now
+        active = false; coldSince = 0L; endedAt = now; activeSince = 0L
         Timber.i("Прожиг: окончание")
         if (skipping) { skipping = false; sootPeak = lastSoot ?: 0.0 }
     }
 
     private fun startRegen(now: Long) {
-        active = true; hotSince = 0L; coldSince = 0L; endedAt = 0L
+        active = true; hotSince = 0L; coldSince = 0L; endedAt = 0L; activeSince = now
         val last = log.lastOrNull()
         if (last != null && last.state == RegenState.RUNNING) {
             if (now - last.time < 30 * 60_000L) {
@@ -253,11 +270,14 @@ class RegenTracker internal constructor(
     @Synchronized fun regenActive(): Boolean = active
 
     /** Статус прожига от блока: 0 — нет, 1/2 — идёт. Доступен, только если блок отвечал недавно. */
-    @Synchronized fun regenStatus(): Int = lastStatus ?: 0
+    @Synchronized fun regenStatus(): Int =
+        if (active && (lastStatus ?: 0) == 0 && lastNonZeroStatus != 0) lastNonZeroStatus else (lastStatus ?: 0)
 
     @Synchronized fun regenStatusAvailable(): Boolean = statusAvailable(clock())
     /** Статус от блока (0/1/2), если он сейчас приходит, иначе null. */
-    @Synchronized fun liveStatus(): Int? = if (statusAvailable(clock())) lastStatus else null
+    @Synchronized fun liveStatus(): Int? = if (statusAvailable(clock())) {
+        if (active && (lastStatus ?: 0) == 0 && lastNonZeroStatus != 0) lastNonZeroStatus else lastStatus
+    } else null
     @Synchronized fun history(): List<RegenEntry> = ArrayList(log)
 
     /** Журнал прожигов и интервалы в текстовом виде: одна запись — одна строка, поля через «;». */
@@ -315,6 +335,9 @@ class RegenTracker internal constructor(
         private const val ENGINE_OFF_MS = 10_000L    // блок не отвечает или оборотов нет
         private const val STATUS_HOLD_MS = 30_000L   // статус блока 1/2: держится столько, прежде чем ставить флаг прожига
         private const val STATUS_END_HOLD_MS = 600_000L   // статус блока 0: прожиг закончился через 10 минут
+        private const val MIN_REGEN_DURATION_MS = 120_000L  // минимальная длительность прожига: короче — прерванный
+        private const val MIN_SPEED_KMH = 30.0              // порог скорости для прожига
+        private const val MIN_EGT_C = 300.0                 // порог EGT для прожига
         @Volatile private var inst: RegenTracker? = null
         fun get(prefs: SharedPreferences): RegenTracker =
             inst ?: synchronized(this) { inst ?: RegenTracker(prefs).also { inst = it } }
