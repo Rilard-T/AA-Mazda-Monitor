@@ -38,10 +38,25 @@ jobs:
         run: |
           v() { grep -E "^$1" version.properties | cut -d= -f2 | tr -d '[:space:]'; }
           tag="nav-$(v majorVersion).$(v minorVersion).$(v patchVersion)-$GITHUB_RUN_NUMBER"
+          # Правки заметок уже вышедших релизов: docs/release-notes-nav-<tag>.md.
+          for f in docs/release-notes-nav-*.md; do
+            [ -f "$f" ] || continue
+            t="nav-${f#docs/release-notes-nav-}"
+            t="${t%.md}"
+            if gh release view "$t" >/dev/null 2>&1; then
+              gh release edit "$t" --notes-file "$f"
+            fi
+          done
           {
             echo "AA Dash Nav $tag"
             echo
-            cat docs/NAV_FEATURES.md
+            # Двуязычный список изменений готовится в репозитории к каждому пушу.
+            cat docs/release-notes-nav.md
+            echo
+            echo "## Возможности"
+            echo
+            # Заголовок файла заменяем своим, чтобы не дублировать название.
+            sed '1{/^# /d;}' docs/NAV_FEATURES.md
           } > "$RUNNER_TEMP/release-notes.md"
           gh release create "$tag" app/build/outputs/apk/nav/release/*.apk \
             --target "$GITHUB_SHA" --title "$tag" \
