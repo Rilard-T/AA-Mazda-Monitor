@@ -160,24 +160,11 @@
 
     <PreferenceCategory
         android:singleLineTitle="false"
-        android:title="@string/obd_exp_journal">
+        android:title="@string/backup_category">
         <Preference
-            android:key="export_regen_log"
-            android:title="@string/export_regen_log" />
-        <Preference
-            android:key="import_regen_log"
-            android:title="@string/import_regen_log" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        android:singleLineTitle="false"
-        android:title="@string/obd_exp_cat_data">
-        <Preference
-            android:key="export_dashboards"
-            android:title="@string/export_dashboards" />
-        <Preference
-            android:key="import_dashboards"
-            android:title="@string/import_dashboards" />
+            android:key="backup_restore"
+            android:title="@string/backup_title"
+            android:summary="@string/backup_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory

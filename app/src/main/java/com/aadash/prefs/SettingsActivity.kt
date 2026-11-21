@@ -35,7 +35,6 @@ import com.aadash.stats.BuildConfig
 import com.aadash.stats.CreditsFragment
 import com.aadash.stats.R
 import com.google.android.material.snackbar.Snackbar
-import com.google.protobuf.InvalidProtocolBufferException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -55,18 +54,69 @@ class SettingsActivity : AppCompatActivity(),
     /** AAEnabler: без него обновление не появится в Android Auto. */
     private val aaEnablerPackage = "com.aaenabler.app"
 
+    /** Тег и имя APK текущей загрузки — для проверки SHA-256 после скачивания. */
+    private var pendingTag: String? = null
+    private var pendingApkName: String? = null
+
     val br: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.`package` == BuildConfig.APPLICATION_ID) {
                 val downloadId = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                if (downloadId != -1L) verifyAndInstall(downloadId)
+            }
+        }
+    }
+
+    /**
+     * Сверяет SHA-256 скачанного APK с файлом `<apk>.sha256` из релиза. Если файла нет
+     * (старые выпуски), проверка пропускается. При несовпадении файл удаляется.
+     */
+    private fun verifyAndInstall(downloadId: Long) {
+        val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+        lifecycleScope.launch(Dispatchers.IO) {
+            val expected = expectedApkSha256(pendingTag, pendingApkName)
+            val actual = runCatching {
+                dm.getUriForDownloadedFile(downloadId)?.let { uri ->
+                    contentResolver.openInputStream(uri)?.use { ApkDigest.sha256(it) }
+                }
+            }.getOrNull()
+            val ok = expected == null || (actual != null && ApkDigest.matches(expected, actual))
+            runOnUiThread {
+                if (!ok) {
+                    runCatching { dm.remove(downloadId) }
+                    Toast.makeText(this@SettingsActivity, R.string.update_corrupt, Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
                 AlertDialog.Builder(this@SettingsActivity).setTitle(R.string.download_complete)
                     .setMessage(R.string.download_dialog)
                     .setPositiveButton(R.string.download_open_enabler) { p0, _ ->
                         p0?.dismiss()
-                        if (downloadId != -1L) installDownloaded(downloadId)
+                        installDownloaded(downloadId)
                     }.setNegativeButton(android.R.string.cancel
                     ) { p0, _ -> p0?.dismiss() }.show()
             }
+        }
+    }
+
+    private fun expectedApkSha256(tag: String?, apk: String?): String? {
+        if (tag.isNullOrBlank() || apk.isNullOrBlank()) return null
+        val conn = URL("${BuildConfig.REPO_URL}/releases/download/$tag/$apk.sha256")
+            .openConnection() as HttpsURLConnection
+        return try {
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                Timber.w("Проверка обновлений: хеш %s.sha256 — код %d", apk, conn.responseCode)
+                null
+            } else {
+                conn.inputStream.bufferedReader().use { ApkDigest.parse(it.readText()) }
+            }
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: хеш APK не получен (%s)", e.message)
+            null
+        } finally {
+            conn.disconnect()
         }
     }
 
@@ -184,12 +234,20 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    fun openFile() {
-        importFileLauncher.launch(EXPORT_MIME)
-    }
-
-    fun exportFile() {
-        exportFileLauncher.launch("")
+    /** Один пункт меню: сохранение и восстановление настроек вместе с журналом прожигов. */
+    fun backupRestore() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.backup_title)
+            .setItems(
+                arrayOf(getString(R.string.backup_export), getString(R.string.backup_import))
+            ) { _, which ->
+                if (which == 0) {
+                    backupExportLauncher.launch("")
+                } else {
+                    backupImportLauncher.launch("text/plain")
+                }
+            }
+            .show()
     }
 
     private fun launchFragment(
@@ -209,96 +267,46 @@ class SettingsActivity : AppCompatActivity(),
             .commit()
     }
 
-    private val exportFileLauncher = registerForActivityResult(ExportFileContract()) { uri: Uri? ->
-        // This lambda will be executed when the activity result returns
-        lifecycleScope.launch(Dispatchers.IO) {
-            val data = applicationContext.dataStore.data.first()
-            val result = if (uri != null) {
-                contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    UserPreferenceSerializer.writeTo(data, outputStream)
-                }
-                R.string.file_exported_successfully
-            } else {
-                R.string.export_failed
-            }
-            runOnUiThread {
-                Toast.makeText(baseContext, result, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-
-    private val regenExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->
+    private val backupExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
-        val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
         lifecycleScope.launch(Dispatchers.IO) {
             val ok = runCatching {
-                contentResolver.openOutputStream(uri)?.use { tracker.exportText().toByteArray(Charsets.UTF_8).let(it::write) } != null
+                val data = applicationContext.dataStore.data.first()
+                val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
+                val text = BackupCodec.encode(data.toByteArray(), tracker.exportText())
+                contentResolver.openOutputStream(uri)
+                    ?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
             }.getOrDefault(false)
             runOnUiThread {
                 Toast.makeText(
                     baseContext,
-                    if (ok) R.string.regen_exported else R.string.export_failed,
+                    if (ok) R.string.backup_exported else R.string.export_failed,
                     Toast.LENGTH_SHORT
                 ).show()
             }
         }
     }
 
-    private val regenImportLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
+    private val backupImportLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
-        val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
         lifecycleScope.launch(Dispatchers.IO) {
             val count = runCatching {
-                contentResolver.openInputStream(uri)
-                    ?.use { tracker.importText(it.readBytes().toString(Charsets.UTF_8)) }
+                val text = contentResolver.openInputStream(uri)
+                    ?.use { it.readBytes().toString(Charsets.UTF_8) }
+                    ?: return@runCatching null
+                val backup = BackupCodec.decode(text) ?: return@runCatching null
+                val prefs = UserPreference.parseFrom(backup.settings)
+                applicationContext.dataStore.updateData { prefs }
+                RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
+                    .importText(backup.regenLog)
             }.getOrNull()
             runOnUiThread {
-                val text = when {
-                    count == null -> getString(R.string.import_failed)
-                    count == 0 -> getString(R.string.regen_import_empty)
-                    else -> getString(R.string.regen_imported, count)
+                val msg = if (count == null) {
+                    getString(R.string.backup_invalid)
+                } else {
+                    getString(R.string.backup_imported, count)
                 }
-                Toast.makeText(baseContext, text, Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private val importFileLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
-        if (uri != null) {
-            val inStream = contentResolver.openInputStream(uri)
-            this@SettingsActivity.lifecycleScope.launch {
-                try {
-                    this@SettingsActivity.applicationContext.dataStore.updateData {
-                        return@updateData UserPreference.parseFrom(inStream)
-                    }
-                } catch (e: InvalidProtocolBufferException) {
-                    Toast.makeText(
-                        baseContext,
-                        R.string.invalid_settings,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        }
-    }
-
-    class ExportFileContract : ActivityResultContract<String, Uri?>() {
-
-        override fun createIntent(context: Context, input: String): Intent {
-            return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                type = EXPORT_MIME
-                // Suggest a file name based on the original file name
-                putExtra(Intent.EXTRA_TITLE, "dashboards.pb")
-            }
-        }
-
-        // This function parses the activity result and returns the URI of the user selected location
-        override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
-            return if (resultCode == Activity.RESULT_OK) {
-                intent?.data
-            } else {
-                null
+                Toast.makeText(baseContext, msg, Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -308,7 +316,7 @@ class SettingsActivity : AppCompatActivity(),
         override fun createIntent(context: Context, input: String): Intent {
             return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TITLE, "regen-log.csv")
+                putExtra(Intent.EXTRA_TITLE, "aa-mazda-backup.txt")
             }
         }
 
@@ -485,6 +493,8 @@ class SettingsActivity : AppCompatActivity(),
                         Timber.w("Проверка обновлений: в выпуске %s нет APK", tagName)
                     } else {
                         downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/$apk"
+                        pendingTag = tagName
+                        pendingApkName = apk
                     }
                 }
                 if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
@@ -557,14 +567,6 @@ class SettingsActivity : AppCompatActivity(),
         com.aadash.obd.ErrorReport.start(this, logs.map { it.toString() })
     }
 
-    fun exportRegenLog() {
-        regenExportLauncher.launch("")
-    }
-
-    fun importRegenLog() {
-        regenImportLauncher.launch("text/plain")
-    }
-
     fun forceUpdate() {
         lifecycleScope.launch(Dispatchers.IO) {
             if (!checkUpdate(true)) {
@@ -588,7 +590,6 @@ class SettingsActivity : AppCompatActivity(),
         private const val REQUEST_PERMISSIONS = 0
         private const val PERMISSION_CAR_VENDOR_EXTENSION =
             "com.google.android.gms.permission.CAR_VENDOR_EXTENSION"
-        const val EXPORT_MIME = "application/octet-stream"
         private const val OBD_PREFS = "obd_bridge"
     }
 }
