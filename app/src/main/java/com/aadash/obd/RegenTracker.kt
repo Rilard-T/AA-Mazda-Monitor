@@ -134,10 +134,12 @@ class RegenTracker internal constructor(
             }
         } else {
             if (s == 0) {
+                // Пороги скорости/EGT — только для старта: после настоящего прожига EGT остаётся
+                // высокой, и с ними запись закрывалась бы часами. От короткого сброса защищает
+                // время: первые MIN_REGEN_DURATION_MS статус 0 концом не считается, дальше нужна
+                // выдержка STATUS_END_HOLD_MS.
                 val shortRegen = activeSince > 0L && now - activeSince < MIN_REGEN_DURATION_MS
-                val conditionsHold = (speed != null && speed >= MIN_SPEED_KMH) || (egt != null && egt >= MIN_EGT_C)
-                if (shortRegen || conditionsHold) {
-                    // короткий сброс / условия ещё держатся — не считаем завершением прожига
+                if (shortRegen) {
                     coldSince = 0L
                 } else if (coldSince == 0L) {
                     coldSince = now
@@ -335,7 +337,7 @@ class RegenTracker internal constructor(
         private const val ENGINE_OFF_MS = 10_000L    // блок не отвечает или оборотов нет
         private const val STATUS_HOLD_MS = 30_000L   // статус блока 1/2: держится столько, прежде чем ставить флаг прожига
         private const val STATUS_END_HOLD_MS = 600_000L   // статус блока 0: прожиг закончился через 10 минут
-        private const val MIN_REGEN_DURATION_MS = 120_000L  // минимальная длительность прожига: короче — прерванный
+        private const val MIN_REGEN_DURATION_MS = 120_000L  // первые 2 минуты статус 0 — ещё не конец прожига
         private const val MIN_SPEED_KMH = 30.0              // порог скорости для прожига
         private const val MIN_EGT_C = 300.0                 // порог EGT для прожига
         @Volatile private var inst: RegenTracker? = null

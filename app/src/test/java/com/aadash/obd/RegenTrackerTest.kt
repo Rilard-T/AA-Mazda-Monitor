@@ -140,6 +140,46 @@ class RegenTrackerTest {
     }
 
     @Test
+    fun endDoesNotWaitForSpeedAndEgt() {
+        // после прожига EGT и скорость ещё высокие: конец определяется статусом 0 и выдержкой,
+        // пороги 30 км/ч и 300 °C действуют только при старте
+        var now = 3_000_000L
+        val tracker = RegenTracker(FakePrefs(mapOf("rg_count" to 1))) { now }
+        tracker.onStatus(0)
+        tracker.onStatus(2, egt = 600.0, speed = 90.0)
+        now += 31_000
+        tracker.onStatus(2, egt = 600.0, speed = 90.0)
+        assertTrue(tracker.regenActive())
+
+        now += 200_000
+        tracker.onStatus(0, egt = 600.0, speed = 120.0)
+        now += 599_000
+        tracker.onStatus(0, egt = 600.0, speed = 120.0)
+        assertTrue(tracker.regenActive())
+        now += 1_000
+        tracker.onStatus(0, egt = 600.0, speed = 120.0)
+        assertFalse(tracker.regenActive())
+    }
+
+    @Test
+    fun shortStatusDropDoesNotEndRegeneration() {
+        // сброс статуса в первые 2 минуты — не окончание прожига
+        var now = 4_000_000L
+        val tracker = RegenTracker(FakePrefs(mapOf("rg_count" to 1))) { now }
+        tracker.onStatus(0)
+        tracker.onStatus(1, egt = 500.0, speed = 80.0)
+        now += 31_000
+        tracker.onStatus(1, egt = 500.0, speed = 80.0)
+        assertTrue(tracker.regenActive())
+
+        now += 30_000
+        tracker.onStatus(0, egt = 500.0, speed = 80.0)
+        now += 60_000
+        tracker.onStatus(0, egt = 500.0, speed = 80.0)
+        assertTrue(tracker.regenActive())
+    }
+
+    @Test
     fun invalidSootValuesAreIgnored() {
         val tracker = RegenTracker(FakePrefs(mapOf("rg_count" to 2)))
         repeat(3) { tracker.onSoot(35.0) }   // выше рабочего диапазона — мусор
