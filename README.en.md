@@ -90,6 +90,7 @@ The workhorse: a projected gauge dashboard with parameter tiles around the gauge
 
 - Gauges and "View 1–4" info tiles on the Android Auto screen; gauge, value and label sizes 50–150%, hide the top row.
 - **"OBD connection"** screen: link status, adapter selection, start/stop, polling rate, soot threshold, sensor check without a car.
+- **Custom sensors and PID import** — add a sensor by hand or import a Torque Pro CSV; imported sensors are available on the gauges right away.
 - The regeneration log is kept automatically; "DPF, %" is computed from the soot threshold (6.5 g/L by default).
 - Experimental tools: record soot at regeneration start to find the real threshold for your engine.
 - Now-playing track line (Settings → Media), notification access required.
@@ -117,6 +118,7 @@ The app for those who want their own layout. The screen consists of tabs: gauges
 - **Media** — artist and track title on the Android Auto screen (notification access required).
 - **DPF regeneration** — a status 1/2 banner in the header or first row, adjustable shift, size and colours, auto-hide after it ends; a regeneration log with export and import.
 - **Over-the-air updates** — from the `nav` channel of this repository; version and build number are compared.
+- **Custom sensors** — add a PID by hand or import a Torque Pro CSV; a new sensor is available in the layout and graphs right away.
 - **Diagnostics** — a check of which PIDs answer, the full app log with `.txt` export and a problem report.
 
 **Screen and editor.** The editor opens from settings: **"AA NAV dashboards" → "Gauge layout"**.
@@ -162,6 +164,17 @@ Android Auto only lists apps installed in a special way, so a regular APK instal
 **Bluetooth Classic**, **BLE** and **Wi-Fi** are supported. The adapter holds one connection — close other OBD apps. To show the now-playing track, grant notification access (Settings → "Notification access (media)").
 
 For Wi-Fi: the phone joins the adapter's network (usually `192.168.0.10`, port `35000`) and mobile data stays available. On Samsung, disable auto-switching to mobile data. With wireless Android Auto the phone's Wi-Fi is busy with the head unit, so only Bluetooth works there.
+
+---
+
+## Custom sensors and Torque Pro PID import
+
+In both apps: **"OBD connection" → "Custom PIDs"**. A sensor can be added by hand — name, mode and PID in hex, formula, units, minimum and maximum — or loaded from a ready-made Torque Pro list.
+
+- **CSV import.** The **"Import Torque CSV…"** button accepts a Torque Pro export (`Manage custom PIDs → Export`) with the columns `Name,ShortName,ModeAndPID,Equation,Min,Max,Units,Header`. The separator is a comma or a semicolon and is detected automatically; quotes and the header row are handled as in a normal CSV, and lines starting with `#` are skipped.
+- **Torque formulas.** `A`…`P` are the response bytes; `SIGNED(x)`, `BIT(x,n)`, `INT(x)`, `ABS`, `MIN`, `MAX`, `ROUND`, `SQRT` work. Header `7E0` is the engine unit, `7E1` the transmission.
+- **No duplicates.** Importing again updates sensors with the same "mode + PID" instead of adding copies.
+- **Where they appear.** An imported sensor is immediately visible in "Sensor check", in the gauge PID picker and in the AA Dash Nav layout editor. Each sensor also has a one-shot "does the unit answer" test and a live value test.
 
 ---
 
