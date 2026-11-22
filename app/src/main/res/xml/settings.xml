@@ -4,45 +4,149 @@
 
     <PreferenceCategory
         android:singleLineTitle="false"
-        android:title="@string/profile_settings_cat">
-        <Preference
-            android:key="profile_manager"
+        android:title="@string/pref_appearance">
+
+
+        <com.aadash.prefs.ImageListPreference
+            android:entries="@array/Themes"
+            android:entryValues="@array/Themes"
+            android:key="selectedTheme"
+            android:title="@string/pref_theme"
             android:persistent="false"
-            android:title="@string/profile_active"
-            android:summary="" />
+            app:entryImages="@array/ThemesThumbs" />
+        <com.aadash.prefs.ImageListPreference
+            android:entries="@array/fontEntries"
+            android:entryValues="@array/fontValues"
+            android:key="selectedFont"
+            android:title="@string/pref_font"
+            app:entryImages="@array/FontThumbs"
+            android:persistent="false"
+            app:tint="@color/tintColor"
+        />
+        <com.aadash.prefs.ImageListPreference
+            android:entries="@array/backgroundstrings"
+            android:entryValues="@array/backgrounds"
+            app:entryImages="@array/thumbs_backgrounds"
+            android:key="selectedBackground"
+            android:persistent="false"
+            android:title="@string/pref_background" />
+
+        <SwitchPreferenceCompat
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="false"
+            android:key="centerGaugeLarge"
+            android:summaryOff="@string/pref_shrink_gauge_off"
+            android:summaryOn="@string/pref_shrink_gauge_on"
+            android:persistent="false"
+            android:title="@string/pref_shrink_gauge"
+             />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="minMaxBelow"
+            android:summary="@string/minmax_below_desc"
+            android:persistent="false"
+            android:title="@string/minmax_below"
+            />
+
+
+        <EditTextPreference
+            android:inputType="number"
+            android:key="dashboardCount"
+            android:title="@string/num_screens"
+            android:defaultValue="1"
+            android:persistent="false"
+
+            />
+
     </PreferenceCategory>
 
     <PreferenceCategory
         android:singleLineTitle="false"
-        android:title="@string/app_appearance_cat">
-        <ListPreference
-            android:key="app_theme_mode"
-            android:title="@string/app_theme_mode_title"
-            android:summary="%s"
-            android:entries="@array/app_theme_mode_entries"
-            android:entryValues="@array/app_theme_mode_values"
-            android:defaultValue="system" />
-        <com.aadash.prefs.AccentPreference
-            android:key="app_accent_picker"
+        android:title="@string/pref_sizes">
+        <SeekBarPreference
+            android:defaultValue="100"
+            android:key="gaugeScale"
+            android:max="150"
             android:persistent="false"
-            android:title="Акцентный цвет"
-            app:iconSpaceReserved="true" />
+            android:title="@string/pref_sz_gauge"
+            app:min="50"
+            app:showSeekBarValue="true" />
+        <SeekBarPreference
+            android:defaultValue="100"
+            android:key="valueScale"
+            android:max="150"
+            android:persistent="false"
+            android:title="@string/pref_sz_value"
+            app:min="50"
+            app:showSeekBarValue="true" />
+        <SeekBarPreference
+            android:defaultValue="100"
+            android:key="labelScale"
+            android:max="150"
+            android:persistent="false"
+            android:title="@string/pref_sz_label"
+            app:min="50"
+            app:showSeekBarValue="true" />
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            android:key="hideHeader"
+            android:persistent="false"
+            android:summary="@string/pref_sz_header_desc"
+            android:title="@string/pref_sz_header" />
     </PreferenceCategory>
 
     <PreferenceCategory
         android:singleLineTitle="false"
-        android:title="@string/nav_settings_cat"
-        android:key="navCat">
-        <Preference
-            android:key="navEditor"
+        android:title="@string/media">
+        <SwitchPreferenceCompat
+            android:key="showMusic"
             android:persistent="false"
-            android:title="@string/nav_editor_title"
-            android:summary="@string/nav_editor_summary" />
-        <Preference
-            android:key="media_access"
+            android:summary="@string/pref_music_summary"
+            android:title="@string/pref_music_title" />
+        <SwitchPreferenceCompat
+            android:key="mediaBg"
             android:persistent="false"
-            android:title="@string/media_access_title"
-            android:summary="@string/media_access_summary" />
+            android:summary="@string/media_background_summary"
+            android:title="@string/media_background_title" />
+        <SeekBarPreference
+            android:defaultValue="0"
+            android:dependency="mediaBg"
+            android:key="blurArtwork"
+            android:max="30"
+            android:persistent="false"
+            android:summary="@string/media_blur_summary"
+            android:title="@string/media_blur_title"
+            app:min="0"
+            app:showSeekBarValue="true" />
+        <SeekBarPreference
+            android:defaultValue="0"
+            android:dependency="mediaBg"
+            android:key="darkenArtwork"
+            android:max="100"
+            android:persistent="false"
+            android:summary="@string/media_darken_summary"
+            android:title="@string/media_darken_title"
+            app:min="0"
+            app:showSeekBarValue="true" />
+        <SeekBarPreference
+            android:defaultValue="100"
+            android:key="gaugeOpacity"
+            android:max="100"
+            android:persistent="false"
+            android:summary="@string/opacity_summary"
+            android:title="@string/opacity_title"
+            app:min="50"
+            app:showSeekBarValue="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/dashboards"
+        android:key="dashboardsCat">
+
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -56,13 +160,11 @@
 
     <PreferenceCategory
         android:singleLineTitle="false"
-        android:title="@string/obd_exp_journal">
+        android:title="@string/backup_category">
         <Preference
-            android:key="export_regen_log"
-            android:title="@string/export_regen_log" />
-        <Preference
-            android:key="import_regen_log"
-            android:title="@string/import_regen_log" />
+            android:key="backup_restore"
+            android:title="@string/backup_title"
+            android:summary="@string/backup_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory
