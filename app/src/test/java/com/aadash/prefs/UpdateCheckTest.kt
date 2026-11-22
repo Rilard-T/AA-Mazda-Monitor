@@ -9,6 +9,18 @@ import org.junit.Test
 class UpdateCheckTest {
 
     @Test
+    fun apkAssetNameParsesHtml() {
+        val tag = "nav-0.9.0-12"
+        val html = "<a href=\"https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/$tag/AA-Mazda-Monitor-nav.apk\">download</a>"
+        assertEquals("AA-Mazda-Monitor-nav.apk", UpdateCheck.apkAssetName(html, tag))
+    }
+
+    @Test
+    fun apkAssetNameReturnsNullWhenNoApk() {
+        assertNull(UpdateCheck.apkAssetName("<html>no apk</html>", "nav-0.9.0-12"))
+    }
+
+    @Test
     fun tagToVersionCode() {
         assertEquals(8004, UpdateCheck.versionCodeOf("0.8.4"))
         assertEquals(8004, UpdateCheck.versionCodeOf("v0.8.4"))
