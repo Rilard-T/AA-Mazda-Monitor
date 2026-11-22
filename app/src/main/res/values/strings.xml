@@ -137,6 +137,15 @@
     <string name="file_exported_successfully">File exported successfully</string>
     <string name="export_failed">Export failed</string>
     <string name="file_not_available">Export file is not available</string>
+    <string name="backup_category">Backup</string>
+    <string name="backup_title">Back up and restore</string>
+    <string name="backup_summary">Dashboards and regeneration log in one file</string>
+    <string name="backup_export">Export backup</string>
+    <string name="backup_import">Import backup</string>
+    <string name="backup_exported">Backup saved</string>
+    <string name="backup_imported">Backup restored: %1$d regeneration entries</string>
+    <string name="backup_invalid">This is not a backup file</string>
+    <string name="update_corrupt">The downloaded file is corrupted. Please try again.</string>
     <string name="whole_numbers">Whole numbers</string>
     <string name="whole_numbers_desc">Display without decimal places</string>
     <string name="gauge_settings">Gauge Settings</string>
