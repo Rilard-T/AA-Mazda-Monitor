@@ -199,48 +199,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
             startActivity(Intent(requireContext(), com.aadash.obd.ObdSettingsActivity::class.java))
             true
         }
-        findPreference<Preference>("navEditor")?.setOnPreferenceClickListener {
-            startActivity(Intent(requireContext(), com.aadash.nav.NavEditorActivity::class.java))
-            true
-        }
-        findPreference<Preference>("profile_manager")?.setOnPreferenceClickListener {
-            startActivity(Intent(requireContext(), com.aadash.prefs.ProfilesActivity::class.java))
-            true
-        }
-        findPreference<Preference>("media_access")?.setOnPreferenceClickListener {
-            if (!NotiService.isNotificationAccessEnabled(requireContext())) {
-                startActivity(
-                    Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                            putExtra(
-                                Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
-                                NotiService::class.java.canonicalName
-                            )
-                        }
-                    }
-                )
-            } else {
-                android.widget.Toast.makeText(requireContext(), "Доступ уже включён", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            true
-        }
-        findPreference<Preference>("export_regen_log")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).exportRegenLog()
-            true
-        }
-        findPreference<Preference>("import_regen_log")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).importRegenLog()
-            true
-        }
-        findPreference<androidx.preference.ListPreference>("app_theme_mode")?.setOnPreferenceChangeListener { _, newValue ->
-            val mode = when (newValue) {
-                "light" -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
-                "dark" -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
-                else -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            }
-            androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(mode)
-            true
-        }
         findPreference<Preference>("backup_restore")?.setOnPreferenceClickListener {
             (requireActivity() as SettingsActivity).backupRestore()
             true

@@ -257,22 +257,6 @@ class SettingsActivity : AppCompatActivity(),
             .show()
     }
 
-    fun openFile() {
-        importFileLauncher.launch(EXPORT_MIME)
-    }
-
-    fun exportFile() {
-        exportFileLauncher.launch("")
-    }
-
-    fun exportRegenLog() {
-        regenExportLauncher.launch("")
-    }
-
-    fun importRegenLog() {
-        regenImportLauncher.launch("text/plain")
-    }
-
     private fun launchFragment(
         tag: String,
         fragment: Fragment
@@ -334,78 +318,6 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    private val regenExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->
-        if (uri == null) return@registerForActivityResult
-        val tracker = RegenTracker.get(getSharedPreferences(com.aadash.prefs.AppProfiles.obdPrefsName(this@SettingsActivity), MODE_PRIVATE))
-        lifecycleScope.launch(Dispatchers.IO) {
-            val ok = runCatching {
-                contentResolver.openOutputStream(uri)?.use { tracker.exportText().toByteArray(Charsets.UTF_8).let(it::write) } != null
-            }.getOrDefault(false)
-            runOnUiThread {
-                Toast.makeText(
-                    baseContext,
-                    if (ok) R.string.regen_exported else R.string.export_failed,
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-    }
-
-    private val regenImportLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
-        if (uri == null) return@registerForActivityResult
-        val tracker = RegenTracker.get(getSharedPreferences(com.aadash.prefs.AppProfiles.obdPrefsName(this@SettingsActivity), MODE_PRIVATE))
-        lifecycleScope.launch(Dispatchers.IO) {
-            val count = runCatching {
-                contentResolver.openInputStream(uri)
-                    ?.use { tracker.importText(it.readBytes().toString(Charsets.UTF_8)) }
-            }.getOrNull()
-            runOnUiThread {
-                val text = when {
-                    count == null -> getString(R.string.import_failed)
-                    count == 0 -> getString(R.string.regen_import_empty)
-                    else -> getString(R.string.regen_imported, count)
-                }
-                Toast.makeText(baseContext, text, Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private val exportFileLauncher = registerForActivityResult(ExportFileContract()) { uri: Uri? ->
-        lifecycleScope.launch(Dispatchers.IO) {
-            val data = userDataStore(applicationContext).data.first()
-            val result = if (uri != null) {
-                contentResolver.openOutputStream(uri)?.use { outputStream ->
-                    UserPreferenceSerializer.writeTo(data, outputStream)
-                }
-                R.string.file_exported_successfully
-            } else {
-                R.string.export_failed
-            }
-            runOnUiThread {
-                Toast.makeText(baseContext, result, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private val importFileLauncher = registerForActivityResult(ImportFileContract()) { uri: Uri? ->
-        if (uri != null) {
-            val inStream = contentResolver.openInputStream(uri)
-            this@SettingsActivity.lifecycleScope.launch {
-                try {
-                    userDataStore(this@SettingsActivity.applicationContext).updateData {
-                        return@updateData UserPreference.parseFrom(inStream)
-                    }
-                } catch (e: androidx.datastore.preferences.protobuf.InvalidProtocolBufferException) {
-                    Toast.makeText(
-                        baseContext,
-                        R.string.invalid_settings,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-        }
-    }
-
     class TextExportContract : ActivityResultContract<String, Uri?>() {
 
         override fun createIntent(context: Context, input: String): Intent {
@@ -436,20 +348,6 @@ class SettingsActivity : AppCompatActivity(),
             } else {
                 null
             }
-        }
-    }
-
-    class ExportFileContract : ActivityResultContract<String, Uri?>() {
-
-        override fun createIntent(context: Context, input: String): Intent {
-            return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
-                type = EXPORT_MIME
-                putExtra(Intent.EXTRA_TITLE, "dashboards.pb")
-            }
-        }
-
-        override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
-            return if (resultCode == Activity.RESULT_OK) intent?.data else null
         }
     }
 
@@ -703,7 +601,6 @@ class SettingsActivity : AppCompatActivity(),
         private const val PERMISSION_CAR_VENDOR_EXTENSION =
             "com.google.android.gms.permission.CAR_VENDOR_EXTENSION"
         private const val OBD_PREFS = "obd_bridge"
-        const val EXPORT_MIME = "application/octet-stream"
     }
 }
 
