@@ -99,3 +99,17 @@
 3. **Перенос CI-изменений master в nav:** нужны ли nav `testStableDebugUnitTest`-аналог, выровненные версии экшенов v4 и распакованный YAML, или nav остаётся на своём формате?
 4. **План синхронизации общего ядра:** как часто и в каком формате переносить изменения master → nav, чтобы избежать расхождений (например, регулярный cherry-pick по коммитам)?
 5. **Релизные заметки nav:** достаточно ли текущего двуязычного `docs/release-notes-nav.md`, или нужны дополнительные артефакты в релизе?
+
+---
+
+## 10. Обновление: исправления CI (2026-11-22)
+
+- **CI (lint):** устранены 2 ошибки `lintStableRelease`, ломавшие job `lint`: подозрительный отступ в `ObdEngine.kt` (`readSupported(r)`), добавлен `ACCESS_COARSE_LOCATION` в `AndroidManifest.xml` (правило `CoarseFineLocation`).
+- **CI (workflows):** версии экшенов в `release.yml` выровнены до существующих `v4` (`checkout`/`setup-java`/`setup-gradle` были `v7`/`v6`).
+- **Проверено:** `lintStableRelease`, `testStableDebugUnitTest`, `testNavDebugUnitTest`, `lintNavDebug` — BUILD SUCCESSFUL.
+- **Для nav-агента:** CI-фиксы в `ObdEngine.kt` и манифесте затрагивают общее ядро — при переносе изменений master → nav учесть отступ и разрешение локации. Изменения workflow (`release.yml`) касаются только master.
+
+## 11. Статус пуша
+
+- **Пуш выполнен:** remote `origin/master` обновлён (коммиты `9cda653`, `850a850` и предыдущие).
+- **Состояние:** ✅ актуально. Блокеров нет.
