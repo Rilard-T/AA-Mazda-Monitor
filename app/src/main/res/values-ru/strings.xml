@@ -94,15 +94,6 @@
     <string name="file_exported_successfully">Файл экспортирован успешно</string>
     <string name="export_failed">Ошибка экспорта</string>
     <string name="file_not_available">Файл экспорта недоступен</string>
-    <string name="backup_category">Резервная копия</string>
-    <string name="backup_title">Сохранение и восстановление</string>
-    <string name="backup_summary">Панели приборов и журнал прожигов в одном файле</string>
-    <string name="backup_export">Экспортировать резервную копию</string>
-    <string name="backup_import">Импортировать резервную копию</string>
-    <string name="backup_exported">Резервная копия сохранена</string>
-    <string name="backup_imported">Резервная копия восстановлена: записей %1$d</string>
-    <string name="backup_invalid">Это не файл резервной копии</string>
-    <string name="update_corrupt">Скачанный файл повреждён. Попробуйте ещё раз.</string>
     <string name="whole_numbers">Целые значения</string>
     <string name="whole_numbers_desc">Отображать целые значения</string>
     <string name="gauge_settings">Настройки приборов</string>
