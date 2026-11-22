@@ -56,14 +56,4 @@ object UpdateCheck {
             .map { it.groupValues[1] }
             .maxByOrNull { val (code, build) = navTagParams(it)!!; code * 100_000L + build }
     }
-    /**
-     * Имя APK из HTML-списка файлов выпуска (github.com/…/releases/expanded_assets/<тег>).
-     * Имя зависит от сборки, поэтому его нельзя зашивать в код — читаем из самого релиза.
-     * Возвращает имя первого .apk или null, если файлов APK в выпуске нет.
-     */
-    fun apkAssetName(html: String, tag: String): String? {
-        val pattern = Regex("/releases/download/" + Regex.escape(tag) + "/([^\"'?<>\\s]+\\.apk)")
-        return pattern.find(html)?.groupValues?.get(1)
-    }
-
 }
