@@ -33,6 +33,7 @@ import com.aadash.datastore.UserPreference
 import com.aadash.obd.RegenTracker
 import com.aadash.stats.App
 import com.aadash.prefs.AppAccent
+import com.aadash.prefs.userDataStore
 import com.aadash.stats.BuildConfig
 import com.aadash.stats.CreditsFragment
 import com.aadash.stats.R
@@ -42,12 +43,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.IOException
-import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.UnknownHostException
 import javax.net.ssl.HttpsURLConnection
-import javax.net.ssl.SSLException
 
 
 class SettingsActivity : AppCompatActivity(),
@@ -82,7 +80,7 @@ class SettingsActivity : AppCompatActivity(),
                     contentResolver.openInputStream(uri)?.use { ApkDigest.sha256(it) }
                 }
             }.getOrNull()
-            val ok = expected == null || (actual != null && ApkDigest.matches(expected, actual))
+            val ok = ApkDigest.matches(expected, actual.orEmpty())
             runOnUiThread {
                 if (!ok) {
                     runCatching { dm.remove(downloadId) }
@@ -249,7 +247,7 @@ class SettingsActivity : AppCompatActivity(),
                 arrayOf(getString(R.string.backup_export), getString(R.string.backup_import))
             ) { _, which ->
                 if (which == 0) {
-                    backupExportLauncher.launch("")
+                    backupExportLauncher.launch("aa-mazda-backup.txt")
                 } else {
                     backupImportLauncher.launch("text/plain")
                 }
@@ -266,7 +264,7 @@ class SettingsActivity : AppCompatActivity(),
     }
 
     fun exportRegenLog() {
-        regenExportLauncher.launch("")
+        regenExportLauncher.launch("regen-log.csv")
     }
 
     fun importRegenLog() {
@@ -294,7 +292,7 @@ class SettingsActivity : AppCompatActivity(),
         if (uri == null) return@registerForActivityResult
         lifecycleScope.launch(Dispatchers.IO) {
             val ok = runCatching {
-                val data = applicationContext.dataStore.data.first()
+                val data = userDataStore(applicationContext).data.first()
                 val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
                 val text = BackupCodec.encode(data.toByteArray(), tracker.exportText())
                 contentResolver.openOutputStream(uri)
@@ -319,7 +317,7 @@ class SettingsActivity : AppCompatActivity(),
                     ?: return@runCatching null
                 val backup = BackupCodec.decode(text) ?: return@runCatching null
                 val prefs = UserPreference.parseFrom(backup.settings)
-                applicationContext.dataStore.updateData { prefs }
+                userDataStore(applicationContext).updateData { prefs }
                 RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
                     .importText(backup.regenLog)
             }.getOrNull()
@@ -411,7 +409,7 @@ class SettingsActivity : AppCompatActivity(),
         override fun createIntent(context: Context, input: String): Intent {
             return Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TITLE, "aa-mazda-backup.txt")
+                putExtra(Intent.EXTRA_TITLE, if (input.isBlank()) "aa-mazda-backup.txt" else input)
             }
         }
 
@@ -603,8 +601,31 @@ class SettingsActivity : AppCompatActivity(),
      */
     private fun apkAssetName(tag: String, navChannel: Boolean): String? {
         if (navChannel) return BuildConfig.APK_ASSET
-        val candidates = listOf(BuildConfig.APK_ASSET, "app-release.apk")
-        return candidates.firstOrNull { assetExists(tag, it) } ?: candidates.first()
+        assetNameFromReleasePage(tag)?.let { return it }
+        val candidates = listOf("app-release.apk", "app-stable-release.apk", BuildConfig.APK_ASSET)
+        return candidates.firstOrNull { assetExists(tag, it) }
+    }
+
+    /** Список файлов выпуска (releases/expanded_assets/<тег>) → имя первого APK. */
+    private fun assetNameFromReleasePage(tag: String): String? {
+        val conn = URL("${BuildConfig.REPO_URL}/releases/expanded_assets/$tag")
+            .openConnection() as HttpsURLConnection
+        return try {
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                Timber.w("Проверка обновлений: список файлов %s — код %d", tag, conn.responseCode)
+                null
+            } else {
+                conn.inputStream.bufferedReader().use { UpdateCheck.apkAssetName(it.readText(), tag) }
+            }
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: список файлов %s не получен (%s)", tag, e.message)
+            null
+        } finally {
+            conn.disconnect()
+        }
     }
 
     /** Есть ли файл с таким именем в релизе (HEAD без скачивания). */

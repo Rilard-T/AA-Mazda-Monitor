@@ -22,7 +22,7 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
 
       - name: Build Release apk
-        run: echo "" >> ./local.properties && ./gradlew :app:lintStableRelease
+        run: echo "" >> ./local.properties && ./gradlew lintStableRelease
 
   build_deploy:
     runs-on: ubuntu-latest

@@ -14,6 +14,7 @@ import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SeekBarPreference
 import com.aadash.datastore.UserPreference
+import com.aadash.prefs.userDataStore
 import com.aadash.stats.NotiService
 import com.aadash.stats.R
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +68,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
             val intVal = (newValue as String).toInt()
             if (intVal in 1..10) {
                 lifecycleScope.launch {
-                    requireContext().dataStore.updateData { currentSettings ->
+                    userDataStore(requireContext()).updateData { currentSettings ->
                         var bldr = currentSettings.toBuilder()
                         if (bldr.screensCount > intVal) {
                             val keeping = bldr.screensList.subList(0, intVal)
@@ -271,7 +272,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
 
         lifecycleScope.launch {
-            requireContext().dataStore.data.collect {
+            userDataStore(requireContext()).data.collect {
                 themePref.value = it.selectedTheme
                 fontPref.value = it.selectedFont
                 backgroundPref.value = it.selectedBackground
@@ -290,7 +291,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
         }
         lifecycleScope.launch {
-            requireContext().dataStore.data.distinctUntilChangedBy{
+            userDataStore(requireContext()).data.distinctUntilChangedBy{
                 it.screensList.map { it.title }
             }.collect { userPreference ->
                 numScreensPref.text = userPreference.screensCount.toString()
@@ -313,7 +314,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
     private fun updateDatastorePref(updateBuilder: (obj: UserPreference.Builder) -> UserPreference.Builder) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            requireContext().dataStore.updateData { currentSettings ->
+            userDataStore(requireContext()).updateData { currentSettings ->
                 updateBuilder(currentSettings.toBuilder()).build()
             }
         }

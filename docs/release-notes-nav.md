@@ -2,10 +2,12 @@
 
 **Русский**
 
-- Прожиг больше не «висит» после реального окончания: запись закрывается по устойчивому статусу 0, не дожидаясь низкой скорости и EGT.
-- Заметки к релизам nav содержат только список изменений на русском и английском.
+- Резервная копия: настройки, журнал прожига и дашборды сохраняются и восстанавливаются одним файлом.
+- Проверка целостности OTA-обновлений: после скачивания APK сверяется по SHA-256.
+- Восстановлены nav-функции после интеграции общего ядра (экспорт/импорт журнала, редактор раскладки, темы и акцент).
 
 **English**
 
-- A regeneration record no longer hangs after the burn has actually finished: it closes on a stable status 0 instead of waiting for low speed and EGT.
-- nav release notes now contain only a changelog in Russian and English.
+- Backup: settings, regeneration log and dashboards are saved and restored in one file.
+- OTA update integrity: the downloaded APK is verified by SHA-256.
+- nav-specific features restored after merging the shared core (log export/import, layout editor, themes and accent).

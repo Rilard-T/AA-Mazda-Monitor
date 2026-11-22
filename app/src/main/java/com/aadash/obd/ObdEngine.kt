@@ -84,7 +84,7 @@ class ObdEngine(
             r = parse(send("7E0", "0100", 8000), "4100")
         }
         if (r == null) throw IOException(context.getString(R.string.obd_engine_no_response))
-                readSupported(r)
+        readSupported(r)
         Timber.i("Режим 01, заявлено блоком: %s", supported.sorted().joinToString(", ") { "%02X".format(it) })
         failures = 0; okStreak = 0
         lastAnswerAt = System.currentTimeMillis()   // блок ответил на 0100 — зажигание включено
