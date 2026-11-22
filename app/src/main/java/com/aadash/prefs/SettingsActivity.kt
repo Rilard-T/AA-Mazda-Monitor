@@ -17,7 +17,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.util.TypedValue
 import android.view.Menu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContract
@@ -32,7 +31,6 @@ import androidx.preference.PreferenceFragmentCompat
 import com.aadash.datastore.UserPreference
 import com.aadash.obd.RegenTracker
 import com.aadash.stats.App
-import com.aadash.prefs.AppAccent
 import com.aadash.stats.BuildConfig
 import com.aadash.stats.CreditsFragment
 import com.aadash.stats.R
@@ -150,18 +148,8 @@ class SettingsActivity : AppCompatActivity(),
         applicationContext.startActivity(intent)
     }
 
-    /** Инверсный акцент темы: им подкрашивается текст действия в Snackbar на тёмной плашке. */
-    private fun snackbarActionColor(): Int {
-        val value = TypedValue()
-        return if (theme.resolveAttribute(com.google.android.material.R.attr.colorPrimaryInverse, value, true)) {
-            value.data
-        } else {
-            resources.getColor(R.color.snackbarBtnText, theme)
-        }
-    }
-
     public override fun onCreate(savedInstanceState: Bundle?) {
-        AppAccent.applyTo(this)
+        com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
         // Служба OBD больше не поднимается при каждом открытии настроек: адаптер занимается
         // только когда пользователь сам заходит на экран «Подключение к OBD» или запускает AA.
@@ -405,104 +393,38 @@ class SettingsActivity : AppCompatActivity(),
         return true
     }
 
-    private fun checkUpdate(force: Boolean =false): Boolean {
-        Timber.i("Checking for update")
-        if (!BuildConfig.OTA_ENABLED) return true
-
-        // Каналы обновляются из одного репозитория, но по-разному: stable берёт последний
-        // обычный выпуск, nav — предрелиз со своим тегом и своим именем файла.
-        val navChannel = BuildConfig.FLAVOR == "nav"
-        val tagName = if (navChannel) latestNavTag() else stableTag()
-        if (tagName.isNullOrBlank()) return false   // нет связи или в выпуске нет подходящего тега
-
-        // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
-        // «0.10.0» новее «0.9.1», хотя посимвольно это не так. Для nav важен ещё номер сборки.
-        val needsUpdate = if (navChannel) {
-            UpdateCheck.isNewerNav(
-                tagName,
-                BuildConfig.VERSION_CODE,
-                UpdateCheck.navBuildOf(BuildConfig.VERSION_NAME)
-            )
-        } else {
-            UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
-        }
-        if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
-        var downloadItem: String? = null
-        if (needsUpdate == true) {
-            val apk = apkAssetName(tagName, navChannel)
-            if (apk != null) {
-                downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/$apk"
-                pendingTag = tagName
-                pendingApkName = apk
-            }
-        }
-
-        if (needsUpdate == true && downloadItem != null) {
-            Snackbar.make(
-                findViewById(android.R.id.content),
-                R.string.new_version,
-                Snackbar.LENGTH_LONG
-            )
-                .setDuration(10000)
-                // Цвет действия в Snackbar берём из темы (инверсный акцент), а не из синей
-                // константы приборной панели: иначе текст остаётся синим при другом акценте.
-                .setActionTextColor(snackbarActionColor())
-                .setAction(R.string.download) {
-                    ContextCompat.registerReceiver(
-                        baseContext,
-                        br,
-                        IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                        ContextCompat.RECEIVER_EXPORTED
-                    )
-                    // Сохраняем под тем же именем, что в релизе: у каналов они разные.
-                    val fileName = downloadItem.substringAfterLast('/')
-                    val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
-                    downloadRequest.setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS,
-                        fileName
-                    )
-                    downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    runCatching {
-                        java.io.File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                            fileName
-                        ).delete()
-                    }
-                    val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
-                    dm.enqueue(downloadRequest)
-                    // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
-                    Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
-
-                    Toast.makeText(
-                        baseContext,
-                        R.string.download_instructions,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }.show()
-        }
-
-        if (needsUpdate != true && force) {
-            runOnUiThread {
-                Toast.makeText(
-                    this,
-                    getString(R.string.update_latest, BuildConfig.VERSION_NAME),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        return true
+    /**
+     * Имя APK в релизе. Оно зависит от сборки: старые выпуски (0.8.9) выложены как
+     * app-release.apk, а сборка с флейворами кладёт app-stable-release.apk, поэтому
+     * имя нельзя угадывать — читаем список файлов выпуска (это не API, лимита нет).
+     * Если страница недоступна, проверяем известные имена HEAD-запросом; null — APK нет.
+     */
+    private fun apkAssetName(tag: String): String? {
+        assetNameFromReleasePage(tag)?.let { return it }
+        val candidates = listOf("app-release.apk", "app-stable-release.apk", "aa-torque.apk")
+        return candidates.firstOrNull { assetExists(tag, it) }
     }
 
-    /**
-     * Имя APK в релизе. У nav оно своё (app-nav-release.apk — так называется файл сборки),
-     * а у stable исторически два: старые выпуски выложены как app-release.apk, новые
-     * ci.yml переименовывает в aa-torque.apk. Берём то, что реально есть в выпуске.
-     */
-    private fun apkAssetName(tag: String, navChannel: Boolean): String? {
-        if (navChannel) return BuildConfig.APK_ASSET
-        val candidates = listOf(BuildConfig.APK_ASSET, "app-release.apk")
-        return candidates.firstOrNull { assetExists(tag, it) } ?: candidates.first()
+    /** Список файлов выпуска (releases/expanded_assets/<тег>) → имя первого APK. */
+    private fun assetNameFromReleasePage(tag: String): String? {
+        val conn = URL("${BuildConfig.REPO_URL}/releases/expanded_assets/$tag")
+            .openConnection() as HttpsURLConnection
+        return try {
+            conn.instanceFollowRedirects = true
+            conn.connectTimeout = 10_000
+            conn.readTimeout = 10_000
+            if (conn.responseCode != HttpURLConnection.HTTP_OK) {
+                Timber.w("Проверка обновлений: список файлов %s — код %d", tag, conn.responseCode)
+                null
+            } else {
+                conn.inputStream.bufferedReader().use { UpdateCheck.apkAssetName(it.readText(), tag) }
+            }
+        } catch (e: IOException) {
+            Timber.w("Проверка обновлений: список файлов %s не получен (%s)", tag, e.message)
+            null
+        } finally {
+            conn.disconnect()
+        }
     }
 
     /** Есть ли файл с таким именем в релизе (HEAD без скачивания). */
@@ -523,54 +445,117 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    /**
-     * Тег последнего обычного выпуска: GitHub отвечает редиректом с /releases/latest
-     * на /releases/tag/<тег>. Редирект не выполняется — тег читается из Location,
-     * чтобы не тратить лимит GitHub API (60 запросов в час без токена).
-     */
-    private fun stableTag(): String? {
-        val conn = URL(BuildConfig.RELEASE_URL).openConnection() as HttpsURLConnection
-        conn.instanceFollowRedirects = false
-        return try {
-            conn.connect()
-            val code = conn.responseCode
-            if (code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM) {
-                // Location: https://github.com/.../releases/tag/0.8.6
-                conn.getHeaderField("Location")?.substringAfterLast("/tag/")?.substringBefore("?")
-            } else {
-                Timber.w("Проверка обновлений: GitHub ответил %d", code)
-                null
-            }
+    private fun checkUpdate(force: Boolean =false): Boolean {
+        Timber.i("Checking for update")
+
+        var needsUpdate: Boolean? = null
+        var checked = false
+        var downloadItem: String? = null
+
+        val url = URL(BuildConfig.RELEASE_URL)
+        val urlConnection = url.openConnection() as HttpsURLConnection
+        // Не следуем редиректу автоматически — читаем Location, чтобы получить тег релиза.
+        // Это обходит лимит GitHub API (60 req/ч без токена), который давал 403.
+        urlConnection.instanceFollowRedirects = false
+        try {
+            urlConnection.connect()
+        } catch (e: UnknownHostException) {
+            Timber.w("Проверка обновлений: нет сети (%s)", e.message)
+            return false
+        } catch (e: ConnectException) {
+            Timber.w("Проверка обновлений: GitHub недоступен (%s)", e.message)
+            return false
+        } catch (e: SSLException) {
+            Timber.w("Проверка обновлений: ошибка TLS (%s)", e.message)
+            return false
         } catch (e: IOException) {
             Timber.w("Проверка обновлений: ошибка сети (%s)", e.message)
-            null
-        } finally {
-            conn.disconnect()
+            return false
         }
-    }
-
-    /**
-     * Тег последней сборки канала nav. У nav свой префикс тега (nav-…), поэтому его выпуски
-     * берутся из atom-ленты релизов, а не из /releases/latest; лента отдаётся как обычный
-     * файл и не расходует лимит GitHub API.
-     */
-    private fun latestNavTag(): String? {
-        val conn = URL(BuildConfig.RELEASES_FEED).openConnection() as HttpsURLConnection
-        conn.connectTimeout = 10_000
-        conn.readTimeout = 10_000
-        return try {
-            conn.inputStream.bufferedReader().use { UpdateCheck.newestNavTag(it.readText()) }
-        } catch (e: IOException) {
-            Timber.w("Проверка обновлений: лента недоступна (%s)", e.message)
-            null
-        } catch (e: RuntimeException) {
-            Timber.w("Проверка обновлений: лента не разобрана (%s)", e.message)
-            null
+        try {
+            val code = urlConnection.responseCode
+            if (code == HttpURLConnection.HTTP_MOVED_TEMP || code == HttpURLConnection.HTTP_MOVED_PERM || code == 302 || code == 301) {
+                val location = urlConnection.getHeaderField("Location")
+                // Location: https://github.com/.../releases/tag/0.8.6
+                val tagName = location?.substringAfterLast("/tag/")?.substringBefore("?")
+                checked = true
+                // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
+                // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
+                needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
+                if (needsUpdate == true && !tagName.isNullOrBlank()) {
+                    val apk = apkAssetName(tagName)
+                    if (apk == null) {
+                        Timber.w("Проверка обновлений: в выпуске %s нет APK", tagName)
+                    } else {
+                        downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/$apk"
+                        pendingTag = tagName
+                        pendingApkName = apk
+                    }
+                }
+                if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
+            } else {
+                Timber.w("Проверка обновлений: GitHub ответил %d", code)
+            }
+        } catch (e: Exception) {
+            Timber.e("Failed on update check: %s", e.message)
         } finally {
-            conn.disconnect()
+            urlConnection.disconnect()
         }
-    }
 
+
+        if (needsUpdate == true && downloadItem != null) {
+            Snackbar.make(
+                findViewById(android.R.id.content),
+                R.string.new_version,
+                Snackbar.LENGTH_LONG
+            )
+                .setDuration(10000)
+                .setActionTextColor(resources.getColor(R.color.snackbarBtnText, theme))
+                .setAction(R.string.download) {
+                    ContextCompat.registerReceiver(
+                        baseContext,
+                        br,
+                        IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                        ContextCompat.RECEIVER_EXPORTED
+                    )
+                    val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
+                    downloadRequest.setDestinationInExternalPublicDir(
+                        Environment.DIRECTORY_DOWNLOADS,
+                        "aa-mazda-monitor.apk"
+                    )
+                    downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                    runCatching {
+                        java.io.File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            "aa-mazda-monitor.apk"
+                        ).delete()
+                    }
+                    val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                    dm.enqueue(downloadRequest)
+                    // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
+                    Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
+
+                    Toast.makeText(
+                        baseContext,
+                        R.string.download_instructions,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }.show()
+        }
+
+        if (needsUpdate != true && force) {
+            if (!checked) return false        // нет связи, нет выпуска или в нём нет APK
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    getString(R.string.update_latest, BuildConfig.VERSION_NAME),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        return true
+    }
 
     fun logsToClipboard() {
         val logs = (application as App).logTree.logToString()
