@@ -6,6 +6,13 @@
         android:singleLineTitle="false"
         android:title="@string/pref_appearance">
 
+        <ListPreference
+            android:key="app_theme_mode"
+            android:title="@string/app_theme_mode_title"
+            android:summary="%s"
+            android:entries="@array/app_theme_mode_entries"
+            android:entryValues="@array/app_theme_mode_values"
+            android:defaultValue="system" />
 
         <com.aadash.prefs.ImageListPreference
             android:entries="@array/Themes"
@@ -156,6 +163,43 @@
             android:key="open_obd_settings"
             android:title="@string/action_obd"
             android:summary="@string/section_obd_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/nav_settings_cat"
+        android:key="navCat">
+        <Preference
+            android:key="navEditor"
+            android:persistent="false"
+            android:title="@string/nav_editor_title"
+            android:summary="@string/nav_editor_summary" />
+        <Preference
+            android:key="media_access"
+            android:persistent="false"
+            android:title="@string/media_access_title"
+            android:summary="@string/media_access_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/profile_settings_cat">
+        <Preference
+            android:key="profile_manager"
+            android:persistent="false"
+            android:title="@string/profile_active"
+            android:summary="" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:singleLineTitle="false"
+        android:title="@string/obd_exp_journal">
+        <Preference
+            android:key="export_regen_log"
+            android:title="@string/export_regen_log" />
+        <Preference
+            android:key="import_regen_log"
+            android:title="@string/import_regen_log" />
     </PreferenceCategory>
 
     <PreferenceCategory
