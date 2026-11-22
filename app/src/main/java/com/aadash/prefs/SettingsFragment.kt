@@ -199,20 +199,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
             startActivity(Intent(requireContext(), com.aadash.obd.ObdSettingsActivity::class.java))
             true
         }
-        findPreference<Preference>("export_regen_log")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).exportRegenLog()
-            true
-        }
-        findPreference<Preference>("import_regen_log")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).importRegenLog()
-            true
-        }
-        findPreference<Preference>("export_dashboards")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).exportFile()
-            true
-        }
-        findPreference<Preference>("import_dashboards")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).openFile()
+        findPreference<Preference>("backup_restore")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).backupRestore()
             true
         }
         findPreference<Preference>("open_experimental")?.setOnPreferenceClickListener {
