@@ -45,7 +45,6 @@ class RegenTracker internal constructor(
     private val log = ArrayList<RegenEntry>().apply { addAll(parseLog(prefs.getString("rg_soot_log", "") ?: "")) }
 
     private var lastStatus: Int? = null          // статус прожига от блока (DID 0380): 0 нет, не 0 идёт (различие 1 и 2 не подтверждено)
-    private var lastNonZeroStatus: Int = 0        // последний ненулевой статус — для гистерезиса короткого сброса
     private var activeSince: Long = 0L            // момент, когда прожиг стал активным
     private var statusSeenAt = 0L
     private var midSession = false         // подключились, когда прожиг уже шёл: запись не ведём, но флаг ставим по выдержке
@@ -99,7 +98,6 @@ class RegenTracker internal constructor(
         val now = clock()
         val newSession = statusSeenAt == 0L || now - statusSeenAt > 60_000
         statusSeenAt = now
-        if (s >= 1) lastNonZeroStatus = s
         if (lastStatus != s) Timber.i(
             "Статус прожига: %s -> %s (%s); сажа %.2f г/л, EGT %s °C, скорость %s км/ч",
             lastStatus, s,
@@ -272,14 +270,11 @@ class RegenTracker internal constructor(
     @Synchronized fun regenActive(): Boolean = active
 
     /** Статус прожига от блока: 0 — нет, 1/2 — идёт. Доступен, только если блок отвечал недавно. */
-    @Synchronized fun regenStatus(): Int =
-        if (active && (lastStatus ?: 0) == 0 && lastNonZeroStatus != 0) lastNonZeroStatus else (lastStatus ?: 0)
+    @Synchronized fun regenStatus(): Int = lastStatus ?: 0
 
     @Synchronized fun regenStatusAvailable(): Boolean = statusAvailable(clock())
     /** Статус от блока (0/1/2), если он сейчас приходит, иначе null. */
-    @Synchronized fun liveStatus(): Int? = if (statusAvailable(clock())) {
-        if (active && (lastStatus ?: 0) == 0 && lastNonZeroStatus != 0) lastNonZeroStatus else lastStatus
-    } else null
+    @Synchronized fun liveStatus(): Int? = if (statusAvailable(clock())) lastStatus else null
     @Synchronized fun history(): List<RegenEntry> = ArrayList(log)
 
     /** Журнал прожигов и интервалы в текстовом виде: одна запись — одна строка, поля через «;». */

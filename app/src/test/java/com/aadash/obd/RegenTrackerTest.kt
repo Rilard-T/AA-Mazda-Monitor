@@ -180,6 +180,25 @@ class RegenTrackerTest {
     }
 
     @Test
+    fun displayStatusFollowsBlockWithoutJournalHold() {
+        // Плашка должна гаснуть сразу по статусу 0, хотя журнал ещё выдерживает 10 минут,
+        // чтобы отличить короткий сброс от окончания прожига.
+        var now = 5_000_000L
+        val tracker = RegenTracker(FakePrefs(mapOf("rg_count" to 1))) { now }
+        tracker.onStatus(0)
+        tracker.onStatus(2, egt = 500.0, speed = 80.0)
+        now += 31_000
+        tracker.onStatus(2, egt = 500.0, speed = 80.0)
+        assertTrue(tracker.regenActive())
+
+        now += 200_000
+        tracker.onStatus(0, egt = 500.0, speed = 80.0)
+        assertEquals(0, tracker.regenStatus())
+        assertEquals(0, tracker.liveStatus())
+        assertTrue(tracker.regenActive())
+    }
+
+    @Test
     fun invalidSootValuesAreIgnored() {
         val tracker = RegenTracker(FakePrefs(mapOf("rg_count" to 2)))
         repeat(3) { tracker.onSoot(35.0) }   // выше рабочего диапазона — мусор
