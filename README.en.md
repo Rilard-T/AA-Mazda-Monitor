@@ -12,12 +12,12 @@ Two **Android Auto** apps that show car data on the head unit screen. Both talk 
 
 ## Downloads
 
-| App | Version | APK | Release |
-|---|---|---|---|
-| **AA Mazda Monitor** (`master` branch) | 0.9.0 | [app-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/0.9.0/app-release.apk) | [0.9.0](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/0.9.0) |
-| **AA Dash Nav** (`nav` branch) | 0.9.0-nav.20 | [app-nav-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/nav-0.9.0-20/app-nav-release.apk) | [nav-0.9.0-20](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/nav-0.9.0-20) |
+| App | APK | Release |
+|---|---|---|
+| **AA Mazda Monitor** (`master` branch) | [app-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/latest/download/app-release.apk) | [latest release](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/latest) |
+| **AA Dash Nav** (`nav` branch) | [app-nav-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/nav-latest/app-nav-release.apk) | [latest channel build](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/nav-latest) |
 
-All builds: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases). Both are signed with the same key, so a new build installs over the previous one without uninstalling the app or losing settings.
+These links are permanent: they always point to the latest build of their channel, so they never need updating on release. All builds: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases). Both are signed with the same key, so a new build installs over the previous one without uninstalling the app or losing settings.
 
 ---
 
@@ -75,7 +75,7 @@ These are not an "old" and a "new" version of one product, but two different app
 | Media | line under the centre gauge | now-playing card |
 | Sensors and tiles | more ready-made "View 1–4" tiles, experimental soot tools | gauges, values and media in the layout, sensor per element |
 | Package and icon | `com.aamazda.monitor`, dark dial | `com.aadash.nav`, blue dial with a **β** mark |
-| Release tag and file | `0.9.0`, `app-release.apk` | `nav-0.9.0-20`, `app-nav-release.apk` |
+| Release tag and file | `0.9.0`, `app-release.apk` | `nav-<version>-<build number>`, `app-nav-release.apk` |
 | Updates | latest regular release | latest `nav` channel release, build number is compared too |
 
 Each channel has its own CI and releases; the `nav` branch is not merged into `master`.
@@ -134,7 +134,7 @@ Long-press an element to open its menu, drag to move it, use the corner handle t
 
 **Regeneration.** The regeneration status from the engine unit (`22 0380`) is shown as a banner: `0` — no regeneration, `1` or `2` — a regeneration is running. The banner can be placed in the header or the first row, and its shift, size and colours can be changed; it hides itself after the regeneration ends. The regeneration log is kept automatically; export and import are in settings, in the regeneration log section.
 
-**Updates.** The app checks the releases of the `nav` channel; tags look like `nav-0.9.0-20`, and the version and build number are compared. Manual check: **"About" → "Check for updates"**.
+**Updates.** The app checks the releases of the `nav` channel; tags look like `nav-<version>-<build number>`, and the version and build number are compared. Manual check: **"About" → "Check for updates"**.
 
 A short feature summary for release notes is in [`docs/NAV_FEATURES.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/NAV_FEATURES.md), the roadmap is in [`docs/PLAN_NAV.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/PLAN_NAV.md); both live in the `nav` branch.
 
