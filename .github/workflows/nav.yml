@@ -51,6 +51,19 @@ jobs:
             # К релизу прикладываются только списки изменений на двух языках.
             cat docs/release-notes-nav.md
           } > "$RUNNER_TEMP/release-notes.md"
+          # --latest=false: /releases/latest должен оставаться за стабильным каналом master.
           gh release create "$tag" app/build/outputs/apk/nav/release/*.apk \
             --target "$GITHUB_SHA" --title "$tag" \
-            --notes-file "$RUNNER_TEMP/release-notes.md"
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --latest=false
+          # Постоянный ярлык nav-latest: на него ведут ссылки скачивания в README.
+          # Файл перезаписывается каждой сборкой, поэтому README не нужно править.
+          apk=$(ls app/build/outputs/apk/nav/release/*.apk | head -n1)
+          if gh release view nav-latest >/dev/null 2>&1; then
+            gh release upload nav-latest "$apk" --clobber
+          else
+            gh release create nav-latest "$apk" \
+              --target "$GITHUB_SHA" --title "AA Dash Nav — последняя сборка" \
+              --notes "Последняя сборка канала nav. Файл обновляется автоматически." \
+              --prerelease
+          fi

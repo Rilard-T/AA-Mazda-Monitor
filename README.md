@@ -12,12 +12,12 @@
 
 ## Скачивание
 
-| Приложение | Версия | APK | Релиз |
-|---|---|---|---|
-| **AA Mazda Monitor** (ветка `master`) | 0.9.0 | [app-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/0.9.0/app-release.apk) | [0.9.0](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/0.9.0) |
-| **AA Dash Nav** (ветка `nav`) | 0.9.0-nav.20 | [app-nav-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/nav-0.9.0-20/app-nav-release.apk) | [nav-0.9.0-20](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/nav-0.9.0-20) |
+| Приложение | APK | Релиз |
+|---|---|---|
+| **AA Mazda Monitor** (ветка `master`) | [app-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/latest/download/app-release.apk) | [последний релиз](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/latest) |
+| **AA Dash Nav** (ветка `nav`) | [app-nav-release.apk](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/download/nav-latest/app-nav-release.apk) | [последняя сборка канала](https://github.com/Rilard-T/AA-Mazda-Monitor/releases/tag/nav-latest) |
 
-Все сборки: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases). Обе версии подписаны одним ключом, поэтому новая сборка ставится поверх предыдущей без удаления приложения и потери настроек.
+Ссылки постоянные: всегда ведут на последнюю сборку своего канала, обновлять их при выпуске не нужно. Все сборки: [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases). Обе версии подписаны одним ключом, поэтому новая сборка ставится поверх предыдущей без удаления приложения и потери настроек.
 
 ---
 
@@ -75,7 +75,7 @@
 | Медиа | строка под центральным прибором | карточка играющего трека |
 | Датчики и плитки | больше готовых плиток «Вид 1–4», экспериментальные функции по саже | приборы, значения и медиа в раскладке, выбор датчика для каждого элемента |
 | Пакет и иконка | `com.aamazda.monitor`, тёмная шкала | `com.aadash.nav`, синяя шкала с меткой **β** |
-| Тег релиза и файл | `0.9.0`, `app-release.apk` | `nav-0.9.0-20`, `app-nav-release.apk` |
+| Тег релиза и файл | `0.9.0`, `app-release.apk` | `nav-<версия>-<номер сборки>`, `app-nav-release.apk` |
 | Обновления | последний обычный релиз | последний релиз канала `nav`, сравниваются версия и номер сборки |
 
 У каждого канала свой CI и свои релизы; ветка `nav` не сливается в `master`.
@@ -134,7 +134,7 @@
 
 **Прожиг.** Статус прожига от блока (`22 0380`) показывается плашкой: `0` — прожига нет, `1` или `2` — прожиг идёт. Плашку можно поставить в шапку или в первую строку, изменить её сдвиг, размер и цвета; после завершения прожига она скрывается сама. Журнал прожигов ведётся автоматически, экспорт и импорт — в настройках, раздел журнала прожигов.
 
-**Обновления.** Приложение проверяет релизы канала `nav`; теги имеют вид `nav-0.9.0-20`, сравниваются версия и номер сборки. Проверка вручную: **«О приложении» → «Проверить обновления»**.
+**Обновления.** Приложение проверяет релизы канала `nav`; теги имеют вид `nav-<версия>-<номер сборки>`, сравниваются версия и номер сборки. Проверка вручную: **«О приложении» → «Проверить обновления»**.
 
 Краткая сводка возможностей для заметок к релизу — [`docs/NAV_FEATURES.md`](docs/NAV_FEATURES.md), планы развития — [`docs/PLAN_NAV.md`](docs/PLAN_NAV.md).
 
