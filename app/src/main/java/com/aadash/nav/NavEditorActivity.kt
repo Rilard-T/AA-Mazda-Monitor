@@ -180,8 +180,9 @@ class NavEditorActivity : AppCompatActivity() {
         previewFrame = NavAspectFrame(this)
         previewFrame.aspect = currentAspect()
         // Портрет телефона как пропорция предпросмотра даёт очень высокий холст: без ограничения он
-        // вытеснял панель с кнопками за нижний край экрана. Ширину предпросмотр считает сам.
-        previewFrame.maxHeight = if (landscape) 0 else (resources.displayMetrics.heightPixels * 0.45f).toInt()
+        // вытеснял панель с кнопками за нижний край экрана. 60 % оставляют панели место для прокрутки,
+        // но холст при этом заметно крупнее прежних 45 %. Ширину предпросмотр считает сам.
+        previewFrame.maxHeight = if (landscape) 0 else (resources.displayMetrics.heightPixels * 0.60f).toInt()
         previewFrame.elevation = dp(4).toFloat()
         previewFrame.clipToOutline = true
         previewFrame.background = GradientDrawable().apply {

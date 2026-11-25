@@ -108,17 +108,15 @@ class NavEditorView(context: Context) : View(context) {
 
     private fun computeArea() {
         val pad = 12f * density
-        // Сначала полотно без полосы шапки, чтобы масштаб плашки шёл от самого полотна (как от
-        // области на экране машины), затем тесним полотно под эту полосу.
-        layoutArea(pad, 0f)
-        val header = if (regen.enabled && regen.placement == RegenBanner.PLACEMENT_HEADER) bannerHeight() + pad / 2f else 0f
-        layoutArea(pad, header)
+        // Плашка прожига рисуется поверх холста и не отнимает под себя полосу: полоса уменьшала
+        // высоту, а вместе с ней по пропорции и ширину холста — предпросмотр становился крошечным.
+        layoutArea(pad)
     }
 
-    /** Пропорционально вписать полотно в вид, оставив сверху полосу шапки [header]. */
-    private fun layoutArea(pad: Float, header: Float) {
+    /** Пропорционально вписать полотно в вид. */
+    private fun layoutArea(pad: Float) {
         val availW = max(1f, width - 2f * pad)
-        val availH = max(1f, height - 2f * pad - header)
+        val availH = max(1f, height - 2f * pad)
         val w: Float
         val h: Float
         if (availW / availH > aspect) {
@@ -129,7 +127,7 @@ class NavEditorView(context: Context) : View(context) {
             h = w / aspect
         }
         val l = (width - w) / 2f
-        val t = header + (height - header - h) / 2f
+        val t = (height - h) / 2f
         area.set(l, t, l + w, t + h)
     }
 
