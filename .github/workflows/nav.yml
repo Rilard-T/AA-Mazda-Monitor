@@ -67,3 +67,22 @@ jobs:
               --notes "Последняя сборка канала nav. Файл обновляется автоматически." \
               --prerelease
           fi
+          # GitHub вешает бейдж Latest на последний созданный релиз, то есть на сборку nav,
+          # и /releases/latest (ссылка на стабильный APK в README) уезжает на неё.
+          # Возвращаем бейдж самому свежему стабильному тегу с опубликованным релизом.
+          stable=""
+          for t in $(git ls-remote --tags origin 'refs/tags/*' \
+            | sed 's|.*refs/tags/||; s|\^{}$||' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -uVr); do
+            if [ -n "$(gh release view "$t" --json isDraft,isPrerelease \
+                  -q 'select(.isDraft == false and .isPrerelease == false) | .tagName')" ]; then
+              stable="$t"
+              break
+            fi
+          done
+          if [ -n "$stable" ]; then
+            gh release edit "$stable" --latest
+            echo "Latest → $stable"
+          else
+            echo "Опубликованных стабильных релизов нет, Latest не трогаем"
+          fi
