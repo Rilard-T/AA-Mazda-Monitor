@@ -71,15 +71,11 @@ jobs:
           # и /releases/latest (ссылка на стабильный APK в README) уезжает на неё.
           # Возвращаем бейдж самому свежему стабильному тегу с опубликованным релизом.
           stable=""
-          for t in $(git ls-remote --tags origin 'refs/tags/*' \
-            | sed 's|.*refs/tags/||; s|\^{}$||' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -uVr); do
-            if [ -n "$(gh release view "$t" --json isDraft,isPrerelease \
-                  -q 'select(.isDraft == false and .isPrerelease == false) | .tagName')" ]; then
-              stable="$t"
-              break
-            fi
-          done
+          stable=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name
+                  | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | sort -uV | tail -n1)
+          echo "Стабильный релиз для Latest: ${stable:-не найден}" >> "$GITHUB_STEP_SUMMARY"
           if [ -n "$stable" ]; then
             gh release edit "$stable" --latest
             echo "Latest → $stable"
