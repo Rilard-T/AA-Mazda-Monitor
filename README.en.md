@@ -2,7 +2,7 @@
 
 # AA Mazda Monitor and AA Dash Nav
 
-Two **Android Auto** apps that show car data on the head unit screen. Both talk directly to an **ELM327** adapter over Bluetooth, BLE or Wi-Fi — no Torque Pro. Parameters are tuned for the **Mazda SkyActiv-D** diesel (verified on a Mazda 3 BP 2020, 1.8): DPF, regenerations, temperatures, boost, fuel consumption.
+Two **Android Auto** apps that show car data on the head unit screen. Both talk directly to an **ELM327** adapter over Bluetooth, BLE or Wi-Fi — no Torque Pro. Parameters are tuned for the **Mazda SkyActiv-D** diesel (verified on a Mazda 3 BP 2020, 1.8): DPF, regenerations, temperatures, boost, fuel consumption. The Mazda focus is a ready-made sensor set, not a restriction: the app is meant for any car that reports standard OBD-II parameters, and missing sensors can be added as custom PIDs.
 
 [**AA Mazda Monitor**](#aa-mazda-monitor-master) is the mature app with a projected gauge dashboard. [**AA Dash Nav**](#aa-dash-nav-nav) is the newer app built on Car App Library templates, with a layout editor and graphs. They are two independent products: both can live on the same phone, and their settings and logs do not overlap.
 
@@ -234,6 +234,7 @@ Where to start: download an APK from the table above, install it with AAEnabler,
 ## Limitations
 
 - The parameters were verified on a **Mazda 3 (BP) 2020, SkyActiv-D 1.8**. Other SkyActiv-D models may have different PID sets, and some PIDs may not answer.
+- The car does not have to be a Mazda: the basic sensors (RPM, speed, temperatures, boost, fuel consumption, voltage) come from standard OBD-II and work with any ELM327 adapter. Mazda-specific PIDs (`22` mode) simply will not answer on other makes; everything else keeps working.
 - Reading and clearing trouble codes (DTC) is not supported.
 - BLE and Wi-Fi have not been tested with every adapter model.
 - The default 6.5 g/L soot threshold is an average; the unit may also start a regeneration by distance, so treat "DPF, %" as an estimate.
