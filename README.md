@@ -219,7 +219,7 @@ Android Auto показывает в списке только приложен�
 | [`docs/PID_PROFILES.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/PID_PROFILES.md) | как добавить датчик и подготовить профиль PID для другой модели SkyActiv-D (ветка `nav`) |
 | [`docs/RELEASING.md`](docs/RELEASING.md) | правила выпуска и ключ подписи (документ для владельца) |
 | [`docs/AA_MAZDA_MONITOR.md`](docs/AA_MAZDA_MONITOR.md) | подробное описание AA Mazda Monitor: установка, типы подключения, экспериментальные функции, FAQ; [английская версия](docs/AA_MAZDA_MONITOR.en.md) |
-| [`docs/HANDOFF_MASTER.md`](docs/HANDOFF_MASTER.md), [`docs/NAV_TO_MASTER.md`](docs/NAV_TO_MASTER.md) | служебные заметки о переносе изменений `nav` → `master` |
+| [`docs/MASTER_TO_NAV.md`](docs/MASTER_TO_NAV.md), [`docs/NAV_TO_MASTER.md`](docs/NAV_TO_MASTER.md) | служебные заметки обмена изменениями между `master` и `nav` |
 | [`docs/release-notes-*.md`](docs) | тексты заметок к релизам AA Mazda Monitor |
 | [`CHANGELOG.md`](CHANGELOG.md) | история версий AA Mazda Monitor |
 | [`version.properties`](version.properties) | текущая версия; поднимается при выпуске |

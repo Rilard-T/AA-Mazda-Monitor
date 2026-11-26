@@ -219,7 +219,7 @@ In both apps: **"OBD connection" → "Custom PIDs"**. A sensor can be added by h
 | [`docs/PID_PROFILES.md`](https://github.com/Rilard-T/AA-Mazda-Monitor/blob/nav/docs/PID_PROFILES.md) | how to add a sensor and prepare a PID profile for another SkyActiv-D model (`nav` branch) |
 | [`docs/RELEASING.md`](docs/RELEASING.md) | release rules and the signing key (owner document) |
 | [`docs/AA_MAZDA_MONITOR.en.md`](docs/AA_MAZDA_MONITOR.en.md) | full AA Mazda Monitor description: installation, connection types, experimental tools, FAQ; [Russian version](docs/AA_MAZDA_MONITOR.md) |
-| [`docs/HANDOFF_MASTER.md`](docs/HANDOFF_MASTER.md), [`docs/NAV_TO_MASTER.md`](docs/NAV_TO_MASTER.md) | internal notes on moving `nav` changes into `master` |
+| [`docs/MASTER_TO_NAV.md`](docs/MASTER_TO_NAV.md), [`docs/NAV_TO_MASTER.md`](docs/NAV_TO_MASTER.md) | internal notes on exchanging changes between `master` and `nav` |
 | [`docs/release-notes-*.md`](docs) | AA Mazda Monitor release notes |
 | [`CHANGELOG.md`](CHANGELOG.md) | AA Mazda Monitor version history |
 | [`version.properties`](version.properties) | current version; bumped on release |
