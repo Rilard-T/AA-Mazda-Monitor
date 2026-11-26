@@ -142,40 +142,15 @@ A short feature summary for release notes is in [`docs/NAV_FEATURES.md`](https:/
 
 ## Installation
 
-Android Auto only lists apps installed in a special way, so tapping an APK file will not work: use **AAEnabler** or **ADB from a PC** (the alternative method is below). The main path is installing the APK with **AAEnabler** (<https://github.com/malebuffy/AAEnabler>); the procedure is the same for both apps.
+Android Auto only lists apps installed in a special way, so tapping an APK file will not work: use **AAEnabler**. The main path is installing the APK with **AAEnabler** (<https://github.com/malebuffy/AAEnabler>); the procedure is the same for both apps.
 
 1. Install AAEnabler and allow it to install apps from this source.
 2. Open AAEnabler → **"Select local APK"** → pick `app-release.apk` or `app-nav-release.apk`. A card with the app name, version, SDK and **"Android Auto metadata detected"** should appear. Tap **"Install app"**.
 3. Enable developer mode in Android Auto (tap the version number ten times) and allow **"Unknown sources"**. The app will appear in the AA list.
 
-**About Shizuku.** Installation used to require **Shizuku** (ADB on the phone itself, available on Google Play), and older instructions go through it: Shizuku → "Pairing" → "Start" → "X apps available" → grant the permission to AAEnabler. **Shizuku is not required now:** AAEnabler does not need it and installs the APK itself; permission to install from this source is enough. Shizuku remains a handy fallback if the installer misbehaves, and is useful for other ADB tasks.
+**About Shizuku.** Installation used to require **Shizuku** (ADB on the phone itself, available on Google Play), and older instructions go through it: Shizuku → "Pairing" → "Start" → "X apps available" → grant the permission to AAEnabler. **Shizuku is not required now:** AAEnabler does not need it and installs the APK itself; permission to install from this source is enough. Shizuku remains a handy fallback if the installer misbehaves.
 
 > Updating via "Check for updates" may reset the install source; in that case repeat steps 1–3. You do not need to uninstall the app or lose settings.
-
-### Alternative: installing over ADB from a PC
-
-If AAEnabler does not work, the APK can be installed from a computer over a cable — no Shizuku and no AAEnabler. This works for both apps: `app-nav-release.apk` (`com.aadash.nav`) and `app-release.apk` (`com.aamazda.monitor`).
-
-**What you need:** a PC (Windows, macOS or Linux), a USB data cable and Google's **platform-tools** — <https://developer.android.com/tools/releases/platform-tools>. Unpack the archive; `adb` is inside. Adding it to PATH is optional — you can run it from the folder (`adb` in PowerShell, `./adb` in a terminal). Download the APK from the [Downloads](#downloads) table.
-
-1. **Enable USB debugging.** Settings → "About phone" → "Software information" → tap **"Build number"** seven times (that is how it works on Samsung). Then Settings → "Developer options" → **"USB debugging"**. Connect the phone with the cable and in the "Allow USB debugging?" dialog tick "Always allow" → **Allow**.
-2. **Check the connection:** `adb devices` — the phone should be listed with the status `device`. A status of `unauthorized` means the dialog on the phone was not confirmed; an empty list means you need another cable or port. Without a cable (Android 11+): "Developer options" → "Wireless debugging" → "Pair device with pairing code" → `adb pair 192.168.x.x:port` with the code from the screen, then `adb connect 192.168.x.x:port`.
-3. **Install the APK marked as "from Play".** Android Auto only lets apps recorded as installed from Google Play into its launcher, so the `-i com.android.vending` parameter matters:
-
-   ```
-   adb install -r -g -i com.android.vending <path to APK>
-   ```
-
-   Windows (PowerShell, from the platform-tools folder): `.\adb install -r -g -i com.android.vending "C:\Users\Name\Downloads\app-nav-release.apk"`. macOS and Linux: `./adb install -r -g -i com.android.vending ~/Downloads/app-nav-release.apk`. The flags: `-r` — reinstall over the existing app keeping settings, `-g` — grant permissions right away, `-i` — must come before the APK path. Success is the line `Success`.
-4. **Verify the install source:** `adb shell dumpsys package com.aadash.nav | grep -i installer` (on Windows `findstr /i installer`). You should see `installerPackageName=com.android.vending`. If it is `null` or `com.android.packageinstaller`, the APK was not installed with this command — repeat step 3.
-5. **Enable "Unknown sources" in Android Auto.** Phone Settings → Apps → Android Auto → "Additional settings in the app" (on some firmware: Settings → Connected devices → Android Auto). At the bottom open "About" → tap **"Version and permission info"** ten times → "Allow developer settings?" → OK. Then the "⋮" menu → **Developer settings** → **"Unknown sources"**.
-6. **Restart Android Auto:** Settings → Apps → Android Auto → **Stop** (force stop), connect the phone to the head unit — the app appears in the car screen launcher (or in "Customise launcher" on the phone).
-
-**If the app does not appear:** reboot the phone and reconnect AA; make sure it is a release APK rather than a debug build from Android Studio; repeat the install with `-r -g -i com.android.vending`; check the package (`adb shell pm list packages | grep aadash`) and what AA itself reports (`adb logcat | grep -iE "gearhead|CarApp|validate"`). The official fallback is Google Play → Internal app sharing: an install link from Play always passes the source check.
-
-**Updates and removal.** Update with the same command, `adb install -r -g -i com.android.vending <new apk>`: tapping an APK in a file manager and the built-in "Check for updates" button both overwrite the install-source record, so repeat step 3 afterwards (data and settings are kept). To remove: `adb uninstall com.aadash.nav` or `adb uninstall com.aamazda.monitor`.
-
-**Checking the launcher without a car:** in AA's developer settings enable **"Start head unit server"** and run the **DHU** emulator on the PC (`desktop-head-unit` from platform-tools) — Car App Library apps are visible there, so the install can be verified before going out to the car.
 
 ---
 
