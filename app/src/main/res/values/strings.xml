@@ -183,6 +183,10 @@
     <string name="download_dialog">The update has been downloaded. Install it through AAEnabler: pick the downloaded APK there and tap “Install app”. Without AAEnabler the app will not appear in Android Auto.</string>
     <string name="download_open_enabler">Open AAEnabler</string>
     <string name="force_update">Check for updates</string>
+    <string name="install_play_source">Install from Play source</string>
+    <string name="install_play_source_summary">Downloads the current APK and opens the installer with the install source com.android.vending: Android Auto accepts the app without AAEnabler</string>
+    <string name="play_source_download_started">Downloading the APK; the system installer will open</string>
+    <string name="play_source_no_release">Could not find the APK in the latest release</string>
     <string name="update_failed">Update check failed</string>
     <string name="convert_minutes_seconds">Seconds to Minutes:Seconds</string>
     <string name="donate">Please donate!</string>

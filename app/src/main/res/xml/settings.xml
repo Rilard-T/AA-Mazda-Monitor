@@ -96,6 +96,10 @@
             android:key="force_update"
             android:title="@string/force_update" />
         <Preference
+            android:key="install_play_source"
+            android:title="@string/install_play_source"
+            android:summary="@string/install_play_source_summary" />
+        <Preference
             android:key="exit_app"
             android:title="@string/action_exit" />
     </PreferenceCategory>

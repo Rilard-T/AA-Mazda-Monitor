@@ -11,6 +11,10 @@
         android:title="@string/force_update"
         app:showAsAction="never" />
     <item
+        android:id="@+id/install_play_source"
+        android:title="@string/install_play_source"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/action_copy_logs"
         android:title="@string/report_error"
         app:showAsAction="never"

@@ -58,6 +58,9 @@ class SettingsActivity : AppCompatActivity(),
     private var pendingTag: String? = null
     private var pendingApkName: String? = null
 
+    /** Загрузка запущена кнопкой «Установить из Play-источника» — ставить без AAEnabler. */
+    private var pendingPlaySourceInstall: Boolean = false
+
     val br: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.`package` == BuildConfig.APPLICATION_ID) {
@@ -85,6 +88,11 @@ class SettingsActivity : AppCompatActivity(),
                 if (!ok) {
                     runCatching { dm.remove(downloadId) }
                     Toast.makeText(this@SettingsActivity, R.string.update_corrupt, Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                if (pendingPlaySourceInstall) {
+                    pendingPlaySourceInstall = false
+                    installPlaySource(downloadId)
                     return@runOnUiThread
                 }
                 AlertDialog.Builder(this@SettingsActivity).setTitle(R.string.download_complete)
@@ -118,6 +126,27 @@ class SettingsActivity : AppCompatActivity(),
         } finally {
             conn.disconnect()
         }
+    }
+
+    /** Установка скачанного APK с источником com.android.vending (без AAEnabler). */
+    private fun installPlaySource(downloadId: Long) {
+        val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager)
+            .getUriForDownloadedFile(downloadId) ?: return
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Intent(Intent.ACTION_INSTALL_PACKAGE).also {
+                it.data = uri
+                it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(Intent.ACTION_VIEW).also {
+                it.setDataAndTypeAndNormalize(uri, "application/vnd.android.package-archive")
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+        intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
+        runCatching { applicationContext.startActivity(intent) }
+            .onFailure { Timber.e(it, "Play-source install failed") }
     }
 
     /** Сначала AAEnabler (он ставит APK с AA-метаданными), иначе — обычная установка пакета. */
@@ -227,6 +256,11 @@ class SettingsActivity : AppCompatActivity(),
                         }
                     }
                 }
+                true
+            }
+
+            R.id.install_play_source -> {
+                installFromPlaySource()
                 true
             }
 
@@ -505,7 +539,7 @@ class SettingsActivity : AppCompatActivity(),
         return true
     }
 
-    private fun checkUpdate(force: Boolean =false): Boolean {
+    private fun checkUpdate(force: Boolean = false, installPlaySource: Boolean = false): Boolean {
         Timber.i("Checking for update")
         if (!BuildConfig.OTA_ENABLED) return true
 
@@ -528,13 +562,47 @@ class SettingsActivity : AppCompatActivity(),
         }
         if (needsUpdate == null) Timber.w("Проверка обновлений: тег «%s» не разобран", tagName)
         var downloadItem: String? = null
-        if (needsUpdate == true) {
+        if (needsUpdate == true || installPlaySource) {
             val apk = apkAssetName(tagName, navChannel)
             if (apk != null) {
                 downloadItem = "${BuildConfig.REPO_URL}/releases/download/$tagName/$apk"
                 pendingTag = tagName
                 pendingApkName = apk
             }
+        }
+
+        if (installPlaySource) {
+            if (downloadItem == null) return false
+            pendingPlaySourceInstall = true
+            ContextCompat.registerReceiver(
+                baseContext,
+                br,
+                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                ContextCompat.RECEIVER_EXPORTED
+            )
+            val fileName = downloadItem.substringAfterLast('/')
+            val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
+            downloadRequest.setDestinationInExternalPublicDir(
+                Environment.DIRECTORY_DOWNLOADS,
+                fileName
+            )
+            downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            runCatching {
+                java.io.File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                    fileName
+                ).delete()
+            }
+            val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+            dm.enqueue(downloadRequest)
+            runOnUiThread {
+                Toast.makeText(
+                    baseContext,
+                    R.string.play_source_download_started,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            return true
         }
 
         if (needsUpdate == true && downloadItem != null) {
@@ -698,6 +766,21 @@ class SettingsActivity : AppCompatActivity(),
     fun logsToClipboard() {
         val logs = (application as App).logTree.logToString()
         com.aadash.obd.ErrorReport.start(this, logs.map { it.toString() })
+    }
+
+    /** Скачивает APK текущего релиза и ставит его с источником com.android.vending. */
+    fun installFromPlaySource() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!checkUpdate(installPlaySource = true)) {
+                runOnUiThread {
+                    Toast.makeText(
+                        this@SettingsActivity,
+                        R.string.play_source_no_release,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     fun forceUpdate() {
