@@ -87,8 +87,15 @@ data class NavLayout(
     val font: String = "",
     val ticks: Boolean = true,
     val debug: Boolean = false,
-    val regen: RegenBanner = RegenBanner.DEFAULT
+    val regen: RegenBanner = RegenBanner.DEFAULT,
+    /** Множитель размера текста на приборах и графиках (для плохого зрения). */
+    val textScale: Float = 1f
 ) {
+    companion object {
+        const val MIN_TEXT_SCALE = 0.7f
+        const val MAX_TEXT_SCALE = 1.6f
+    }
+
     fun form(key: String): NavForm =
         forms[key] ?: forms[NavLayoutStore.WIDE] ?: NavLayoutStore.defaultLayout().forms.getValue(NavLayoutStore.WIDE)
 }
@@ -221,6 +228,7 @@ object NavLayoutStore {
         return JSONObject().put("v", 2).put("narrowAspect", l.narrowAspect.toDouble()).put("forms", forms)
             .put("graphs", graphs)
             .put("theme", l.theme).put("font", l.font).put("ticks", l.ticks).put("debug", l.debug)
+            .put("textScale", l.textScale.toDouble())
             .put("regen", regen).toString()
     }
 
@@ -314,7 +322,9 @@ object NavLayoutStore {
             return NavLayout(
                 root.optDouble("narrowAspect", 1.15).toFloat(), forms, graphs,
                 root.optString("theme", ""), root.optString("font", ""),
-                root.optBoolean("ticks", true), root.optBoolean("debug", false), regen
+                root.optBoolean("ticks", true), root.optBoolean("debug", false), regen,
+                root.optDouble("textScale", 1.0).toFloat()
+                    .coerceIn(NavLayout.MIN_TEXT_SCALE, NavLayout.MAX_TEXT_SCALE)
             )
         } catch (e: Exception) {
             return null
@@ -337,9 +347,9 @@ object NavLayoutStore {
 
         val wide = NavForm(
             listOf(
-                gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, third, gh, 0.765f),
-                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, third, 0f, third, gh, 0.9f, 6f),
-                gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 2f * third, 0f, third, gh, 0.765f),
+                gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, third, gh, 0.95f),
+                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, third, 0f, third, gh, 1.0f, 6f),
+                gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 2f * third, 0f, third, gh, 0.95f),
                 info("i0", "ff9010", "DPF", "%", 0, 0f, gh, fourth, footer),
                 info("i1", "ff9003", "Сажа", "г/л", 2, fourth, gh, fourth, footer),
                 info("i2", "ff9005", "АКПП", "°C", 0, 2f * fourth, gh, fourth, footer),

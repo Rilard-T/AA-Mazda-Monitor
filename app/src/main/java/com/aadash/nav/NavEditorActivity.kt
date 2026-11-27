@@ -56,6 +56,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var ticksOn = true
     private var debugOn = false
     private var regenBanner: RegenBanner = RegenBanner.DEFAULT
+    private var textScale = 1f
     private var graphs: ArrayList<GraphDef> = ArrayList()
 
     private lateinit var editor: NavEditorView
@@ -74,6 +75,7 @@ class NavEditorActivity : AppCompatActivity() {
     private var regenBorderBtn: MaterialButton? = null
     private var regenSizeBtn: MaterialButton? = null
     private var regenPlaceBtn: MaterialButton? = null
+    private var textScaleBtn: MaterialButton? = null
     private var aspectBtn: MaterialButton? = null
     private lateinit var previewFrame: NavAspectFrame
 
@@ -126,7 +128,7 @@ class NavEditorActivity : AppCompatActivity() {
     private fun currentLayout(): NavLayout {
         val map = HashMap<String, NavForm>()
         for ((key, list) in forms) map[key] = NavForm(ArrayList(list))
-        return NavLayout(narrowAspect, map, ArrayList(graphs), themeName, fontName, ticksOn, debugOn, regenBanner)
+        return NavLayout(narrowAspect, map, ArrayList(graphs), themeName, fontName, ticksOn, debugOn, regenBanner, textScale)
     }
 
     private fun currentJson(): String = NavLayoutStore.toJson(currentLayout())
@@ -141,6 +143,7 @@ class NavEditorActivity : AppCompatActivity() {
         ticksOn = layout.ticks
         debugOn = layout.debug
         regenBanner = layout.regen
+        textScale = layout.textScale
         graphs = ArrayList(layout.graphs)
         baseline = currentJson()
     }
@@ -168,6 +171,7 @@ class NavEditorActivity : AppCompatActivity() {
 
         editor = NavEditorView(this)
         editor.forms = forms
+        editor.setTextScale(textScale)
         editor.regen = regenBanner
         // Плашку можно перетащить прямо в предпросмотре — кнопка сдвига обновится сразу.
         editor.onRegenChanged = { moved ->
@@ -308,10 +312,12 @@ class NavEditorActivity : AppCompatActivity() {
             debugBtn?.let { stateBtn(it) { debugOn } }
             val themeBtn = mkBtn(getString(R.string.nav_theme)) { chooseTheme() }
             val fontBtn = mkBtn(getString(R.string.nav_font)) { chooseFont() }
+            textScaleBtn = mkBtn(textScaleLabel()) { chooseTextScale() }
             g.addView(ticksBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(debugBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(themeBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(fontBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(textScaleBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
             // Уведомление о прожиге: его вид виден в предпросмотре сразу.
             g.addView(TextView(this).apply {
@@ -512,6 +518,55 @@ class NavEditorActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(bar: SeekBar?) {}
         })
         dialog.show()
+    }
+
+    private fun textScaleLabel(): String =
+        getString(R.string.nav_text_size) + ": " + Math.round(textScale * 100f) + "%"
+
+    /**
+     * Размер текста приборов и графиков: 70–160 % шагом 5, предпросмотр меняется сразу.
+     * Сам круг прибора не меняется — это отдельный «Размер круга» в меню элемента.
+     */
+    private fun chooseTextScale() {
+        val before = textScale
+        val step = 0.05f
+        val seek = SeekBar(this)
+        seek.max = Math.round((NavLayout.MAX_TEXT_SCALE - NavLayout.MIN_TEXT_SCALE) / step)
+        seek.progress = Math.round((textScale - NavLayout.MIN_TEXT_SCALE) / step).coerceIn(0, seek.max)
+        val holder = FrameLayout(this)
+        holder.setPadding(dp(20), dp(8), dp(20), dp(8))
+        holder.addView(
+            seek,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        )
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(textScaleLabel())
+            .setView(holder)
+            .setPositiveButton(android.R.string.ok) { d, _ -> d.dismiss() }
+            .setNegativeButton(android.R.string.cancel) { d, _ ->
+                textScale = before
+                applyTextScale()
+                d.dismiss()
+            }
+            .create()
+        seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                textScale = NavLayout.MIN_TEXT_SCALE + progress * step
+                applyTextScale()
+                dialog.setTitle(textScaleLabel())
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) {}
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {}
+        })
+        dialog.show()
+    }
+
+    private fun applyTextScale() {
+        editor.setTextScale(textScale)
+        textScaleBtn?.text = textScaleLabel()
     }
 
     private fun groupTitle(title: String, open: Boolean): String =
@@ -1263,6 +1318,7 @@ class NavEditorActivity : AppCompatActivity() {
         loadFromStore()
         applyForm()
         applyTheme()
+        applyTextScale()
         applyRegen()
         Toast.makeText(this, getString(R.string.nav_reset_done), Toast.LENGTH_SHORT).show()
     }

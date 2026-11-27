@@ -71,6 +71,7 @@
     <string name="nav_item_red">Красная зона…</string>
     <string name="nav_red_hint">Красная зона начинается с (0 — выключить):</string>
     <string name="nav_red_invalid">Значение должно быть внутри шкалы (или 0, чтобы выключить)</string>
+    <string name="nav_text_size">Размер текста</string>
     <string name="profile_settings_cat">Профили автомобилей</string>
     <string name="profile_active">Активный профиль</string>
     <string name="profile_create">Создать профиль</string>

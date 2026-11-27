@@ -71,6 +71,7 @@
     <string name="nav_item_red">Red zone…</string>
     <string name="nav_red_hint">Red zone starts at (0 — off):</string>
     <string name="nav_red_invalid">Value must be inside the scale (or 0 to turn off)</string>
+    <string name="nav_text_size">Text size</string>
     <string name="profile_settings_cat">Car profiles</string>
     <string name="profile_active">Active profile</string>
     <string name="profile_create">Create profile</string>

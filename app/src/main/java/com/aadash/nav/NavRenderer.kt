@@ -279,6 +279,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
             painter.theme = NavThemes.load(appContext, layout.theme)
         }
         painter.ticksOn = layout.ticks
+        painter.textScale = layout.textScale
         painter.typeface = NavFonts.load(appContext, layout.font)
         debugOverlay = layout.debug
     }

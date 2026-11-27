@@ -90,6 +90,12 @@ class NavEditorView(context: Context) : View(context) {
         invalidate()
     }
 
+    /** Множитель размера текста приборов и графиков (как на экране машины). */
+    fun setTextScale(scale: Float) {
+        painter.textScale = scale
+        invalidate()
+    }
+
     fun selectedItem(): NavItem? {
         val id = selectedId ?: return null
         return forms[formKey]?.firstOrNull { it.id == id }

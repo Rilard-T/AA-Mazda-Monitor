@@ -29,6 +29,8 @@ class NavPainter {
 
     /** Деления: циферблат с делениями (true) или пустой (false). Только для темы. */
     var ticksOn: Boolean = true
+    /** Множитель размера текста: подписи, значения и легенда (для плохого зрения). */
+    var textScale: Float = 1f
     /** Масштаб под разрешение экрана: 1 при опорной высоте ~800 px. */
     var pxScale: Float = 1f
 
@@ -84,10 +86,10 @@ class NavPainter {
         if (w <= 1f || h <= 1f) return
         val cx = left + w / 2f
         text.color = Color.rgb(170, 185, 220)
-        text.textSize = min(h * 0.26f, w / 7f)
+        text.textSize = min(h * 0.26f, w / 7f) * textScale
         c.drawText(item.label, cx, top + h * 0.40f, text)
         text.color = Color.WHITE
-        text.textSize = min(h * 0.40f, w / 5f)
+        text.textSize = min(h * 0.40f, w / 5f) * textScale
         c.drawText(valueText, cx, top + h * 0.86f, text)
     }
 
@@ -100,10 +102,10 @@ class NavPainter {
         if (w <= 1f || h <= 1f) return
         val cx = left + w / 2f
         text.color = Color.rgb(170, 185, 220)
-        text.textSize = min(h * 0.26f, w / 7f)
+        text.textSize = min(h * 0.26f, w / 7f) * textScale
         c.drawText(item.label.ifBlank { "Трек" }, cx, top + h * 0.34f, text)
         text.color = Color.WHITE
-        var size = min(h * 0.34f, w / 6f)
+        var size = min(h * 0.34f, w / 6f) * textScale
         while (size > 9f * pxScale && text.measureText(valueText) > w * 0.92f) {
             size -= 1f * pxScale
             text.textSize = size
@@ -271,7 +273,7 @@ class NavPainter {
         // разные обода, поэтому отступ не берём из sv_tickPadding.
         val radius = r * 0.62f
         text.color = Color.WHITE
-        text.textSize = max(r * 0.085f, 9f * pxScale)
+        text.textSize = max(r * 0.085f, 9f * pxScale) * textScale
         for (i in 0 until n) {
             val v = item.min + step * i
             val deg = 135f + 270f * i / (n - 1)
@@ -292,9 +294,9 @@ class NavPainter {
         // на большом экране машины и в маленьком предпросмотре на телефоне вид одинаковый.
         val unit = min(area.width(), area.height())
         if (unit < 32f) return
-        val titleSize = max(11f * pxScale, unit * 0.07f)
+        val titleSize = max(11f * pxScale, unit * 0.07f) * textScale
         val subSize = titleSize * 0.72f
-        var legendSize = max(10f * pxScale, unit * 0.055f)
+        var legendSize = max(10f * pxScale, unit * 0.055f) * textScale
 
         val left = area.left + area.width() * 0.06f
         val right = area.right - area.width() * 0.04f
@@ -419,12 +421,12 @@ class NavPainter {
     /** Подписи прибора: показание, единицы и название. */
     private fun gaugeTexts(c: Canvas, cx: Float, cy: Float, r: Float, item: NavItem, valueText: String) {
         text.color = Color.WHITE
-        text.textSize = r * 0.30f
+        text.textSize = r * 0.30f * textScale
         c.drawText(valueText, cx, cy + r * 0.11f, text)
         text.color = Color.rgb(170, 185, 220)
-        text.textSize = r * 0.13f
+        text.textSize = r * 0.13f * textScale
         c.drawText(item.unit, cx, cy + r * 0.30f, text)
-        text.textSize = r * 0.14f
+        text.textSize = r * 0.14f * textScale
         // Название прибора — в нижнем разрыве шкалы, не на ободе циферблата
         c.drawText(item.label, cx, cy + r * 0.66f, text)
     }
