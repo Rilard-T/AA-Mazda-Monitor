@@ -572,8 +572,10 @@
     <string name="install_apk">Установить APK</string>
     <string name="install_apk_summary">Скачать текущий релиз или выбрать APK из памяти; установка с Play-источником, чтобы Android Auto принял приложение</string>
     <string name="install_from_storage">Выбрать файл из памяти</string>
-    <string name="download_dialog">Обновление скачано. Установите его кнопкой «Установить из Play-источника» — Android Auto примет приложение без AAEnabler. Через AAEnabler — запасной путь.</string>
-    <string name="download_open_enabler">Открыть AAEnabler</string>
+    <string name="first_run_title">Как установить и обновить</string>
+    <string name="first_run_message">Приложение ставится как обычный APK — дополнительные утилиты не нужны:\n\n1. Откройте скачанный APK и подтвердите установку.\n2. Дальше обновляйтесь из приложения: «О приложении» → «Установить APK» → «Install from Play source».\n3. Источник com.android.vending сохранится, и Android Auto примет приложение.</string>
+    <string name="first_run_ok">Понятно</string>
+    <string name="download_dialog">Обновление скачано. Установите его кнопкой «Установить из Play-источника» — источник Play сохранится, и Android Auto примет приложение.</string>
     <string name="download_instructions">Обновление загружается</string>
     <string name="credits_basedon">На базе SDK и демо-приложения:</string>
     <string name="credits_drivesafely">Безопасной дороги.</string>

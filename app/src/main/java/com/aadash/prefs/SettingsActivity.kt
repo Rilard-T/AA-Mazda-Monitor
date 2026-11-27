@@ -51,14 +51,11 @@ import javax.net.ssl.HttpsURLConnection
 class SettingsActivity : AppCompatActivity(),
     PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
-    /** AAEnabler: без него обновление не появится в Android Auto. */
-    private val aaEnablerPackage = "com.aaenabler.app"
-
     /** Тег и имя APK текущей загрузки — для проверки SHA-256 после скачивания. */
     private var pendingTag: String? = null
     private var pendingApkName: String? = null
 
-    /** Загрузка запущена кнопкой «Установить из Play-источника» — ставить без AAEnabler. */
+    /** Загрузка запущена кнопкой «Установить из Play-источника». */
     private var pendingPlaySourceInstall: Boolean = false
 
     val br: BroadcastReceiver = object : BroadcastReceiver() {
@@ -100,9 +97,6 @@ class SettingsActivity : AppCompatActivity(),
                     .setPositiveButton(R.string.install_play_source) { _, _ ->
                         installPlaySource(downloadId)
                     }
-                    .setNeutralButton(R.string.download_open_enabler) { _, _ ->
-                        installDownloaded(downloadId)
-                    }
                     .setNegativeButton(android.R.string.cancel, null)
                     .show()
             }
@@ -131,7 +125,7 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    /** Установка скачанного APK с источником com.android.vending (без AAEnabler). */
+    /** Установка скачанного APK с источником com.android.vending. */
     private fun installPlaySource(downloadId: Long) {
         val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager)
             .getUriForDownloadedFile(downloadId) ?: return
@@ -176,7 +170,7 @@ class SettingsActivity : AppCompatActivity(),
             .show()
     }
 
-    /** Установка выбранного APK с источником com.android.vending (без AAEnabler). */
+    /** Установка выбранного APK с источником com.android.vending. */
     private fun installPlaySourceUri(uri: Uri) {
         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             Intent(Intent.ACTION_INSTALL_PACKAGE).also {
@@ -195,32 +189,18 @@ class SettingsActivity : AppCompatActivity(),
             .onFailure { Timber.e(it, "Play-source install from storage failed") }
     }
 
-    /** Сначала AAEnabler (он ставит APK с AA-метаданными), иначе — обычная установка пакета. */
-    private fun installDownloaded(downloadId: Long) {
-        val enabler = packageManager.getLaunchIntentForPackage(aaEnablerPackage)
-        if (enabler != null) {
-            enabler.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(enabler)
-            return
-        }
-        val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).getUriForDownloadedFile(downloadId)
-        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Intent(Intent.ACTION_INSTALL_PACKAGE).also {
-                it.data = uri
-                it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+    /** Первый запуск: коротко объясняет, как ставить обновления с Play-источником. */
+    private fun showFirstRunDialog() {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("first_run_seen", false)) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.first_run_title)
+            .setMessage(R.string.first_run_message)
+            .setPositiveButton(R.string.first_run_ok) { _, _ ->
+                prefs.edit().putBoolean("first_run_seen", true).apply()
             }
-        } else {
-            Intent(Intent.ACTION_VIEW).also {
-                it.setDataAndTypeAndNormalize(
-                    uri,
-                    "application/vnd.android.package-archive"
-                )
-                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-        }
-        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
-        intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
-        applicationContext.startActivity(intent)
+            .setCancelable(false)
+            .show()
     }
 
     /** Инверсный акцент темы: им подкрашивается текст действия в Snackbar на тёмной плашке. */
@@ -241,6 +221,7 @@ class SettingsActivity : AppCompatActivity(),
         com.aadash.obd.AppExit.installBackConfirm(this)
         setContentView(R.layout.activity_settings)
         supportActionBar!!.setDisplayUseLogoEnabled(true)
+        if (savedInstanceState == null) showFirstRunDialog()
         if (savedInstanceState == null) {
             supportFragmentManager
                 .beginTransaction()
