@@ -74,7 +74,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
             true
         }
         findPreference<Preference>("install_play_source")?.setOnPreferenceClickListener {
-            (requireActivity() as SettingsActivity).installFromPlaySource()
+            (requireActivity() as SettingsActivity).installApk()
             true
         }
         findPreference<Preference>("exit_app")?.setOnPreferenceClickListener {

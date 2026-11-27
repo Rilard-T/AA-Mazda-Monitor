@@ -180,10 +180,13 @@
     <string name="pref_view">View %1$d</string>
     <string name="pref_data_element_settings">Data element settings %1$d</string>
     <string name="pref_title_performance">Title %1$d</string>
-    <string name="download_dialog">The update has been downloaded. Install it through AAEnabler: pick the downloaded APK there and tap “Install app”. Without AAEnabler the app will not appear in Android Auto.</string>
+    <string name="download_dialog">The update has been downloaded. Install it with “Install from Play source” — Android Auto accepts the app without AAEnabler. AAEnabler remains as a fallback.</string>
     <string name="download_open_enabler">Open AAEnabler</string>
     <string name="force_update">Check for updates</string>
     <string name="install_play_source">Install from Play source</string>
+    <string name="install_apk">Install APK</string>
+    <string name="install_apk_summary">Download the current release or pick an APK from storage; installs with the Play source so Android Auto accepts the app</string>
+    <string name="install_from_storage">Choose file from storage</string>
     <string name="install_play_source_summary">Downloads the current APK and opens the installer with the install source com.android.vending: Android Auto accepts the app without AAEnabler</string>
     <string name="play_source_download_started">Downloading the APK; the system installer will open</string>
     <string name="play_source_no_release">Could not find the APK in the latest release</string>

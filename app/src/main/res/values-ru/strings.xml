@@ -569,7 +569,10 @@
     <string name="pid_ff901b_unit">%</string>
 
     <!-- Ранее отсутствовавшие переводы -->
-    <string name="download_dialog">Обновление скачано. Установите его через AAEnabler: откроется приложение, выберите скачанный APK и нажмите «Install app». Без AAEnabler новое приложение не появится в Android Auto.</string>
+    <string name="install_apk">Установить APK</string>
+    <string name="install_apk_summary">Скачать текущий релиз или выбрать APK из памяти; установка с Play-источником, чтобы Android Auto принял приложение</string>
+    <string name="install_from_storage">Выбрать файл из памяти</string>
+    <string name="download_dialog">Обновление скачано. Установите его кнопкой «Установить из Play-источника» — Android Auto примет приложение без AAEnabler. Через AAEnabler — запасной путь.</string>
     <string name="download_open_enabler">Открыть AAEnabler</string>
     <string name="download_instructions">Обновление загружается</string>
     <string name="credits_basedon">На базе SDK и демо-приложения:</string>

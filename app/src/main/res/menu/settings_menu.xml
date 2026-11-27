@@ -12,7 +12,7 @@
         app:showAsAction="never" />
     <item
         android:id="@+id/install_play_source"
-        android:title="@string/install_play_source"
+        android:title="@string/install_apk"
         app:showAsAction="never" />
     <item
         android:id="@+id/action_copy_logs"

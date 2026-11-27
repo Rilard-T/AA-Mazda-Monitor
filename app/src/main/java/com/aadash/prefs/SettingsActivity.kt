@@ -97,11 +97,14 @@ class SettingsActivity : AppCompatActivity(),
                 }
                 AlertDialog.Builder(this@SettingsActivity).setTitle(R.string.download_complete)
                     .setMessage(R.string.download_dialog)
-                    .setPositiveButton(R.string.download_open_enabler) { p0, _ ->
-                        p0?.dismiss()
+                    .setPositiveButton(R.string.install_play_source) { _, _ ->
+                        installPlaySource(downloadId)
+                    }
+                    .setNeutralButton(R.string.download_open_enabler) { _, _ ->
                         installDownloaded(downloadId)
-                    }.setNegativeButton(android.R.string.cancel
-                    ) { p0, _ -> p0?.dismiss() }.show()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
             }
         }
     }
@@ -147,6 +150,49 @@ class SettingsActivity : AppCompatActivity(),
         intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
         runCatching { applicationContext.startActivity(intent) }
             .onFailure { Timber.e(it, "Play-source install failed") }
+    }
+
+    /** Выбор: скачать из релиза или выбрать APK из памяти. */
+    fun installApk() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.install_apk)
+            .setItems(
+                arrayOf(
+                    getString(R.string.install_play_source),
+                    getString(R.string.install_from_storage)
+                )
+            ) { _, which ->
+                if (which == 0) {
+                    installFromPlaySource()
+                } else {
+                    installApkFromStorageLauncher.launch(
+                        arrayOf(
+                            "application/vnd.android.package-archive",
+                            "*/*"
+                        )
+                    )
+                }
+            }
+            .show()
+    }
+
+    /** Установка выбранного APK с источником com.android.vending (без AAEnabler). */
+    private fun installPlaySourceUri(uri: Uri) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Intent(Intent.ACTION_INSTALL_PACKAGE).also {
+                it.data = uri
+                it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(Intent.ACTION_VIEW).also {
+                it.setDataAndTypeAndNormalize(uri, "application/vnd.android.package-archive")
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+        intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
+        runCatching { applicationContext.startActivity(intent) }
+            .onFailure { Timber.e(it, "Play-source install from storage failed") }
     }
 
     /** Сначала AAEnabler (он ставит APK с AA-метаданными), иначе — обычная установка пакета. */
@@ -260,7 +306,7 @@ class SettingsActivity : AppCompatActivity(),
             }
 
             R.id.install_play_source -> {
-                installFromPlaySource()
+                installApk()
                 true
             }
 
@@ -328,7 +374,9 @@ class SettingsActivity : AppCompatActivity(),
             val ok = runCatching {
                 val data = userDataStore(applicationContext).data.first()
                 val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
-                val text = BackupCodec.encode(data.toByteArray(), tracker.exportText())
+                com.aadash.nav.NavLayoutStore.load(applicationContext)
+                val layoutJson = com.aadash.nav.NavLayoutStore.toJson(com.aadash.nav.NavLayoutStore.layout)
+                val text = BackupCodec.encode(data.toByteArray(), tracker.exportText(), layoutJson)
                 contentResolver.openOutputStream(uri)
                     ?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
             }.getOrDefault(false)
@@ -354,6 +402,11 @@ class SettingsActivity : AppCompatActivity(),
                 userDataStore(applicationContext).updateData { prefs }
                 RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
                     .importText(backup.regenLog)
+                backup.navLayout.takeIf { it.isNotBlank() }?.let { layout ->
+                    com.aadash.nav.NavLayoutStore.parse(layout)?.let { parsed ->
+                        com.aadash.nav.NavLayoutStore.save(applicationContext, parsed)
+                    }
+                }
             }.getOrNull()
             runOnUiThread {
                 val msg = if (count == null) {
@@ -364,6 +417,13 @@ class SettingsActivity : AppCompatActivity(),
                 Toast.makeText(baseContext, msg, Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private val installApkFromStorageLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        installPlaySourceUri(uri)
     }
 
     private val regenExportLauncher = registerForActivityResult(TextExportContract()) { uri: Uri? ->

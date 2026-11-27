@@ -20,6 +20,20 @@ class BackupCodecTest {
     }
 
     @Test
+    fun roundTripKeepsNavLayout() {
+        val settings = byteArrayOf(1, 2, 3)
+        val regen = "L;1;2.5;;1\n"
+        val layout = "{\"v\":2,\"forms\":{}}"
+
+        val text = BackupCodec.encode(settings, regen, layout)
+        val back = BackupCodec.decode(text)!!
+
+        assertTrue(settings.contentEquals(back.settings))
+        assertEquals(regen, back.regenLog)
+        assertEquals(layout, back.navLayout)
+    }
+
+    @Test
     fun emptyJournalRoundTrips() {
         val back = BackupCodec.decode(BackupCodec.encode(byteArrayOf(1), ""))!!
         assertEquals("", back.regenLog)
