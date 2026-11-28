@@ -142,21 +142,18 @@ A short feature summary for release notes is in [`docs/NAV_FEATURES.md`](https:/
 
 ## Installation
 
-Install it like any regular APK — no extra installer tools are needed.
+Separate installer tools (like AAEnabler) are no longer needed — the app installs itself with the required source.
 
-**First time, when the app is not installed yet:**
+**First-time installation (two steps):**
 
-1. Download the APK from [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases): `app-release.apk` for AA Mazda Monitor or `app-nav-release.apk` for AA Dash Nav.
-2. Open the file and confirm the install. If the system asks for permission, allow the browser or file manager to install unknown apps.
+1. Download the APK from [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases): `app-release.apk` for AA Mazda Monitor or `app-nav-release.apk` for AA Dash Nav, open the file and install it normally.
+2. **You must reinstall the app from inside itself:** open the app → **"About" → "Install APK" → "Install from Play source"** (or **"Choose file from storage"** if the APK is already on your phone) and confirm installing over the existing app. This sets the `com.android.vending` installer source, without which Android Auto will not list the app.
 3. Enable developer mode in Android Auto (tap the version number ten times) and allow **"Unknown sources"**.
 
-**Updates, once the app is installed:**
+**Future updates:**
 
-- **"About" → "Install APK" → "Install from Play source"** — the app downloads the current release APK and opens the system installer with the `com.android.vending` source. That is the source Android Auto needs.
-- **"About" → "Install APK" → "Choose file from storage"** — if the APK is already downloaded manually; the Play source is passed as well.
+- **"About" → "Install APK" → "Install from Play source"** (or **"Choose file from storage"**).
 - Settings, the regeneration log and the layout are preserved; no need to uninstall the app.
-
-> If Android Auto does not list the app right after the first install, install the current release from inside the app — **"About" → "Install APK" → "Install from Play source"**: the source record is updated and the app appears in Android Auto.
 
 ---
 
