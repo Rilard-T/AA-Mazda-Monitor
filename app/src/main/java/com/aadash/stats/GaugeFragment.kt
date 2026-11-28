@@ -83,7 +83,9 @@ class GaugeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mMax.indicator = TriangleIndicator(requireContext())
-        mMax.indicator.color = requireContext().theme.obtainStyledAttributes(intArrayOf(R.attr.themedNeedleColor)).getColor(0, Color.RED)
+        val needleColorTa = requireContext().theme.obtainStyledAttributes(intArrayOf(R.attr.themedNeedleColor))
+        val needleColor = try { needleColorTa.getColor(0, Color.RED) } finally { needleColorTa.recycle() }
+        mMax.indicator.color = needleColor
         mMax.clearSections()
         mMax.addSections(
             Section(
@@ -92,20 +94,19 @@ class GaugeFragment : Fragment() {
             )
         )
         mRayClock.clearSections()
+        val rayColorTa = requireContext().theme.obtainStyledAttributes(intArrayOf(R.attr.themedNeedleColor))
+        val rayColor = try { rayColorTa.getColor(0, Color.WHITE) } finally { rayColorTa.recycle() }
         mRayClock.addSections(
             Section(
                 0f, 1f,
-                requireContext().theme.obtainStyledAttributes(intArrayOf(R.attr.themedNeedleColor))
-                    .getColor(
-                        0, Color.WHITE
-                    )
+                rayColor
             )
         )
         savedInstanceState?.let {
             state ->
             setMinMax(
-                state.getFloat("minValue", MIN_MAX_DEFAULT.first).toInt(),
-                state.getFloat("maxValue", MIN_MAX_DEFAULT.second).toInt()
+                state.getFloat("torqueMin", MIN_MAX_DEFAULT.first).toInt(),
+                state.getFloat("torqueMax", MIN_MAX_DEFAULT.second).toInt()
             )
             turnMinMaxMarksEnabled(
                 MaxControl.forNumber(
@@ -164,14 +165,12 @@ class GaugeFragment : Fragment() {
         }
 
         //this is to enable an image as indicator.
-        val indicatorDrawable =
-            requireContext().theme.obtainStyledAttributes(intArrayOf(R.attr.themedNeedle))
-                .getDrawable(0)
-        val imageIndicator = SizedImageIndicator(requireContext(), indicatorDrawable!!)
+        val needleTa = requireContext().theme.obtainStyledAttributes(intArrayOf(R.attr.themedNeedle))
+        val indicatorDrawable = try { needleTa.getDrawable(0) } finally { needleTa.recycle() }
         val color = mClock.indicator.color
         Timber.i("IndicatorColor: $color")
-        if (color == 1996533487) {       // if indicator color in the style is @color:aqua, make it an imageindicator
-            mClock.indicator = imageIndicator
+        if (color == 1996533487 && indicatorDrawable != null) {       // if indicator color in the style is @color:aqua, make it an imageindicator
+            mClock.indicator = SizedImageIndicator(requireContext(), indicatorDrawable)
             mRayClock.indicatorLightColor = Color.parseColor("#00FFFFFF")
         } else {
             //mClockLeft.setIndicator(Indicator.Indicators.HalfLineIndicator);
@@ -191,10 +190,10 @@ class GaugeFragment : Fragment() {
             mClock.indicatorLightColor = Color.parseColor("#00FFFFFF")
             //
             mRayClock.indicatorLightColor = Color.parseColor("#00FFFFFF")
-        } else if (color == -14575885) {
+        } else if (color == -14575885 && indicatorDrawable != null) {
             //if theme has transparent indicator color, give clocks a custom image indicator
             //todo: do this on other fragments as well
-            mClock.indicator = imageIndicator
+            mClock.indicator = SizedImageIndicator(requireContext(), indicatorDrawable)
             mClock.indicatorLightColor = Color.parseColor("#00FFFFFF")
             mRayClock.indicatorLightColor = Color.parseColor("#00FFFFFF")
         }
@@ -270,7 +269,9 @@ class GaugeFragment : Fragment() {
     private fun onUpdate(data: GaugeData) {
         val fVal = data.lastData.toFloat()
         mClock.speedTo(fVal, GaugeRefresher.REFRESH_INTERVAL)
-        mRayClock.speedTo(fVal, GaugeRefresher.REFRESH_INTERVAL)
+        if (rayOn) {
+            mRayClock.speedTo(fVal, GaugeRefresher.REFRESH_INTERVAL)
+        }
         if (data.display.maxMarksActive == MaxControl.MAX && data.maxValue.isFinite()) {
             mMax.setSpeedAt(data.maxValue.toFloat())
             Timber.d("Setting max speed ${data.maxValue}")

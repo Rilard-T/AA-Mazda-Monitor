@@ -14,6 +14,13 @@ object RegenState {
 /** Запись о прожиге: когда включился, сажа перед ним (г/л), пробег после прошлого прожига (км), состояние, принудительный ли. */
 data class RegenEntry(val time: Long, val soot: Double, val km: Double?, val state: Int, val forced: Boolean = false)
 
+data class RegenSummary(
+    val count: Int,
+    val avgKm: Double?,
+    val avgSoot: Double?,
+    val remainingKm: Double?,
+)
+
 /**
  * Журнал прожигов. Одна копия на процесс (служба и экраны читают одно и то же).
  * Интервал между прожигами: максимальный «пробег после прожига» к моменту роста счётчика.
@@ -259,6 +266,14 @@ class RegenTracker internal constructor(
     /** Статус от блока (0/1/2), если он сейчас приходит, иначе null. */
     @Synchronized fun liveStatus(): Int? = if (statusAvailable(clock())) lastStatus else null
     @Synchronized fun history(): List<RegenEntry> = ArrayList(log)
+
+    @Synchronized fun summary(): RegenSummary {
+        val avgKm = intervals.takeIf { it.isNotEmpty() }?.average()
+        val validEntries = valid()
+        val avgSoot = validEntries.takeIf { it.isNotEmpty() }?.map { it.soot }?.average()
+        val rem = if (avgKm != null && lastSeen >= 0.0) (avgKm - lastSeen).coerceAtLeast(0.0) else null
+        return RegenSummary(log.size, avgKm, avgSoot, rem)
+    }
 
     /** Журнал прожигов и интервалы в текстовом виде: одна запись — одна строка, поля через «;». */
     @Synchronized fun exportText(): String = RegenLogParser.format(log, intervals)

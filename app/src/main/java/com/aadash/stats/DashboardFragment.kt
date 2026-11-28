@@ -217,6 +217,11 @@ open class DashboardFragment : AlbumArt() {
                 applySizes(it[0], it[1], it[2], it[3] == 1)
             }
         }
+        registerWithView {
+            data -> data.map { it.hideObdIndicator }.distinctUntilChanged().collect {
+                binding.showObdDot = !it
+            }
+        }
         registerWithView{
             gaugeRefresher.connectStatus.collect {
                 binding.status = when (it) {
@@ -225,9 +230,17 @@ open class DashboardFragment : AlbumArt() {
                     ConnectStatus.SETUP_GAUGE -> R.string.status_setup_gauges
                     ConnectStatus.CONNECTED -> null
                 }
+                val dotColor = when (it) {
+                    ConnectStatus.CONNECTED -> 0xFF22C55E.toInt()
+                    ConnectStatus.CONNECTING_ECU, ConnectStatus.SETUP_GAUGE -> 0xFFFACC15.toInt()
+                    ConnectStatus.CONNECTING_SERVICE -> 0xFF94A3B8.toInt()
+                }
+                binding.obdLinkDot.backgroundTintList = android.content.res.ColorStateList.valueOf(dotColor)
             }
         }
     }
+
+    private var keyDownReceiver: BroadcastReceiver? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -272,14 +285,16 @@ open class DashboardFragment : AlbumArt() {
         displays[3]!!.isBottomDisplay = true
         chartFragment = childFragmentManager.findFragmentById(R.id.chartFrag)!! as ChartFragment
         val filter = IntentFilter().apply { addAction("KEY_DOWN") }
-        LocalBroadcastManager.getInstance(requireContext())
-            .registerReceiver(object : BroadcastReceiver() {
-                override fun onReceive(p0: Context?, intent: Intent?) {
-                    if (intent?.getIntExtra("KEY_CODE", 0) == KeyEvent.KEYCODE_DPAD_CENTER) {
-                        toggleShowChart(binding.showChart != true)
-                    }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(p0: Context?, intent: Intent?) {
+                if (intent?.getIntExtra("KEY_CODE", 0) == KeyEvent.KEYCODE_DPAD_CENTER) {
+                    toggleShowChart(binding.showChart != true)
                 }
-            }, filter)
+            }
+        }
+        keyDownReceiver = receiver
+        LocalBroadcastManager.getInstance(requireContext())
+            .registerReceiver(receiver, filter)
         val gestureDetector =
             GestureDetector(rootView.context, object : GestureDetector.SimpleOnGestureListener() {
                 override fun onFling(
@@ -329,25 +344,41 @@ open class DashboardFragment : AlbumArt() {
         mWrapper.animate()!!.translationX((rootView.width * -direction).toFloat()).setDuration(
             duration
         ).alpha(0f).setListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationCancel(animation: Animator) {
+                screensAnimating = false
+            }
+
             override fun onAnimationEnd(animation: Animator) {
-                lifecycleScope.launch {
-                    requireContext().dataStore.updateData {
-                            currentSettings ->
-                        currentSettings.toBuilder().setCurrentScreen(
-                            (currentSettings.screensCount +
-                                    currentSettings.currentScreen +
-                                    direction
-                                    ) % currentSettings.screensCount
-                        ).build()
-                    }
-                    mWrapper.translationX = (rootView.width * direction).toFloat()
-                    mWrapper.alpha = 1f
-                    mWrapper.animate().setListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator) {
-                            screensAnimating = false
+                val ctx = context
+                if (ctx == null || !isAdded) {
+                    screensAnimating = false
+                    return
+                }
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        ctx.dataStore.updateData { currentSettings ->
+                            currentSettings.toBuilder().setCurrentScreen(
+                                (currentSettings.screensCount +
+                                        currentSettings.currentScreen +
+                                        direction
+                                        ) % currentSettings.screensCount
+                            ).build()
                         }
-                    }).translationX(0f).duration = duration
-                    mTitleElement.animate().alpha(1f).duration = duration
+                        mWrapper.translationX = (rootView.width * direction).toFloat()
+                        mWrapper.alpha = 1f
+                        mWrapper.animate().setListener(object : AnimatorListenerAdapter() {
+                            override fun onAnimationCancel(animation: Animator) {
+                                screensAnimating = false
+                            }
+
+                            override fun onAnimationEnd(animation: Animator) {
+                                screensAnimating = false
+                            }
+                        }).translationX(0f).duration = duration
+                        mTitleElement.animate().alpha(1f).duration = duration
+                    } catch (e: Exception) {
+                        screensAnimating = false
+                    }
                 }
             }
         })
@@ -359,16 +390,25 @@ open class DashboardFragment : AlbumArt() {
         mWrapper.animate()!!.alpha(0f).setDuration(
             300
         ).setListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationCancel(animation: Animator) {
+                screensAnimating = false
+            }
+
             override fun onAnimationEnd(animation: Animator) {
                 mWrapper.animate()!!.alpha(1f).setDuration(300).setListener(
                     object : AnimatorListenerAdapter() {
+                        override fun onAnimationCancel(animation: Animator) {
+                            screensAnimating = false
+                        }
+
                         override fun onAnimationEnd(animation: Animator) {
                             screensAnimating = false
                         }
                     }
                 )
-                lifecycleScope.launch {
-                    context?.dataStore?.updateData { currentSettings ->
+                val ctx = context ?: return
+                viewLifecycleOwner.lifecycleScope.launch {
+                    ctx.dataStore.updateData { currentSettings ->
                         currentSettings.toBuilder().setShowChart(showChart).build()
                     }
                 }
@@ -495,5 +535,12 @@ open class DashboardFragment : AlbumArt() {
         settingsViewModel.setFont(font)
     }
 
+    override fun onDestroyView() {
+        keyDownReceiver?.let { receiver ->
+            context?.let { LocalBroadcastManager.getInstance(it).unregisterReceiver(receiver) }
+        }
+        keyDownReceiver = null
+        super.onDestroyView()
+    }
 
 }

@@ -20,12 +20,15 @@ class ObdServiceClient {
     var hasBound = false
 
     fun addConnectCallback(func: (ITorqueService) -> Unit): ObdServiceClient {
-        if (obdService == null) {
-            conLock.withLock {
+        val svc = conLock.withLock {
+            val current = obdService
+            if (current == null) {
                 onConnect.add(func)
             }
-        } else {
-            func(obdService!!)
+            current
+        }
+        if (svc != null) {
+            func(svc)
         }
         return this
     }
@@ -46,12 +49,14 @@ class ObdServiceClient {
                 if (BuildConfig.SIMULATE_METRICS) {
                     svc.setDebugTestMode(!svc.isConnectedToECU)
                 }
-                obdService = svc
-                conLock.withLock {
-                    for (funt in onConnect) {
-                        funt(svc)
-                    }
+                val callbacks = conLock.withLock {
+                    obdService = svc
+                    val copy = onConnect.toList()
                     onConnect.clear()
+                    copy
+                }
+                for (funt in callbacks) {
+                    funt(svc)
                 }
             } catch (e: DeadObjectException) {
                 Timber.e("Disconnected from service", e)

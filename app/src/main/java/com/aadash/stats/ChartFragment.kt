@@ -151,7 +151,7 @@ class ChartFragment: Fragment() {
             binding
         }
         binding.layoutManager =
-            StaggeredGridLayoutManager(legendBinding.size, RecyclerView.VERTICAL).apply {
+            StaggeredGridLayoutManager(legendBinding.size.coerceAtLeast(1), RecyclerView.VERTICAL).apply {
                 gapStrategy = StaggeredGridLayoutManager.GAP_HANDLING_MOVE_ITEMS_BETWEEN_SPANS
             }
         binding.legendData = LegendAdapter(settingsViewModel, ImmutableList.copyOf(legendBinding))
@@ -163,8 +163,9 @@ class ChartFragment: Fragment() {
     fun notifyUpdate(data: GaugeData, binding: LegendBinding) {
         val line = series[data]
         val now = Date()
-        val scaled = (data.lastData / (data.display.maxValue - data.display.minValue)) * 100f
-        line?.appendData(DataPoint(now, scaled), true, 100)
+        val span = (data.display.maxValue - data.display.minValue).toDouble()
+        val scaled = if (span > 0.0) ((data.lastData - data.display.minValue) / span) * 100.0 else 0.0
+        line?.appendData(DataPoint(now, scaled.coerceIn(0.0, 100.0)), true, 100)
         if (data.hasReceivedNonZero)
             binding.value.value = "${data.lastDataStr}${data.display.unit}"
     }

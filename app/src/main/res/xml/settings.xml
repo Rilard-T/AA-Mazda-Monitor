@@ -95,6 +95,12 @@
             android:persistent="false"
             android:summary="@string/pref_sz_header_desc"
             android:title="@string/pref_sz_header" />
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:key="showObdIndicator"
+            android:persistent="false"
+            android:summary="@string/pref_obd_indicator_desc"
+            android:title="@string/pref_obd_indicator" />
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -174,6 +180,10 @@
             android:key="open_experimental"
             android:title="@string/action_experimental"
             android:summary="@string/section_experimental_summary" />
+        <Preference
+            android:key="regen_stats"
+            android:title="@string/regen_stats_title"
+            android:summary="@string/regen_stats_empty" />
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -34,12 +34,12 @@ class GaugeData(var display: Display) {
         get() {
             return if (display.disabled) null else field
         }
-    var minValue: Double = Double.POSITIVE_INFINITY
-    var maxValue: Double = Double.NEGATIVE_INFINITY
+    @Volatile var minValue: Double = Double.POSITIVE_INFINITY
+    @Volatile var maxValue: Double = Double.NEGATIVE_INFINITY
     private var expression: Expression? = null
-    var lastDataStr: String = "-"
+    @Volatile var lastDataStr: String = "-"
     var refreshTimer: ScheduledFuture<*>? = null
-    var hasReceivedNonZero = false
+    @Volatile var hasReceivedNonZero = false
     var currentAlarm = MutableLiveData<Coloring?>()
 
     var notifyUpdate: ((GaugeData) -> Unit)? = null
@@ -48,7 +48,7 @@ class GaugeData(var display: Display) {
             value?.let { it(this) }
         }
 
-    var lastData: Double = 0.0
+    @Volatile var lastData: Double = 0.0
         set(value) {
             val converted = convertValue(value)
             field = converted.first

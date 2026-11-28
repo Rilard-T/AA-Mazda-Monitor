@@ -1,50 +1,30 @@
 package com.aadash.utils
 
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlin.coroutines.Continuation
-import kotlin.coroutines.resume
+import kotlinx.coroutines.CompletableDeferred
+import java.util.concurrent.atomic.AtomicInteger
 
 class CountDownLatch(
     initialCount: Int
 ) {
-    private var count = initialCount
-    private val mutex = Mutex()
-    private val awaiters = mutableSetOf<Continuation<Unit>>()
-
-    suspend fun countDown() {
-        if (count == 0) {
-            return
-        }
-        mutex.withLock {
-            if (count == 0) {
-                return
-            }
-            count--
-            if (count == 0) {
-                releaseAll()
-            }
-        }
+    private val count = AtomicInteger(initialCount.coerceAtLeast(0))
+    private val done = CompletableDeferred<Unit>().apply {
+        if (initialCount <= 0) complete(Unit)
     }
 
-    private fun releaseAll() {
-        for (awaiter in awaiters) {
-            awaiter.resume(Unit)
+    fun countDown() {
+        while (true) {
+            val cur = count.get()
+            if (cur <= 0) return
+            if (count.compareAndSet(cur, cur - 1)) {
+                if (cur - 1 == 0) {
+                    done.complete(Unit)
+                }
+                return
+            }
         }
     }
 
     suspend fun await() {
-        if (count == 0) {
-            return
-        }
-        mutex.withLock {
-            if (count == 0) {
-                return
-            }
-        }
-        suspendCancellableCoroutine<Unit> {
-            awaiters.add(it)
-        }
+        done.await()
     }
 }

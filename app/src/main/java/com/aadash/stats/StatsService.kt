@@ -90,12 +90,15 @@ class StatsService: Service() {
     }
 
     fun addConnectCallback(func: (ITorqueService) -> Unit): StatsService {
-        if (obdService == null) {
-            conLock.withLock {
+        val svc = conLock.withLock {
+            val current = obdService
+            if (current == null) {
                 onConnect.add(func)
             }
-        } else {
-            func(obdService!!)
+            current
+        }
+        if (svc != null) {
+            func(svc)
         }
         return this
     }
@@ -109,13 +112,15 @@ class StatsService: Service() {
         /** Что делать, когда служба OBD подключилась. */
         override fun onServiceConnected(arg0: ComponentName, service: IBinder) {
             val svc = ITorqueService.Stub.asInterface(service)
-            conLock.withLock {
-                for (funt in onConnect) {
-                    funt(svc)
-                }
+            val callbacks = conLock.withLock {
+                obdService = svc
+                val copy = onConnect.toList()
                 onConnect.clear()
+                copy
             }
-            obdService = svc
+            for (funt in callbacks) {
+                funt(svc)
+            }
         }
 
         /** Что делать при отключении службы OBD. */

@@ -44,7 +44,7 @@ class DisplayFragment : Fragment() {
         binding = FragmentDisplayBinding.inflate(inflater, container, false)
         settingsViewModel.typefaceLiveData.observe(viewLifecycleOwner, this::setupTypeface)
         rootView = binding.root
-        bottomBacking.observeForever {
+        bottomBacking.observe(viewLifecycleOwner) {
             binding.showBottom = it
         }
         binding.showBottom = isBottomDisplay

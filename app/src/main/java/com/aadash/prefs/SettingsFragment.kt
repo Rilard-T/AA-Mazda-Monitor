@@ -38,6 +38,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
     lateinit var gaugeScalePref: SeekBarPreference
     lateinit var valueScalePref: SeekBarPreference
     lateinit var labelScalePref: SeekBarPreference
+    lateinit var showObdIndicatorPref: SwitchPreferenceCompat
     lateinit var hideHeaderPref: SwitchPreferenceCompat
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,12 +60,13 @@ class SettingsFragment : PreferenceFragmentCompat() {
         valueScalePref = findPreference("valueScale")!!
         labelScalePref = findPreference("labelScale")!!
         hideHeaderPref = findPreference("hideHeader")!!
+        showObdIndicatorPref = findPreference("showObdIndicator")!!
         themePref.summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
         fontPref.summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
         backgroundPref.summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
         numScreensPref.summaryProvider = EditTextPreference.SimpleSummaryProvider.getInstance()
         numScreensPref.setOnPreferenceChangeListener { _, newValue ->
-            val intVal = (newValue as String).toInt()
+            val intVal = (newValue as? String)?.toIntOrNull() ?: return@setOnPreferenceChangeListener false
             if (intVal in 1..10) {
                 lifecycleScope.launch {
                     requireContext().dataStore.updateData { currentSettings ->
@@ -175,6 +177,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
             updateDatastorePref { it.setHideHeader(newValue as Boolean) }
             return@setOnPreferenceChangeListener true
         }
+        showObdIndicatorPref.setOnPreferenceChangeListener { _, newValue ->
+            updateDatastorePref { it.setHideObdIndicator(!(newValue as Boolean)) }
+            return@setOnPreferenceChangeListener true
+        }
         showMusicPref.setOnPreferenceChangeListener { _, newValue ->
             val enabled = newValue as Boolean
             if (enabled && !NotiService.isNotificationAccessEnabled(requireContext())) {
@@ -249,6 +255,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 valueScalePref.value = if (it.valueScale == 0) 100 else it.valueScale
                 labelScalePref.value = if (it.labelScale == 0) 100 else it.labelScale
                 hideHeaderPref.isChecked = it.hideHeader
+                showObdIndicatorPref.isChecked = !it.hideObdIndicator
             }
         }
         lifecycleScope.launch {
@@ -288,5 +295,20 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onStart() {
         super.onStart()
         (requireActivity() as SettingsActivity).supportActionBar!!.subtitle = null
+        updateRegenStats()
+    }
+
+    private fun updateRegenStats() {
+        val pref = findPreference<Preference>("regen_stats") ?: return
+        val obdPrefs = requireContext().getSharedPreferences("obd_bridge", android.content.Context.MODE_PRIVATE)
+        val s = com.aadash.obd.RegenTracker.get(obdPrefs).summary()
+        if (s.count == 0 && s.avgKm == null) {
+            pref.summary = getString(R.string.regen_stats_empty)
+            return
+        }
+        val avgKm = s.avgKm?.let { "${Math.round(it)} km" } ?: "—"
+        val avgSoot = s.avgSoot?.let { String.format(java.util.Locale.US, "%.2f g/l", it) } ?: "—"
+        val rem = s.remainingKm?.let { "~${Math.round(it)} km" } ?: "—"
+        pref.summary = getString(R.string.regen_stats_fmt, s.count, avgKm, avgSoot, rem)
     }
 }

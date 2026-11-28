@@ -18,6 +18,9 @@ abstract class AlbumArt : CarFragment() {
 
     val registed = HashMap<Int, () -> Unit>()
     private val updateChannel = MutableSharedFlow<MediaMetadata?>()
+    private var mediaJob: kotlinx.coroutines.Job? = null
+    private var sessionsListener: MediaSessionManager.OnActiveSessionsChangedListener? = null
+    private var mediaManager: MediaSessionManager? = null
 
     override fun onResume() {
         super.onResume()
@@ -26,11 +29,21 @@ abstract class AlbumArt : CarFragment() {
 
     override fun onPause() {
         super.onPause()
+        mediaJob?.cancel()
+        mediaJob = null
+        sessionsListener?.let { listener ->
+            try {
+                mediaManager?.removeOnActiveSessionsChangedListener(listener)
+            } catch (_: Exception) {}
+        }
+        sessionsListener = null
+        mediaManager = null
         updateSessions(emptyList())
     }
 
     private fun setupListenMedia() {
-        lifecycleScope.launch {
+        mediaJob?.cancel()
+        mediaJob = viewLifecycleOwner.lifecycleScope.launch {
             updateChannel.asSharedFlow()
                 .distinctUntilChangedBy {
                     listOf(
@@ -48,15 +61,22 @@ abstract class AlbumArt : CarFragment() {
     }
 
     private fun registerMedia() {
+        val ctx = context ?: return
         val mediaMan = ContextCompat.getSystemService(
-            requireContext(),
+            ctx,
             MediaSessionManager::class.java
         ) ?: return
-        val component = ComponentName(requireContext(), NotiService::class.java)
+        val component = ComponentName(ctx, NotiService::class.java)
+        sessionsListener?.let { prev ->
+            try { mediaManager?.removeOnActiveSessionsChangedListener(prev) } catch (_: Exception) {}
+        }
+        val listener = MediaSessionManager.OnActiveSessionsChangedListener {
+            updateSessions(it ?: emptyList())
+        }
         try {
-            mediaMan.addOnActiveSessionsChangedListener({
-                updateSessions(it ?: emptyList())
-            }, component)
+            mediaMan.addOnActiveSessionsChangedListener(listener, component)
+            mediaManager = mediaMan
+            sessionsListener = listener
             updateSessions(mediaMan.getActiveSessions(component))
         } catch (e: SecurityException) {
             Timber.e("No permission to read media", e)

@@ -58,9 +58,10 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
     var serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             obdService = (service as StatsService.LocalBinder).getService()
-            obdService!!.loadPidInformation(false) {
-                pids ->
-                requireActivity().runOnUiThread {
+            obdService?.loadPidInformation(false) { pids ->
+                if (!isAdded) return@loadPidInformation
+                activity?.runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
                     val valuesQuery = pids.map { "torque_${it.first}" }.toTypedArray()
                     val names = pids.map { it.second[0] }.toTypedArray()
                     pidPref.entryValues = arrayOf("") + valuesQuery
@@ -140,7 +141,7 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
                 enableItems(false)
             } else {
                 val pidOnly = (newValue as String).substring("torque_".length)
-                obdService!!.pids!!.firstOrNull {
+                obdService?.pids?.firstOrNull {
                     it.first == pidOnly
                 }?.let {entryVal ->
                     var minVal = ceil(entryVal.second[3].toDouble()).toInt()
@@ -150,8 +151,8 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
                         maxVal = 100
                     }
                     labelPref.text = entryVal.second[1]
-                    maxValuePref.text = minVal.toString()
-                    minValuePref.text = maxVal.toString()
+                    minValuePref.text = minVal.toString()
+                    maxValuePref.text = maxVal.toString()
                     unitPref.text = entryVal.second[2]
                 }
                 enableItems(true)
@@ -230,6 +231,7 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
     }
 
     fun saveState() {
+        if (!::display.isInitialized) return
         fun coerce(value: String?, default: Int): Int {
             return try {
                 value?.toInt() ?: default
@@ -274,9 +276,9 @@ class SettingsPIDFragment:  PreferenceFragmentCompat() {
         if (imagePref.value != null) {
             display = display.setIcon(imagePref.value)
         }
-        val context = requireContext()
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            context.dataStore.updateData {
+        val appContext = context?.applicationContext ?: return
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + Dispatchers.IO).launch {
+            appContext.dataStore.updateData {
                     currentSettings ->
                 return@updateData currentSettings.toBuilder().let { set1 ->
                     var screenObj: Screen.Builder = try {

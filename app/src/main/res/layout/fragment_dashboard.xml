@@ -79,6 +79,10 @@
         <variable
             name="hideHeader"
             type="boolean" />
+
+        <variable
+            name="showObdDot"
+            type="boolean" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -87,6 +91,19 @@
         android:layout_height="match_parent"
         android:clipChildren="false"
         android:layout_margin="0dp">
+
+        <View
+            android:id="@+id/obdLinkDot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="14dp"
+            android:alpha="0.8"
+            android:background="@drawable/obd_link_dot"
+            android:elevation="2dp"
+            android:visibility="@{showObdDot ? View.VISIBLE : View.GONE}"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
             android:id="@+id/bgImageView"

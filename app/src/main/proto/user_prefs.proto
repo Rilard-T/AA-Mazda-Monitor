@@ -74,4 +74,5 @@ message UserPreference {
   uint32 valueScale = 29;
   uint32 labelScale = 30;
   bool hideHeader = 31;
+  bool hideObdIndicator = 33;
 }
