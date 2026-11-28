@@ -6,6 +6,8 @@ import androidx.core.content.res.ResourcesCompat
 import com.aadash.stats.R
 
 object NavFonts {
+    private val cache = HashMap<Int, Typeface>()
+
     fun load(context: Context, name: String): Typeface? {
         val resId = when (name) {
             "segments" -> R.font.digital
@@ -21,8 +23,13 @@ object NavFonts {
             "ev" -> R.font.ev
             else -> R.font.digital
         }
+        synchronized(cache) {
+            cache[resId]?.let { return it }
+        }
         return try {
-            ResourcesCompat.getFont(context.applicationContext, resId)
+            val tf = ResourcesCompat.getFont(context.applicationContext, resId)
+            if (tf != null) synchronized(cache) { cache[resId] = tf }
+            tf
         } catch (e: Exception) {
             null
         }

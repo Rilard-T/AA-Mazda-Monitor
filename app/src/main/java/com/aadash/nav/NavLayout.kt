@@ -94,6 +94,25 @@ data class NavLayout(
     companion object {
         const val MIN_TEXT_SCALE = 0.7f
         const val MAX_TEXT_SCALE = 1.6f
+        const val MIN_CIRCLE_SCALE = 0.3f
+        const val MAX_CIRCLE_SCALE = 2.0f
+
+        /**
+         * Максимальный множитель круга для [item] при соотношении сторон [aspect],
+         * при котором круг не выходит за границы области [0..1] по X и Y.
+         */
+        fun maxCircleSize(item: NavItem, aspect: Float): Float {
+            if (aspect <= 0f || item.w <= 0f || item.h <= 0f) return MAX_CIRCLE_SCALE
+            val cx = item.x + item.w / 2f
+            val cy = item.y + item.h / 2f
+            val maxR = minOf(
+                aspect * minOf(cx, 1f - cx),
+                minOf(cy, 1f - cy)
+            ).coerceAtLeast(0f)
+            val baseR = minOf(item.w * aspect, item.h) / 2f
+            if (baseR <= 0f) return MAX_CIRCLE_SCALE
+            return (maxR / baseR).coerceIn(MIN_CIRCLE_SCALE, MAX_CIRCLE_SCALE)
+        }
     }
 
     fun form(key: String): NavForm =
@@ -105,12 +124,21 @@ object NavLayoutStore {
     const val NARROW = "narrow"
     private const val KEY = "layout_json"
     private const val KEY_AREA = "area_aspect"
+    private const val KEY_AREA_WIDE = "area_aspect_wide"
+    private const val KEY_AREA_NARROW = "area_aspect_narrow"
 
     @Volatile var layout: NavLayout = defaultLayout()
         private set
 
     @Volatile var carAspect: Float = 0f
         private set
+    @Volatile var carAspectWide: Float = 0f
+        private set
+    @Volatile var carAspectNarrow: Float = 0f
+        private set
+
+    fun carAspectFor(narrowForm: Boolean): Float =
+        if (narrowForm) carAspectNarrow else carAspectWide
 
     @Volatile var fastPids: List<String> = emptyList()
         private set
@@ -140,25 +168,46 @@ object NavLayoutStore {
     }
 
     fun load(context: Context) {
-        val text = try {
-            context.applicationContext.getSharedPreferences(com.aadash.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE).getString(KEY, null)
+        val prefs = try {
+            context.applicationContext.getSharedPreferences(com.aadash.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE)
         } catch (e: Exception) { null }
+        val text = try { prefs?.getString(KEY, null) } catch (e: Exception) { null }
         val parsed = if (text == null) null else parse(text)
-        install(parsed ?: defaultLayout())
-        val area = try {
-            context.applicationContext.getSharedPreferences(com.aadash.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE).getFloat(KEY_AREA, 0f)
-        } catch (e: Exception) { 0f }
-        carAspect = NavAspects.sanitize(area)
+        val installed = parsed ?: defaultLayout()
+        install(installed)
+        val wide = NavAspects.sanitize(try { prefs?.getFloat(KEY_AREA_WIDE, 0f) ?: 0f } catch (e: Exception) { 0f })
+        val narrow = NavAspects.sanitize(try { prefs?.getFloat(KEY_AREA_NARROW, 0f) ?: 0f } catch (e: Exception) { 0f })
+        val legacy = NavAspects.sanitize(try { prefs?.getFloat(KEY_AREA, 0f) ?: 0f } catch (e: Exception) { 0f })
+        if (wide > 0f || narrow > 0f) {
+            carAspectWide = wide
+            carAspectNarrow = narrow
+            carAspect = if (wide > 0f) wide else narrow
+        } else {
+            if (legacy > 0f && legacy < installed.narrowAspect) {
+                carAspectNarrow = legacy
+                carAspectWide = 0f
+            } else {
+                carAspectWide = legacy
+                carAspectNarrow = 0f
+            }
+            carAspect = legacy
+        }
     }
 
     fun reportArea(context: Context, aspect: Float) {
         val a = NavAspects.sanitize(aspect)
         if (a <= 0f) return
-        if (abs(a - carAspect) < 0.02f) return
+        val narrow = a < layout.narrowAspect
+        val prev = if (narrow) carAspectNarrow else carAspectWide
         carAspect = a
+        if (abs(a - prev) < 0.02f) return
+        if (narrow) carAspectNarrow = a else carAspectWide = a
         try {
             context.applicationContext.getSharedPreferences(com.aadash.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE)
-                .edit().putFloat(KEY_AREA, a).apply()
+                .edit()
+                .putFloat(if (narrow) KEY_AREA_NARROW else KEY_AREA_WIDE, a)
+                .putFloat(KEY_AREA, a)
+                .apply()
         } catch (e: Exception) {}
     }
 

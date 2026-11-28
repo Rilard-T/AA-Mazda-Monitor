@@ -83,7 +83,7 @@ class NavEditorActivity : AppCompatActivity() {
         com.aadash.prefs.AppAccent.applyTo(this)
         super.onCreate(savedInstanceState)
         // Короткий заголовок: полный («Раскладка приборов») не влезает рядом с «Сохранить»
-        title = "Раскладка"
+        title = getString(R.string.nav_editor_title)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         NavLayoutStore.load(this)
         loadFromStore()
@@ -186,7 +186,7 @@ class NavEditorActivity : AppCompatActivity() {
         // Портрет телефона как пропорция предпросмотра даёт очень высокий холст: без ограничения он
         // вытеснял панель с кнопками за нижний край экрана. 60 % оставляют панели место для прокрутки,
         // но холст при этом заметно крупнее прежних 45 %. Ширину предпросмотр считает сам.
-        previewFrame.maxHeight = if (landscape) 0 else (resources.displayMetrics.heightPixels * 0.60f).toInt()
+        previewFrame.maxHeight = if (landscape) 0 else (resources.displayMetrics.heightPixels * 0.42f).toInt()
         previewFrame.elevation = dp(4).toFloat()
         previewFrame.clipToOutline = true
         previewFrame.background = GradientDrawable().apply {
@@ -290,7 +290,7 @@ class NavEditorActivity : AppCompatActivity() {
         }
 
         // Группа «Форма»
-        addGroup("Форма", true) { g ->
+        addGroup(getString(R.string.nav_group_form), true) { g ->
             val wideBtn = mkBtn(getString(R.string.nav_form_wide)) { formKey = NavLayoutStore.WIDE; applyForm() }
             val narrowBtn = mkBtn(getString(R.string.nav_form_narrow)) { formKey = NavLayoutStore.NARROW; applyForm() }
             stateBtn(wideBtn) { formKey == NavLayoutStore.WIDE }
@@ -299,15 +299,15 @@ class NavEditorActivity : AppCompatActivity() {
         }
 
         // Группа «Пропорции»
-        addGroup("Пропорции", false) { g ->
-            aspectBtn = mkBtn("Пресет: " + aspectLabel()) { cycleAspects(); aspectBtn?.text = "Пресет: " + aspectLabel() }
+        addGroup(getString(R.string.nav_group_aspect), false) { g ->
+            aspectBtn = mkBtn(getString(R.string.nav_preset_fmt, aspectLabel())) { cycleAspects(); aspectBtn?.text = getString(R.string.nav_preset_fmt, aspectLabel()) }
             g.addView(aspectBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
 
         // Группа «Вид»
-        addGroup("Вид", false) { g ->
-            ticksBtn = mkBtn(if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл") { toggleTicks(); ticksBtn?.text = if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл" }
-            debugBtn = mkBtn(if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл") { toggleDebug(); debugBtn?.text = if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл" }
+        addGroup(getString(R.string.nav_group_view), false) { g ->
+            ticksBtn = mkBtn(stateLabel(getString(R.string.nav_ticks), ticksOn)) { toggleTicks() }
+            debugBtn = mkBtn(stateLabel(getString(R.string.nav_debug), debugOn)) { toggleDebug() }
             ticksBtn?.let { stateBtn(it) { ticksOn } }
             debugBtn?.let { stateBtn(it) { debugOn } }
             val themeBtn = mkBtn(getString(R.string.nav_theme)) { chooseTheme() }
@@ -321,7 +321,7 @@ class NavEditorActivity : AppCompatActivity() {
 
             // Уведомление о прожиге: его вид виден в предпросмотре сразу.
             g.addView(TextView(this).apply {
-                setText("Уведомление о прожиге")
+                text = getString(R.string.nav_regen_section)
                 textSize = 13f
                 setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY))
                 setPadding(dp(4), dp(10), 0, dp(2))
@@ -333,14 +333,14 @@ class NavEditorActivity : AppCompatActivity() {
             }
             regenBtn?.let { stateBtn(it) { regenBanner.enabled } }
             regenPosBtn = mkBtn(regenPosLabel()) { chooseRegenShift() }
-            regenFillBtn = mkBtn(regenColorLabel("Фон", regenBanner.fill)) {
-                chooseRegenColor("Цвет фона", regenBanner.fill) { regenBanner = regenBanner.copy(fill = it); applyRegen() }
+            regenFillBtn = mkBtn(regenColorLabel(getString(R.string.nav_regen_fill), regenBanner.fill)) {
+                chooseRegenColor(getString(R.string.nav_regen_fill_title), regenBanner.fill) { regenBanner = regenBanner.copy(fill = it); applyRegen() }
             }
-            regenTextBtn = mkBtn(regenColorLabel("Текст", regenBanner.text)) {
-                chooseRegenColor("Цвет текста", regenBanner.text) { regenBanner = regenBanner.copy(text = it); applyRegen() }
+            regenTextBtn = mkBtn(regenColorLabel(getString(R.string.nav_regen_text), regenBanner.text)) {
+                chooseRegenColor(getString(R.string.nav_regen_text_title), regenBanner.text) { regenBanner = regenBanner.copy(text = it); applyRegen() }
             }
-            regenBorderBtn = mkBtn(regenColorLabel("Рамка", regenBanner.border)) {
-                chooseRegenColor("Цвет рамки", regenBanner.border) { regenBanner = regenBanner.copy(border = it); applyRegen() }
+            regenBorderBtn = mkBtn(regenColorLabel(getString(R.string.nav_regen_border), regenBanner.border)) {
+                chooseRegenColor(getString(R.string.nav_regen_border_title), regenBanner.border) { regenBanner = regenBanner.copy(border = it); applyRegen() }
             }
             regenSizeBtn = mkBtn(regenSizeLabel()) { chooseRegenSize() }
             regenPlaceBtn = mkBtn(regenPlaceLabel()) {
@@ -355,25 +355,37 @@ class NavEditorActivity : AppCompatActivity() {
         }
 
         // Группа «Элементы»
-        addGroup("Элементы", false) { g ->
+        addGroup(getString(R.string.nav_group_items), false) { g ->
             val addBtn = mkBtn(getString(R.string.nav_add)) { addElement() }
-            val alignBtn = mkBtn("Выровнять") { alignSelected() }
-            val borderBtn = mkBtn("Границы виджета") { if (editor.selectedItem() != null) chooseBorder() }
+            val alignBtn = mkBtn(getString(R.string.nav_align)) { alignSelected() }
+            val borderBtn = mkBtn(getString(R.string.nav_border)) { if (editor.selectedItem() != null) chooseBorder() }
             g.addView(addBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(alignBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(borderBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
 
         // Группа «Графики»
-        addGroup("Графики", false) { g ->
-            val graphsBtn = mkBtn("Графики") { manageGraphs() }
+        addGroup(getString(R.string.nav_group_graphs), false) { g ->
+            val graphsBtn = mkBtn(getString(R.string.nav_group_graphs)) { manageGraphs() }
             g.addView(graphsBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
 
         // Группа «Инструменты»
-        addGroup("Инструменты", false) { g ->
-            gridBtn = mkBtn("Сетка: " + if (editor.gridOn) "вкл" else "выкл") { editor.gridOn = !editor.gridOn; editor.invalidate(); updateInfo(); gridBtn?.text = "Сетка: " + if (editor.gridOn) "вкл" else "выкл"; refreshStateButtons() }
-            snapBtn = mkBtn("Привязка: " + if (editor.snapToGrid) "вкл" else "выкл") { editor.snapToGrid = !editor.snapToGrid; editor.invalidate(); updateInfo(); snapBtn?.text = "Привязка: " + if (editor.snapToGrid) "вкл" else "выкл"; refreshStateButtons() }
+        addGroup(getString(R.string.nav_group_tools), false) { g ->
+            gridBtn = mkBtn(stateLabel(getString(R.string.nav_grid), editor.gridOn)) {
+                editor.gridOn = !editor.gridOn
+                editor.invalidate()
+                updateInfo()
+                gridBtn?.text = stateLabel(getString(R.string.nav_grid), editor.gridOn)
+                refreshStateButtons()
+            }
+            snapBtn = mkBtn(stateLabel(getString(R.string.nav_snap), editor.snapToGrid)) {
+                editor.snapToGrid = !editor.snapToGrid
+                editor.invalidate()
+                updateInfo()
+                snapBtn?.text = stateLabel(getString(R.string.nav_snap), editor.snapToGrid)
+                refreshStateButtons()
+            }
             gridBtn?.let { stateBtn(it) { editor.gridOn } }
             snapBtn?.let { stateBtn(it) { editor.snapToGrid } }
             val copyBtn = mkBtn(getString(R.string.nav_copy)) { confirmCopySensors() }
@@ -407,26 +419,31 @@ class NavEditorActivity : AppCompatActivity() {
         return root
     }
 
-    private fun regenOnLabel(): String = "Прожиг: " + if (regenBanner.enabled) "вкл" else "выкл"
+    private fun stateLabel(name: String, on: Boolean): String =
+        getString(R.string.nav_state_fmt, name, getString(if (on) R.string.nav_on else R.string.nav_off))
 
-    private fun regenPosLabel(): String = "Сдвиг: " + Math.round(regenBanner.x * 100f) + " %"
+    private fun regenOnLabel(): String = stateLabel(getString(R.string.nav_regen_toggle), regenBanner.enabled)
+
+    private fun regenPosLabel(): String = getString(R.string.nav_regen_pos_fmt, Math.round(regenBanner.x * 100f))
 
     private fun regenColorLabel(name: String, color: Int): String =
         name + ": " + String.format("#%06X", 0xFFFFFF and color)
 
-    private fun regenSizeLabel(): String = "Размер: " + Math.round(regenBanner.scale * 100f) + "%"
+    private fun regenSizeLabel(): String = getString(R.string.nav_regen_size_fmt, Math.round(regenBanner.scale * 100f))
 
-    private fun regenPlaceLabel(): String =
-        "Место: " + if (regenBanner.placement == RegenBanner.PLACEMENT_HEADER) "шапка" else "первая строка"
+    private fun regenPlaceLabel(): String = getString(
+        R.string.nav_regen_place_fmt,
+        getString(if (regenBanner.placement == RegenBanner.PLACEMENT_HEADER) R.string.nav_regen_place_header else R.string.nav_regen_place_row)
+    )
 
     /** Изменение вида уведомления: сразу в предпросмотр и на кнопки. */
     private fun applyRegen() {
         editor.regen = regenBanner
         regenBtn?.text = regenOnLabel()
         regenPosBtn?.text = regenPosLabel()
-        regenFillBtn?.text = regenColorLabel("Фон", regenBanner.fill)
-        regenTextBtn?.text = regenColorLabel("Текст", regenBanner.text)
-        regenBorderBtn?.text = regenColorLabel("Рамка", regenBanner.border)
+        regenFillBtn?.text = regenColorLabel(getString(R.string.nav_regen_fill), regenBanner.fill)
+        regenTextBtn?.text = regenColorLabel(getString(R.string.nav_regen_text), regenBanner.text)
+        regenBorderBtn?.text = regenColorLabel(getString(R.string.nav_regen_border), regenBanner.border)
         regenSizeBtn?.text = regenSizeLabel()
         regenPlaceBtn?.text = regenPlaceLabel()
         refreshStateButtons()
@@ -458,7 +475,7 @@ class NavEditorActivity : AppCompatActivity() {
             override fun onStopTrackingTouch(bar: SeekBar?) {}
         })
         AlertDialog.Builder(this)
-            .setTitle("Сдвиг уведомления по горизонтали")
+            .setTitle(getString(R.string.nav_regen_pos_title))
             .setView(box)
             .setPositiveButton(android.R.string.ok) { dialog, _ -> dialog.dismiss() }
             .setNegativeButton(android.R.string.cancel) { dialog, _ -> dialog.dismiss() }
@@ -495,7 +512,7 @@ class NavEditorActivity : AppCompatActivity() {
             FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         )
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Размер уведомления: " + Math.round(regenBanner.scale * 100f) + "%")
+            .setTitle(getString(R.string.nav_regen_size_title_fmt, Math.round(regenBanner.scale * 100f)))
             .setView(holder)
             .setPositiveButton(android.R.string.ok) { d, _ -> d.dismiss() }
             .setNegativeButton(android.R.string.cancel) { d, _ ->
@@ -510,7 +527,7 @@ class NavEditorActivity : AppCompatActivity() {
                 if (!fromUser) return
                 regenBanner = regenBanner.copy(scale = RegenBanner.MIN_SCALE + progress * 0.1f)
                 applyRegen()
-                dialog.setTitle("Размер уведомления: " + Math.round(regenBanner.scale * 100f) + "%")
+                dialog.setTitle(getString(R.string.nav_regen_size_title_fmt, Math.round(regenBanner.scale * 100f)))
             }
 
             override fun onStartTrackingTouch(bar: SeekBar?) {}
@@ -611,7 +628,7 @@ class NavEditorActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         // Переключатель приборы/график — левее «Сохранить»: у него меняется надпись, и в правом
         // краю он дёргал бы «Сохранить». У «Сохранить» правый край закреплён, поэтому растёт он влево.
-        previewMenuItem = menu.add(Menu.NONE, M_PREVIEW, 0, "Приборы")
+        previewMenuItem = menu.add(Menu.NONE, M_PREVIEW, 0, getString(R.string.nav_gauges_tab))
         previewMenuItem?.setShowAsAction(
             MenuItem.SHOW_AS_ACTION_ALWAYS or MenuItem.SHOW_AS_ACTION_WITH_TEXT
         )
@@ -674,7 +691,7 @@ class NavEditorActivity : AppCompatActivity() {
             names.add(getString(R.string.nav_item_red))
             actions.add { chooseRedZone() }
         }
-        names.add("Границы виджета")
+        names.add(getString(R.string.nav_border))
         actions.add { chooseBorder() }
         names.add(getString(R.string.nav_delete))
         actions.add { deleteSelected() }
@@ -751,22 +768,29 @@ class NavEditorActivity : AppCompatActivity() {
             .show()
     }
 
-    /** Размер круга выбранного прибора: ползунок внизу экрана, предпросмотр не затемняется. */
+    /** Размер круга выбранного прибора: ползунок внизу экрана (30% до допустимого предела, макс. 200%). */
     private fun chooseCircleSize() {
         val sel = editor.selectedItem() ?: return
         if (sel.kind != NavItem.GAUGE) return
+        val minPct = Math.round(NavLayout.MIN_CIRCLE_SCALE * 100f)
+        val absMaxPct = Math.round(NavLayout.MAX_CIRCLE_SCALE * 100f)
+        val maxPct = kotlin.math.floor((NavLayout.maxCircleSize(sel, editor.aspect) * 100f).toDouble())
+            .toInt()
+            .coerceIn(minPct, absMaxPct)
         val label = TextView(this)
         val bar = SeekBar(this)
-        bar.max = 70
-        bar.progress = ((sel.size - 0.3f) * 100f).toInt().coerceIn(0, 70)
-        label.text = getString(R.string.nav_circle_size) + (sel.size * 100f).toInt() + "%"
+        bar.max = maxPct - minPct
+        val curPct = Math.round(sel.size * 100f).coerceIn(minPct, maxPct)
+        bar.progress = (curPct - minPct).coerceIn(0, bar.max)
+        label.text = getString(R.string.nav_circle_size) + curPct + "%"
         bar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (!fromUser) return
                 val cur = editor.selectedItem() ?: return
-                val next = cur.copy(size = 0.3f + progress / 100f)
+                val pct = (minPct + progress).coerceIn(minPct, maxPct)
+                val next = cur.copy(size = pct / 100f)
                 editor.replaceSelected(next)
-                label.text = getString(R.string.nav_circle_size) + (next.size * 100f).toInt() + "%"
+                label.text = getString(R.string.nav_circle_size) + pct + "%"
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -801,7 +825,7 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun togglePreview() {
         if (graphs.isEmpty()) {
-            Toast.makeText(this, "Сначала добавьте график (меню ⋯ → Графики)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.nav_no_graphs_hint), Toast.LENGTH_SHORT).show()
             return
         }
         previewIndex++
@@ -814,22 +838,23 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun updatePreviewSwitch() {
         val label = if (previewIndex < 0) {
-            "Приборы"
+            getString(R.string.nav_gauges_tab)
         } else {
-            "График: " + (graphs.getOrNull(previewIndex)?.name ?: "график")
+            getString(R.string.nav_graph_preview_fmt, graphs.getOrNull(previewIndex)?.name ?: getString(R.string.nav_graph_word))
         }
         previewMenuItem?.title = label
     }
 
     /**
-     * Пропорции предпросмотра (ширина / высота): по умолчанию - реальная область из машины,
-     * если она ещё неизвестна - экран телефона в подходящей ориентации.
+     * Пропорции предпросмотра (ширина / высота): по умолчанию - реальная область из машины
+     * для выбранной формы (широкой или узкой), иначе - экран телефона в подходящей ориентации.
      */
     private fun currentAspect(): Float {
         val dm = resources.displayMetrics
+        val narrow = formKey == NavLayoutStore.NARROW
         val a = NavAspects.of(
-            aspectSource, NavLayoutStore.carAspect, dm.widthPixels, dm.heightPixels,
-            formKey == NavLayoutStore.NARROW
+            aspectSource, NavLayoutStore.carAspectFor(narrow), dm.widthPixels, dm.heightPixels,
+            narrow
         )
         return if (a > 0f) a else NavAspects.DEFAULT
     }
@@ -848,8 +873,12 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun aspectLabel(): String = when (aspectSource) {
         NavAspectSource.AUTO ->
-            if (NavLayoutStore.carAspect > 0f) "Авто (машина)" else "Авто (телефон)"
-        NavAspectSource.CAR -> "Машина"
+            if (NavLayoutStore.carAspectFor(formKey == NavLayoutStore.NARROW) > 0f) {
+                getString(R.string.nav_aspect_auto_car)
+            } else {
+                getString(R.string.nav_aspect_auto_phone)
+            }
+        NavAspectSource.CAR -> getString(R.string.nav_aspect_car)
         NavAspectSource.PORTRAIT -> getString(R.string.nav_aspect_portrait)
         else -> getString(R.string.nav_aspect_landscape)
     }
@@ -862,13 +891,13 @@ class NavEditorActivity : AppCompatActivity() {
             getString(R.string.nav_help)
         } else {
             getString(R.string.nav_selected) + sel.label + " (" + sel.pid + ")" +
-                (if (sel.kind == NavItem.GAUGE) getString(R.string.nav_circle) + (sel.size * 100f).toInt() + "%" else "")
+                (if (sel.kind == NavItem.GAUGE) getString(R.string.nav_circle) + Math.round(sel.size * 100f) + "%" else "")
         }
         info?.text = getString(R.string.nav_form) + (if (narrow) getString(R.string.nav_narrow) else getString(R.string.nav_wide)) +
             getString(R.string.nav_aspect_prefix) + aspectLabel() + " " +
             String.format(Locale.US, "%.2f", editor.aspect) +
             getString(R.string.nav_items) + count + "\n" + themeLine() + "\n" + selText
-        aspectBtn?.text = "Пресет: " + aspectLabel()
+        aspectBtn?.text = getString(R.string.nav_preset_fmt, aspectLabel())
     }
 
     /** Новый элемент на месте старого: те же положение и размер, параметры от выбранного датчика. */
@@ -959,7 +988,7 @@ class NavEditorActivity : AppCompatActivity() {
             AlertDialog.Builder(this)
                 .setTitle(getString(R.string.media_access_title))
                 .setMessage(getString(R.string.media_access_summary))
-                .setPositiveButton("Открыть настройки") { _, _ ->
+                .setPositiveButton(getString(R.string.nav_open_settings)) { _, _ ->
                     startActivity(
                         Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -978,7 +1007,7 @@ class NavEditorActivity : AppCompatActivity() {
         var n = 0
         while (forms.values.any { l -> l.any { it.id == "m" + n } }) n++
         val id = "m" + n
-        val item = NavItem(id, NavItem.MEDIA, "media_title", "Трек", "", 0f, 1f, 1.0, 0, 0.375f, 0.42f, 0.25f, 0.16f, 1f)
+        val item = NavItem(id, NavItem.MEDIA, "media_title", getString(R.string.nav_media_default_label), "", 0f, 1f, 1.0, 0, 0.375f, 0.42f, 0.25f, 0.16f, 1f)
         list.add(item)
         editor.selectedId = item.id
         editor.invalidate()
@@ -1024,7 +1053,7 @@ class NavEditorActivity : AppCompatActivity() {
             }
         }
         editor.invalidate()
-        Toast.makeText(this, "Датчики скопированы: " + changed, Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.nav_copied_fmt, changed), Toast.LENGTH_SHORT).show()
     }
 
     private fun themeLine(): String {
@@ -1073,14 +1102,14 @@ class NavEditorActivity : AppCompatActivity() {
     private fun toggleTicks() {
         ticksOn = !ticksOn
         applyTheme()
-        ticksBtn?.text = if (ticksOn) getString(R.string.nav_ticks) + ": вкл" else getString(R.string.nav_ticks) + ": выкл"
+        ticksBtn?.text = stateLabel(getString(R.string.nav_ticks), ticksOn)
         refreshStateButtons()
     }
 
     private fun toggleDebug() {
         debugOn = !debugOn
         updateInfo()
-        debugBtn?.text = if (debugOn) getString(R.string.nav_debug) + ": вкл" else getString(R.string.nav_debug) + ": выкл"
+        debugBtn?.text = stateLabel(getString(R.string.nav_debug), debugOn)
         refreshStateButtons()
     }
 
@@ -1098,10 +1127,10 @@ class NavEditorActivity : AppCompatActivity() {
 
     /** Управление экранами-графиками: список, добавление, удаление, цвета. */
     private fun manageGraphs() {
-        val names = graphs.map { it.name + " (" + it.pids.size + " датч.)" }.toTypedArray()
-        val items = names + "+ Добавить график"
+        val names = graphs.map { getString(R.string.nav_graph_item_fmt, it.name, it.pids.size) }.toTypedArray()
+        val items = names + getString(R.string.nav_add_graph)
         AlertDialog.Builder(this)
-            .setTitle("Графики")
+            .setTitle(getString(R.string.nav_group_graphs))
             .setItems(items) { _, which ->
                 if (which == graphs.size) addGraph() else editGraph(which)
             }
@@ -1113,7 +1142,7 @@ class NavEditorActivity : AppCompatActivity() {
         val pids = MazdaPids.all
         val checked = BooleanArray(pids.size)
         AlertDialog.Builder(this)
-            .setTitle("Выберите 2–4 датчика")
+            .setTitle(getString(R.string.nav_pick_2_4_sensors))
             .setMultiChoiceItems(Array(pids.size) { i ->
                 val pd = pids[i]
                 var name = pd.name(this)
@@ -1121,10 +1150,10 @@ class NavEditorActivity : AppCompatActivity() {
                 if (unit.isNotEmpty()) name += ", $unit"
                 name
             }, checked) { _, which, isChecked -> checked[which] = isChecked }
-            .setPositiveButton("Далее") { _, _ ->
+            .setPositiveButton(getString(R.string.nav_next)) { _, _ ->
                 val sel = pids.filterIndexed { i, _ -> checked[i] }
                 if (sel.size < 2 || sel.size > 4) {
-                    Toast.makeText(this, "Нужно от 2 до 4 датчиков", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.nav_need_2_4_sensors), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 finishAddGraph(sel.map { it.id })
@@ -1135,8 +1164,8 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun finishAddGraph(pidIds: List<String>) {
         val input = EditText(this)
-        input.hint = "Название графика"
-        input.setText("График ${graphs.size + 1}")
+        input.hint = getString(R.string.nav_graph_name_hint)
+        input.setText(getString(R.string.nav_graph_default_fmt, graphs.size + 1))
         val windows = arrayOf("2", "5", "10", "30")
         var windowSel = 1
         val spinner = android.widget.Spinner(this)
@@ -1147,15 +1176,15 @@ class NavEditorActivity : AppCompatActivity() {
         val box = LinearLayout(this)
         box.orientation = LinearLayout.VERTICAL
         box.setPadding(dp(24), dp(16), dp(24), dp(8))
-        box.addView(TextView(this).apply { text = "Название" })
+        box.addView(TextView(this).apply { text = getString(R.string.nav_graph_name_label) })
         box.addView(input)
-        box.addView(TextView(this).apply { text = "Окно, мин" })
+        box.addView(TextView(this).apply { text = getString(R.string.nav_graph_window_label) })
         box.addView(spinner)
         AlertDialog.Builder(this)
-            .setTitle("Новый график")
+            .setTitle(getString(R.string.nav_new_graph))
             .setView(box)
-            .setPositiveButton("Добавить") { _, _ ->
-                val name = input.text.toString().ifBlank { "График ${graphs.size + 1}" }
+            .setPositiveButton(getString(R.string.nav_add_btn)) { _, _ ->
+                val name = input.text.toString().ifBlank { getString(R.string.nav_graph_default_fmt, graphs.size + 1) }
                 val w = windows[spinner.selectedItemPosition].toIntOrNull() ?: 5
                 val palette = intArrayOf(0xFF3AA6FF.toInt(), 0xFFFFBE3C.toInt(), 0xFF7CFF6B.toInt(), 0xFFFF5A4A.toInt())
                 val colors = pidIds.mapIndexed { i, _ -> palette[i % palette.size] }
@@ -1169,7 +1198,7 @@ class NavEditorActivity : AppCompatActivity() {
                 editor.invalidate()
                 updateInfo()
                 updatePreviewSwitch()
-                Toast.makeText(this, "График добавлен", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.nav_graph_added), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
@@ -1177,7 +1206,7 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun editGraph(index: Int) {
         val g = graphs[index]
-        val names = arrayOf("Переименовать", "Изменить цвета", "Удалить")
+        val names = arrayOf(getString(R.string.nav_rename), getString(R.string.nav_recolor), getString(R.string.nav_delete))
         AlertDialog.Builder(this)
             .setTitle(g.name)
             .setItems(names) { _, which ->
@@ -1196,7 +1225,7 @@ class NavEditorActivity : AppCompatActivity() {
         val input = EditText(this)
         input.setText(g.name)
         AlertDialog.Builder(this)
-            .setTitle("Название")
+            .setTitle(getString(R.string.nav_graph_name_label))
             .setView(input)
             .setPositiveButton(getString(R.string.nav_apply)) { _, _ ->
                 val name = input.text.toString().ifBlank { g.name }
@@ -1214,7 +1243,14 @@ class NavEditorActivity : AppCompatActivity() {
         val pids = g.pids
         if (pids.isEmpty()) return
         val palette = intArrayOf(0xFF3AA6FF.toInt(), 0xFFFFBE3C.toInt(), 0xFF7CFF6B.toInt(), 0xFFFF5A4A.toInt(), 0xFFCC66FF.toInt(), 0xFF00CCFF.toInt())
-        val colorNames = arrayOf("Синий", "Жёлтый", "Зелёный", "Красный", "Фиолетовый", "Голубой")
+        val colorNames = arrayOf(
+            getString(R.string.nav_color_blue),
+            getString(R.string.nav_color_yellow),
+            getString(R.string.nav_color_green),
+            getString(R.string.nav_color_red),
+            getString(R.string.nav_color_purple),
+            getString(R.string.nav_color_cyan)
+        )
         // Нормализуем список цветов под количество датчиков.
         val colors = ArrayList<Int>()
         for (i in pids.indices) colors.add(g.colors.getOrElse(i) { palette[i % palette.size] })
@@ -1253,14 +1289,14 @@ class NavEditorActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Цвета графика")
+            .setTitle(getString(R.string.nav_graph_colors_title))
             .setView(box)
-            .setPositiveButton("Применить") { _, _ ->
+            .setPositiveButton(getString(R.string.nav_apply)) { _, _ ->
                 val newColors = spinners.map { spinner -> palette[spinner.selectedItemPosition] }
                 graphs[index] = g.copy(colors = newColors)
                 editor.invalidate()
                 updateInfo()
-                Toast.makeText(this, "Цвета обновлены", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.nav_colors_updated), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()
@@ -1268,12 +1304,12 @@ class NavEditorActivity : AppCompatActivity() {
 
     private fun chooseBorder() {
         val sel = editor.selectedItem() ?: return
-        val options = arrayOf("Круг", "Квадрат", "Без рамки")
+        val options = arrayOf(getString(R.string.nav_border_circle), getString(R.string.nav_border_square), getString(R.string.nav_border_none))
         val vals = arrayOf("circle", "square", "none")
         val cur = sel.border.ifEmpty { if (sel.kind == NavItem.GAUGE) "circle" else "square" }
         val checked = vals.indexOf(cur).coerceAtLeast(0)
         AlertDialog.Builder(this)
-            .setTitle("Границы виджета")
+            .setTitle(getString(R.string.nav_border))
             .setSingleChoiceItems(options, checked) { d, which ->
                 editor.replaceSelected(sel.copy(border = vals[which]))
                 editor.invalidate()
@@ -1289,9 +1325,14 @@ class NavEditorActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.nav_touch_first), Toast.LENGTH_SHORT).show()
             return
         }
-        val options = arrayOf("По левому краю", "По центру по горизонтали", "По центру по вертикали", "По правому краю")
+        val options = arrayOf(
+            getString(R.string.nav_align_left),
+            getString(R.string.nav_align_center_h),
+            getString(R.string.nav_align_center_v),
+            getString(R.string.nav_align_right)
+        )
         AlertDialog.Builder(this)
-            .setTitle("Выровнять")
+            .setTitle(getString(R.string.nav_align))
             .setItems(options) { _, which ->
                 val cur = editor.selectedItem() ?: return@setItems
                 val nx = when (which) {

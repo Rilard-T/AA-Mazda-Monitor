@@ -2,14 +2,16 @@
 
 **Русский**
 
-- Резервная копия: настройки, журнал прожига и дашборды сохраняются и восстанавливаются одним файлом.
-- Проверка целостности OTA-обновлений: после скачивания APK сверяется по SHA-256.
-- Плашка прожига исчезает сразу, как только блок сообщает статус 0.
-- Предпросмотр в редакторе раскладки стал заметно крупнее: плашка прожига больше не отнимает у него место, а высота ограничена 60 % экрана вместо 45 %.
+- Размер круга прибора в редакторе можно увеличивать до 200 %; у края экрана ползунок автоматически ограничивается, чтобы прибор не выходил за границы области.
+- Сохранённые пропорции экрана автомобиля теперь хранятся раздельно для широкой и узкой форм; высота предпросмотра в портрете ограничена 42 % экрана, чтобы панель кнопок всегда оставалась на месте.
+- Неотвечающие датчики OBD автоматически уходят в карантин на поездку после 3 пустых ответов подряд; на экране «Проверка датчиков» добавлены ручное отключение/включение датчиков и кнопка «Отключить неотвечающие».
+- Исправлены потоки при проверке обновлений OTA, бэкап журнала прожигов теперь привязан к активному профилю, убрана заглушка добавления графика на экране AA, а интерфейс редактора полностью локализован.
+- Снижена нагрузка в поездке за счёт кэширования шрифтов, профилей и настроек опроса OBD, а также объединения повторного запроса EGR.
 
 **English**
 
-- Backup: settings, regeneration log and dashboards are saved and restored in one file.
-- OTA update integrity: the downloaded APK is verified by SHA-256.
-- The regeneration banner disappears as soon as the ECU reports status 0.
-- The layout editor preview is noticeably larger: the regeneration banner no longer takes space from it, and its height cap is 60 % of the screen instead of 45 %.
+- Gauge circle size in the layout editor can now be increased up to 200%, with automatic clamping near screen edges so gauges stay inside the display area.
+- Saved car screen proportions are now stored separately for wide and narrow forms; portrait preview height is capped at 42% so the control panel remains visible.
+- Unresponsive OBD sensors are automatically quarantined for the current trip after 3 consecutive empty replies; the Sensor Check screen now lets you toggle sensors individually or disable all unresponsive ones.
+- Fixed UI threading during OTA update checks, bound backup regeneration logs to the active profile, removed the placeholder graph row on the AA screen, and localized all remaining editor strings.
+- Reduced CPU overhead while driving by caching fonts, profiles, and OBD polling settings, and by sharing duplicate EGR responses.

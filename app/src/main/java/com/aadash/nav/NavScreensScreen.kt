@@ -1,6 +1,5 @@
 package com.aadash.nav
 
-import android.content.Context
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.model.Action
@@ -25,15 +24,6 @@ class NavScreensScreen(carContext: CarContext, private val navScreen: NavScreen)
                 .build()
             listBuilder.addItem(row)
         }
-        // добавить новый график
-        val addRow = Row.Builder()
-            .setTitle("+ Добавить экран-график")
-            .setOnClickListener {
-                // добавление делается в редакторе на телефоне; здесь только подсказка
-                screenManager.pop()
-            }
-            .build()
-        listBuilder.addItem(addRow)
 
         val back = Action.Builder()
             .setTitle("Назад")

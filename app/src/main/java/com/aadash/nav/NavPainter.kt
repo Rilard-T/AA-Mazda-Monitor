@@ -118,7 +118,8 @@ class NavPainter {
     fun gauge(c: Canvas, area: RectF, item: NavItem, shown: Float, valueText: String) {
         val cx = area.left + (item.x + item.w / 2f) * area.width()
         val cy = area.top + (item.y + item.h / 2f) * area.height()
-        val r = min(item.w * area.width(), item.h * area.height()) / 2f * item.size
+        val maxR = minOf(cx - area.left, area.right - cx, cy - area.top, area.bottom - cy).coerceAtLeast(0f)
+        val r = min(min(item.w * area.width(), item.h * area.height()) / 2f * item.size, maxR)
         if (r <= 1f) return
         val frac = ((shown - item.min) / (item.max - item.min)).coerceIn(0f, 1f)
         val redFrac = if (item.red > item.min && item.red < item.max)

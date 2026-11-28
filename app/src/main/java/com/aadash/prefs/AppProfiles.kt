@@ -17,40 +17,64 @@ object AppProfiles {
     private const val DEFAULT_ID = "default"
     private const val DEFAULT_NAME = "Мой автомобиль"
 
+    @Volatile private var migrated = false
+    @Volatile private var cachedProfiles: List<AppProfile>? = null
+    @Volatile private var cachedActiveId: String? = null
+
     fun meta(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
 
+    @Synchronized
     fun migrate(context: Context) {
+        if (migrated) return
         val m = meta(context)
-        if (m.contains(KEY_PROFILES)) return
-        val arr = JSONArray()
-        arr.put(JSONObject().put("id", DEFAULT_ID).put("name", DEFAULT_NAME))
-        m.edit().putString(KEY_PROFILES, arr.toString()).putString(KEY_ACTIVE, DEFAULT_ID).apply()
+        if (!m.contains(KEY_PROFILES)) {
+            val arr = JSONArray()
+            arr.put(JSONObject().put("id", DEFAULT_ID).put("name", DEFAULT_NAME))
+            m.edit().putString(KEY_PROFILES, arr.toString()).putString(KEY_ACTIVE, DEFAULT_ID).apply()
+        }
+        migrated = true
     }
 
     fun profiles(context: Context): List<AppProfile> {
-        migrate(context)
-        val arr = JSONArray(meta(context).getString(KEY_PROFILES, "[]"))
-        val out = ArrayList<AppProfile>()
-        for (i in 0 until arr.length()) {
-            val o = arr.getJSONObject(i)
-            out.add(AppProfile(o.getString("id"), o.getString("name")))
+        cachedProfiles?.let { return it }
+        synchronized(this) {
+            cachedProfiles?.let { return it }
+            migrate(context)
+            val arr = JSONArray(meta(context).getString(KEY_PROFILES, "[]"))
+            val out = ArrayList<AppProfile>(arr.length())
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                out.add(AppProfile(o.getString("id"), o.getString("name")))
+            }
+            if (out.isEmpty()) out.add(AppProfile(DEFAULT_ID, DEFAULT_NAME))
+            val ro = out.toList()
+            cachedProfiles = ro
+            return ro
         }
-        if (out.isEmpty()) out.add(AppProfile(DEFAULT_ID, DEFAULT_NAME))
-        return out
     }
 
     fun activeId(context: Context): String {
-        migrate(context)
-        val id = meta(context).getString(KEY_ACTIVE, DEFAULT_ID) ?: DEFAULT_ID
-        return if (profiles(context).any { it.id == id }) id else profiles(context).first().id
+        cachedActiveId?.let { return it }
+        synchronized(this) {
+            cachedActiveId?.let { return it }
+            val list = profiles(context)
+            val id = meta(context).getString(KEY_ACTIVE, DEFAULT_ID) ?: DEFAULT_ID
+            val resolved = if (list.any { it.id == id }) id else list.first().id
+            cachedActiveId = resolved
+            return resolved
+        }
     }
 
-    fun activeName(context: Context): String =
-        profiles(context).firstOrNull { it.id == activeId(context) }?.name ?: DEFAULT_NAME
+    fun activeName(context: Context): String {
+        val id = activeId(context)
+        return profiles(context).firstOrNull { it.id == id }?.name ?: DEFAULT_NAME
+    }
 
+    @Synchronized
     fun setActive(context: Context, id: String) {
         if (profiles(context).any { it.id == id }) {
+            cachedActiveId = id
             meta(context).edit().putString(KEY_ACTIVE, id).apply()
         }
     }
@@ -127,6 +151,7 @@ object AppProfiles {
     private fun saveList(context: Context, list: List<AppProfile>) {
         val arr = JSONArray()
         for (p in list) arr.put(JSONObject().put("id", p.id).put("name", p.name))
+        cachedProfiles = list.toList()
         meta(context).edit().putString(KEY_PROFILES, arr.toString()).apply()
     }
 

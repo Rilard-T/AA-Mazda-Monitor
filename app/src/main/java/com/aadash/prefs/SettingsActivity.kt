@@ -57,6 +57,7 @@ class SettingsActivity : AppCompatActivity(),
 
     /** Загрузка запущена кнопкой «Установить из Play-источника». */
     private var pendingPlaySourceInstall: Boolean = false
+    private var brRegistered: Boolean = false
 
     val br: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -354,7 +355,9 @@ class SettingsActivity : AppCompatActivity(),
         lifecycleScope.launch(Dispatchers.IO) {
             val ok = runCatching {
                 val data = userDataStore(applicationContext).data.first()
-                val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
+                val tracker = RegenTracker.get(
+                    getSharedPreferences(AppProfiles.obdPrefsName(applicationContext), MODE_PRIVATE)
+                )
                 com.aadash.nav.NavLayoutStore.load(applicationContext)
                 val layoutJson = com.aadash.nav.NavLayoutStore.toJson(com.aadash.nav.NavLayoutStore.layout)
                 val text = BackupCodec.encode(data.toByteArray(), tracker.exportText(), layoutJson)
@@ -381,8 +384,9 @@ class SettingsActivity : AppCompatActivity(),
                 val backup = BackupCodec.decode(text) ?: return@runCatching null
                 val prefs = UserPreference.parseFrom(backup.settings)
                 userDataStore(applicationContext).updateData { prefs }
-                RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
-                    .importText(backup.regenLog)
+                RegenTracker.get(
+                    getSharedPreferences(AppProfiles.obdPrefsName(applicationContext), MODE_PRIVATE)
+                ).importText(backup.regenLog)
                 backup.navLayout.takeIf { it.isNotBlank() }?.let { layout ->
                     com.aadash.nav.NavLayoutStore.parse(layout)?.let { parsed ->
                         com.aadash.nav.NavLayoutStore.save(applicationContext, parsed)
@@ -533,17 +537,37 @@ class SettingsActivity : AppCompatActivity(),
 
     override fun onResume() {
         super.onResume()
-        val permissionsToRequest: MutableList<String> = ArrayList()
-        if (ContextCompat.checkSelfPermission(this, PERMISSION_CAR_VENDOR_EXTENSION)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            permissionsToRequest.add(PERMISSION_CAR_VENDOR_EXTENSION)
+        if (BuildConfig.FLAVOR != "nav") {
+            val permissionsToRequest: MutableList<String> = ArrayList()
+            if (ContextCompat.checkSelfPermission(this, PERMISSION_CAR_VENDOR_EXTENSION)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionsToRequest.add(PERMISSION_CAR_VENDOR_EXTENSION)
+            }
+            if (permissionsToRequest.isNotEmpty()) {
+                requestPermissions(permissionsToRequest.toTypedArray(), REQUEST_PERMISSIONS)
+                return
+            }
         }
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissions(permissionsToRequest.toTypedArray(), REQUEST_PERMISSIONS)
-            return
-        }
+    }
 
+    override fun onDestroy() {
+        if (brRegistered) {
+            runCatching { baseContext.unregisterReceiver(br) }
+            brRegistered = false
+        }
+        super.onDestroy()
+    }
+
+    private fun registerDownloadReceiver() {
+        if (brRegistered) return
+        ContextCompat.registerReceiver(
+            baseContext,
+            br,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            ContextCompat.RECEIVER_EXPORTED
+        )
+        brRegistered = true
     }
 
 
@@ -615,12 +639,6 @@ class SettingsActivity : AppCompatActivity(),
         if (installPlaySource) {
             if (downloadItem == null) return false
             pendingPlaySourceInstall = true
-            ContextCompat.registerReceiver(
-                baseContext,
-                br,
-                IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                ContextCompat.RECEIVER_EXPORTED
-            )
             val fileName = downloadItem.substringAfterLast('/')
             val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
             downloadRequest.setDestinationInExternalPublicDir(
@@ -634,9 +652,11 @@ class SettingsActivity : AppCompatActivity(),
                     fileName
                 ).delete()
             }
-            val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
-            dm.enqueue(downloadRequest)
             runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                registerDownloadReceiver()
+                val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                dm.enqueue(downloadRequest)
                 Toast.makeText(
                     baseContext,
                     R.string.play_source_download_started,
@@ -647,47 +667,45 @@ class SettingsActivity : AppCompatActivity(),
         }
 
         if (needsUpdate == true && downloadItem != null) {
-            Snackbar.make(
-                findViewById(android.R.id.content),
-                R.string.new_version,
-                Snackbar.LENGTH_LONG
-            )
-                .setDuration(10000)
-                // Цвет действия в Snackbar берём из темы (инверсный акцент), а не из синей
-                // константы приборной панели: иначе текст остаётся синим при другом акценте.
-                .setActionTextColor(snackbarActionColor())
-                .setAction(R.string.download) {
-                    ContextCompat.registerReceiver(
-                        baseContext,
-                        br,
-                        IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                        ContextCompat.RECEIVER_EXPORTED
-                    )
-                    // Сохраняем под тем же именем, что в релизе: у каналов они разные.
-                    val fileName = downloadItem.substringAfterLast('/')
-                    val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
-                    downloadRequest.setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS,
-                        fileName
-                    )
-                    downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    runCatching {
-                        java.io.File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    R.string.new_version,
+                    Snackbar.LENGTH_LONG
+                )
+                    .setDuration(10000)
+                    // Цвет действия в Snackbar берём из темы (инверсный акцент), а не из синей
+                    // константы приборной панели: иначе текст остаётся синим при другом акценте.
+                    .setActionTextColor(snackbarActionColor())
+                    .setAction(R.string.download) {
+                        registerDownloadReceiver()
+                        // Сохраняем под тем же именем, что в релизе: у каналов они разные.
+                        val fileName = downloadItem.substringAfterLast('/')
+                        val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
+                        downloadRequest.setDestinationInExternalPublicDir(
+                            Environment.DIRECTORY_DOWNLOADS,
                             fileName
-                        ).delete()
-                    }
-                    val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
-                    dm.enqueue(downloadRequest)
-                    // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
-                    Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
+                        )
+                        downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        runCatching {
+                            java.io.File(
+                                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                fileName
+                            ).delete()
+                        }
+                        val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                        dm.enqueue(downloadRequest)
+                        // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
+                        Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
 
-                    Toast.makeText(
-                        baseContext,
-                        R.string.download_instructions,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }.show()
+                        Toast.makeText(
+                            baseContext,
+                            R.string.download_instructions,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }.show()
+            }
         }
 
         if (needsUpdate != true && force) {

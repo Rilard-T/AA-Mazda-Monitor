@@ -1,8 +1,11 @@
 package com.aadash.nav
 
 import android.os.SystemClock
+import com.aadash.obd.MazdaPids
 import com.aadash.obd.ObdBridgeService
+import com.aadash.stats.BuildConfig
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.sin
 
 /** Фоновый опрос значений из ObdBridgeService. Рисование читает только готовые значения и не ждёт адаптер.
  *  Какие параметры опрашивать, берётся из раскладки: приборы часто (каждые ~30 мс), значения раз в секунду.
@@ -65,15 +68,41 @@ object NavData {
         }
     }
 
+    private fun simulatedValue(id: String, now: Long): Double? {
+        val pd = MazdaPids.byId(id) ?: return null
+        val t = now / 1000.0
+        val phase = (id.hashCode() and 0xFF) * 0.17
+        val wave = 0.5 + 0.45 * sin(t * 0.45 + phase)
+        return when (id.lowercase()) {
+            "0c" -> 800.0 + 3600.0 * (0.5 + 0.45 * sin(t * 0.7))
+            "0d" -> 20.0 + 110.0 * (0.5 + 0.45 * sin(t * 0.35 + 1.0))
+            "05" -> 76.0 + 16.0 * (0.5 + 0.45 * sin(t * 0.12))
+            "ff9005" -> 55.0 + 25.0 * (0.5 + 0.45 * sin(t * 0.10 + 0.7))
+            "ff9003" -> 3.2 + 2.5 * (0.5 + 0.45 * sin(t * 0.08))
+            "ff9010" -> 50.0 + 40.0 * (0.5 + 0.45 * sin(t * 0.08))
+            "ff9002" -> 740.0 + (t * 0.02)
+            else -> pd.min + (pd.max - pd.min) * wave
+        }
+    }
+
     private fun loop() {
         var lastSlow = 0L
         var lastHistory = 0L
         while (running) {
             try {
-                for (id in NavLayoutStore.fastPids) put(id, ObdBridgeService.peek(id))
                 val now = SystemClock.uptimeMillis()
+                for (id in NavLayoutStore.fastPids) {
+                    val v = ObdBridgeService.peek(id) ?: if (BuildConfig.SIMULATE_METRICS) simulatedValue(id, now) else null
+                    put(id, v)
+                }
                 if (now - lastSlow > 1000L) {
-                    for (id in NavLayoutStore.slowPids) put(id, ObdBridgeService.peek(id))
+                    for (id in NavLayoutStore.slowPids) {
+                        val v = ObdBridgeService.peek(id) ?: if (BuildConfig.SIMULATE_METRICS) simulatedValue(id, now) else null
+                        put(id, v)
+                    }
+                    if (BuildConfig.SIMULATE_METRICS && texts["media_title"].isNullOrBlank()) {
+                        texts["media_title"] = "Demo Artist — SkyActiv-D"
+                    }
                     lastSlow = now
                 }
                 if (now - lastHistory > 1000L) {

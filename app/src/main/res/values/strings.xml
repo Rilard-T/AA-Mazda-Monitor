@@ -366,6 +366,11 @@
     <string name="obd_check_cat_calculated">Calculated</string>
     <string name="obd_check_answer">Answers: %1$s</string>
     <string name="obd_check_no_answer">No answer</string>
+    <string name="obd_check_disabled">Disabled (tap to enable)</string>
+    <string name="obd_check_disable_unresponsive">Disable unresponsive sensors</string>
+    <string name="obd_check_disable_unresponsive_summary">Skip sensors that did not reply to save adapter time</string>
+    <string name="obd_check_enable_all">Enable all sensors</string>
+    <string name="obd_check_enable_all_summary">Re-enable all disabled sensors (%1$d)</string>
     <string name="obd_check_waiting">Waiting…</string>
     <string name="obd_check_ignition">Ignition</string>
     <string name="obd_check_ignition_on">On — the unit answers</string>

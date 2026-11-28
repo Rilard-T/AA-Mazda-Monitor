@@ -40,6 +40,8 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private val bannerBand = RectF()
     private val bannerRect = RectF()
     private var loadedTheme: String? = null
+    private var loadedFont: String? = null
+    private var lastReportedAspect: Float = 0f
     private var regenTracker: RegenTracker? = null
     private var prevRegenStatus = 0
     private var regenDoneUntil = 0L
@@ -195,7 +197,11 @@ class NavRenderer(context: Context) : SurfaceCallback {
             val area = areaF
 
             // реальные пропорции области - для предпросмотра в редакторе на телефоне
-            NavLayoutStore.reportArea(appContext, (tr - tl) / (tb - tt))
+            val aspectNow = (tr - tl) / (tb - tt)
+            if (kotlin.math.abs(aspectNow - lastReportedAspect) >= 0.02f) {
+                lastReportedAspect = aspectNow
+                NavLayoutStore.reportArea(appContext, aspectNow)
+            }
 
             painter.pxScale = NavPainter.scaleFor(tr - tl, tb - tt)
             val idx = NavScreen.currentIndex
@@ -280,7 +286,10 @@ class NavRenderer(context: Context) : SurfaceCallback {
         }
         painter.ticksOn = layout.ticks
         painter.textScale = layout.textScale
-        painter.typeface = NavFonts.load(appContext, layout.font)
+        if (loadedFont != layout.font) {
+            loadedFont = layout.font
+            painter.typeface = NavFonts.load(appContext, layout.font)
+        }
         debugOverlay = layout.debug
     }
 
