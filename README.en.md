@@ -142,15 +142,21 @@ A short feature summary for release notes is in [`docs/NAV_FEATURES.md`](https:/
 
 ## Installation
 
-Android Auto only lists apps installed in a special way, so tapping an APK file will not work: use **AAEnabler**. The main path is installing the APK with **AAEnabler** (<https://github.com/malebuffy/AAEnabler>); the procedure is the same for both apps.
+Install it like any regular APK — no extra installer tools are needed.
 
-1. Install AAEnabler and allow it to install apps from this source.
-2. Open AAEnabler → **"Select local APK"** → pick `app-release.apk` or `app-nav-release.apk`. A card with the app name, version, SDK and **"Android Auto metadata detected"** should appear. Tap **"Install app"**.
-3. Enable developer mode in Android Auto (tap the version number ten times) and allow **"Unknown sources"**. The app will appear in the AA list.
+**First time, when the app is not installed yet:**
 
-**About Shizuku.** Installation used to require **Shizuku** (ADB on the phone itself, available on Google Play), and older instructions go through it: Shizuku → "Pairing" → "Start" → "X apps available" → grant the permission to AAEnabler. **Shizuku is not required now:** AAEnabler does not need it and installs the APK itself; permission to install from this source is enough. Shizuku remains a handy fallback if the installer misbehaves.
+1. Download the APK from [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases): `app-release.apk` for AA Mazda Monitor or `app-nav-release.apk` for AA Dash Nav.
+2. Open the file and confirm the install. If the system asks for permission, allow the browser or file manager to install unknown apps.
+3. Enable developer mode in Android Auto (tap the version number ten times) and allow **"Unknown sources"**.
 
-> Updating via "Check for updates" may reset the install source; in that case repeat steps 1–3. You do not need to uninstall the app or lose settings.
+**Updates, once the app is installed:**
+
+- **"About" → "Install APK" → "Install from Play source"** — the app downloads the current release APK and opens the system installer with the `com.android.vending` source. That is the source Android Auto needs.
+- **"About" → "Install APK" → "Choose file from storage"** — if the APK is already downloaded manually; the Play source is passed as well.
+- Settings, the regeneration log and the layout are preserved; no need to uninstall the app.
+
+> If Android Auto does not list the app right after the first install, install the current release from inside the app — **"About" → "Install APK" → "Install from Play source"**: the source record is updated and the app appears in Android Auto.
 
 ---
 
@@ -202,7 +208,7 @@ In both apps: **"OBD connection" → "Custom PIDs"**. A sensor can be added by h
 | [Releases](https://github.com/Rilard-T/AA-Mazda-Monitor/releases) | ready-to-install APKs for both apps |
 | [Issues](https://github.com/Rilard-T/AA-Mazda-Monitor/issues) | bugs and suggestions |
 
-Where to start: download an APK from the table above, install it with AAEnabler, connect the adapter. If something does not work, check the limitations below and [the AA Mazda Monitor description](docs/AA_MAZDA_MONITOR.en.md), which has a connection-message table and an FAQ.
+Where to start: download an APK from the table above, install it like a regular app, connect the adapter. After that, update from the app: **"About" → "Install APK"**. If something does not work, check the limitations below and [the AA Mazda Monitor description](docs/AA_MAZDA_MONITOR.en.md), which has a connection-message table and an FAQ.
 
 ---
 

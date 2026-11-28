@@ -44,5 +44,5 @@ jobs:
           gh release create "$tag" app-release.apk app-release.apk.sha256 \
             app/build/outputs/mapping/stableRelease/mapping.txt \
             --title "$tag" \
-            --notes-file docs/release-notes-0.9.2.md \
+            --notes-file "docs/release-notes-$tag.md" \
             --target "$GITHUB_SHA"
