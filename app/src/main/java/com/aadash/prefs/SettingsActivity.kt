@@ -60,6 +60,7 @@ class SettingsActivity : AppCompatActivity(),
 
     /** Флаг: после скачивания сразу ставить APK с Play-источником, без диалога AAEnabler. */
     private var pendingPlaySourceInstall: Boolean = false
+    private var brRegistered: Boolean = false
 
     val br: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -540,6 +541,25 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
+    override fun onDestroy() {
+        if (brRegistered) {
+            runCatching { baseContext.unregisterReceiver(br) }
+            brRegistered = false
+        }
+        super.onDestroy()
+    }
+
+    private fun registerDownloadReceiver() {
+        if (brRegistered) return
+        ContextCompat.registerReceiver(
+            baseContext,
+            br,
+            IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+            ContextCompat.RECEIVER_EXPORTED
+        )
+        brRegistered = true
+    }
+
     private fun checkUpdate(force: Boolean = false, installPlaySource: Boolean = false): Boolean {
         Timber.i("Checking for update")
 
@@ -604,12 +624,6 @@ class SettingsActivity : AppCompatActivity(),
         if (installPlaySource) {
             if (downloadItem != null) {
                 pendingPlaySourceInstall = true
-                ContextCompat.registerReceiver(
-                    baseContext,
-                    br,
-                    IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                    ContextCompat.RECEIVER_EXPORTED
-                )
                 val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
                 downloadRequest.setDestinationInExternalPublicDir(
                     Environment.DIRECTORY_DOWNLOADS,
@@ -622,52 +636,54 @@ class SettingsActivity : AppCompatActivity(),
                         "aa-mazda-monitor.apk"
                     ).delete()
                 }
-                val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
-                dm.enqueue(downloadRequest)
-                Toast.makeText(baseContext, R.string.play_source_download_started, Toast.LENGTH_SHORT).show()
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    registerDownloadReceiver()
+                    val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                    dm.enqueue(downloadRequest)
+                    Toast.makeText(baseContext, R.string.play_source_download_started, Toast.LENGTH_SHORT).show()
+                }
                 return true
             }
             return false
         }
 
         if (needsUpdate == true && downloadItem != null) {
-            Snackbar.make(
-                findViewById(android.R.id.content),
-                R.string.new_version,
-                Snackbar.LENGTH_LONG
-            )
-                .setDuration(10000)
-                .setActionTextColor(resources.getColor(R.color.snackbarBtnText, theme))
-                .setAction(R.string.download) {
-                    ContextCompat.registerReceiver(
-                        baseContext,
-                        br,
-                        IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
-                        ContextCompat.RECEIVER_EXPORTED
-                    )
-                    val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
-                    downloadRequest.setDestinationInExternalPublicDir(
-                        Environment.DIRECTORY_DOWNLOADS,
-                        "aa-mazda-monitor.apk"
-                    )
-                    downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                    runCatching {
-                        java.io.File(
-                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                Snackbar.make(
+                    findViewById(android.R.id.content),
+                    R.string.new_version,
+                    Snackbar.LENGTH_LONG
+                )
+                    .setDuration(10000)
+                    .setActionTextColor(resources.getColor(R.color.snackbarBtnText, theme))
+                    .setAction(R.string.download) {
+                        registerDownloadReceiver()
+                        val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
+                        downloadRequest.setDestinationInExternalPublicDir(
+                            Environment.DIRECTORY_DOWNLOADS,
                             "aa-mazda-monitor.apk"
-                        ).delete()
-                    }
-                    val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
-                    dm.enqueue(downloadRequest)
-                    // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
-                    Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
+                        )
+                        downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        runCatching {
+                            java.io.File(
+                                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                                "aa-mazda-monitor.apk"
+                            ).delete()
+                        }
+                        val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                        dm.enqueue(downloadRequest)
+                        // Показываем, откуда качается файл (путь вида /логин/репозиторий/releases/download/…)
+                        Toast.makeText(baseContext, Uri.parse(downloadItem).path ?: "", Toast.LENGTH_LONG).show()
 
-                    Toast.makeText(
-                        baseContext,
-                        R.string.download_instructions,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }.show()
+                        Toast.makeText(
+                            baseContext,
+                            R.string.download_instructions,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }.show()
+            }
         }
 
         if (needsUpdate != true && force) {

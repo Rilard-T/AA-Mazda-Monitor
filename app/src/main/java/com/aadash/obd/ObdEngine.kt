@@ -21,18 +21,43 @@ class ObdEngine(
     /** Последнее удачное значение медленных датчиков: при единичном промахе показываем его, а не 0. */
     private val lastGood = HashMap<String, Sample>()
     private val lastWarn = HashMap<String, Long>()
+    /** Счётчик подряд идущих пустых ответов при живой связи (для авто-карантина на поездку). */
+    private val missStreak = HashMap<String, Int>()
+    private val quarantined = ConcurrentHashMap.newKeySet<String>()
+    /** Короткий кэш сырых байтов ответа по "header:request" (например, 22F469 для egrA/egrB). */
+    private val rawCache = HashMap<String, Pair<Long, IntArray>>()
     @Volatile private var lastRaw = ""
     private val HOLD_SLOW_MS = 30_000L
     /** PID режима 01, о которых заявил блок двигателя; заменяется целиком, читается без блокировки. */
     @Volatile private var supported: Set<Int> = emptySet()
     private var curHdr = ""
     /** Просьба адаптеру вернуть ответ сразу после первого сообщения (последняя hex-цифра «1» в запросе). */
-    private var useCount = prefs.getBoolean("fast_adapter", true)
+    @Volatile private var useCount = prefs.getBoolean("fast_adapter", true)
+    @Volatile private var fastMsVal = prefs.getString("poll_fast_ms", "100")?.toLongOrNull() ?: 100L
+    @Volatile private var slowMsVal = prefs.getString("poll_slow_ms", "3000")?.toLongOrNull() ?: 3000L
+    @Volatile private var disabledPids: Set<String> = disabledPids(prefs)
+
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { sp, key ->
+        when (key) {
+            "fast_adapter" -> useCount = sp.getBoolean("fast_adapter", true)
+            "poll_fast_ms" -> fastMsVal = sp.getString("poll_fast_ms", "100")?.toLongOrNull() ?: 100L
+            "poll_slow_ms" -> slowMsVal = sp.getString("poll_slow_ms", "3000")?.toLongOrNull() ?: 3000L
+            KEY_DISABLED_PIDS -> {
+                disabledPids = disabledPids(sp)
+                quarantined.clear()
+                synchronized(this) { missStreak.clear() }
+            }
+        }
+    }
+
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(prefListener)
+    }
 
     /** Минимальный интервал между опросами одного быстрого датчика (мс), из настроек. */
-    private fun fastMs(): Long = prefs.getString("poll_fast_ms", "100")?.toLongOrNull() ?: 100L
+    private fun fastMs(): Long = fastMsVal
     /** Интервал для медленных датчиков (сажа, АКПП, прожиги), из настроек. */
-    private fun slowMs(): Long = prefs.getString("poll_slow_ms", "3000")?.toLongOrNull() ?: 3000L
+    private fun slowMs(): Long = slowMsVal
     private var bg: Thread? = null
     @Volatile private var closed = false
 
@@ -99,6 +124,7 @@ class ObdEngine(
 
     fun close() {
         closed = true
+        runCatching { prefs.unregisterOnSharedPreferenceChangeListener(prefListener) }
         tracker.onLinkClosed()
         bg?.interrupt()
         link.close()
@@ -275,6 +301,7 @@ class ObdEngine(
      * [send] и [fetch] работают только внутри синхронизированных методов или этого блока.
      */
     fun read(p: PidDef, force: Boolean = false): Double? {
+        if (p.id in disabledPids || p.id in quarantined) return null
         // Масло (01 5C) отвечает редко — держим кэш дольше, чем у прочих быстрых датчиков.
         val ttl = when {
             p.id == "5c" -> 5_000L
@@ -292,6 +319,7 @@ class ObdEngine(
 
     /** Запрос к адаптеру и обработка результата; вызывать только под монитором объекта. */
     private fun readLocked(p: PidDef): Double? {
+        if (p.id in disabledPids || p.id in quarantined) return null
         var failed = false
         var v = try { fetch(p) } catch (e: IOException) { failed = true; lastRaw = e.message ?: "ошибка связи"; null }
         // Медленные датчики и блок АКПП иногда молчат: один быстрый повтор.
@@ -300,7 +328,17 @@ class ObdEngine(
         }
         if (failed) onFail() else onOk()
         val t = System.currentTimeMillis()
-        if (v != null && p.virtual == null) lastAnswerAt = t   // блок ответил: зажигание включено
+        if (v != null && p.virtual == null) {
+            lastAnswerAt = t   // блок ответил: зажигание включено
+            missStreak.remove(p.id)
+        } else if (!failed && p.virtual == null && p.request != null && lastAnswerAt > 0) {
+            val misses = (missStreak[p.id] ?: 0) + 1
+            missStreak[p.id] = misses
+            if (misses >= QUARANTINE_MISSES) {
+                quarantined.add(p.id)
+                Timber.i("PID %s переведён в карантин на поездку (%d пустых ответа подряд)", p.id, misses)
+            }
+        }
         var shown: Double? = v
         if (v != null) {
             if (p.slow) lastGood[p.id] = Sample(t, v)
@@ -334,6 +372,11 @@ class ObdEngine(
     private fun fetch(p: PidDef): Double? {
         p.virtual?.let { return it(this) }
         val req = p.request ?: return null
+        val cacheKey = "${p.header}:$req"
+        val now = System.currentTimeMillis()
+        rawCache[cacheKey]?.let { (ts, cachedBytes) ->
+            if (now - ts < RAW_CACHE_MS) return p.decode?.invoke(cachedBytes)
+        }
         val prefix = (if (req.startsWith("01")) "41" else "62") + req.substring(2)
         var text = send(p.header, if (useCount) req + "1" else req, 1500)
         if (useCount && text.contains('?')) {      // адаптер не понял сокращённую форму — работаем без неё
@@ -348,6 +391,7 @@ class ObdEngine(
         }
         lastRaw = text
         val b = parse(text, prefix) ?: return null
+        rawCache[cacheKey] = System.currentTimeMillis() to b
         return p.decode?.invoke(b)
     }
 
@@ -374,8 +418,31 @@ class ObdEngine(
     /** Байты ответа после префикса (например «410C» или «620434»); null, если ответа нет. */
     private fun parse(text: String?, prefix: String): IntArray? = ElmParse.bytes(text, prefix)
 
-    private companion object {
+    companion object {
         /** Сколько терпим молчание блока, прежде чем считать зажигание выключенным (мс). */
-        const val IGNITION_HOLD_MS = 15_000L
+        private const val IGNITION_HOLD_MS = 15_000L
+        private const val QUARANTINE_MISSES = 3
+        private const val RAW_CACHE_MS = 1_000L
+        const val KEY_DISABLED_PIDS = "disabled_pids"
+
+        fun disabledPids(prefs: SharedPreferences): Set<String> =
+            prefs.getStringSet(KEY_DISABLED_PIDS, null)?.toSet() ?: emptySet()
+
+        fun setPidDisabled(prefs: SharedPreferences, id: String, disabled: Boolean) {
+            val next = disabledPids(prefs).toMutableSet()
+            if (disabled) next.add(id) else next.remove(id)
+            prefs.edit().putStringSet(KEY_DISABLED_PIDS, next).apply()
+        }
+
+        fun disablePids(prefs: SharedPreferences, ids: Collection<String>) {
+            if (ids.isEmpty()) return
+            val next = disabledPids(prefs).toMutableSet()
+            next.addAll(ids)
+            prefs.edit().putStringSet(KEY_DISABLED_PIDS, next).apply()
+        }
+
+        fun clearDisabledPids(prefs: SharedPreferences) {
+            prefs.edit().remove(KEY_DISABLED_PIDS).apply()
+        }
     }
 }

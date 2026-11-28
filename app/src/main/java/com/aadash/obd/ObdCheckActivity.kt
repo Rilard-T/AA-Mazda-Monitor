@@ -55,8 +55,11 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
     @Volatile private var busy = false
     private var statusPref: Preference? = null
     private var ignitionPref: Preference? = null
+    private var disableUnresponsivePref: Preference? = null
+    private var enableAllPref: Preference? = null
 
     private val rows = LinkedHashMap<String, Preference>()
+    @Volatile private var lastValues: List<Pair<String, Double?>> = emptyList()
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         preferenceManager.sharedPreferencesName = "obd_bridge"
@@ -98,6 +101,32 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
         }
         st.addPreference(connect)
 
+        val obdPrefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+        val disableUnresp = Preference(ctx)
+        disableUnresp.title = getString(R.string.obd_check_disable_unresponsive)
+        disableUnresp.summary = getString(R.string.obd_check_disable_unresponsive_summary)
+        disableUnresp.setOnPreferenceClickListener {
+            val ign = ObdBridgeService.ignitionOn() == true
+            if (ign) {
+                val missing = lastValues.filter { it.second == null }.map { it.first }
+                ObdEngine.disablePids(obdPrefs, missing)
+                refreshDisabledState()
+            }
+            true
+        }
+        st.addPreference(disableUnresp)
+        disableUnresponsivePref = disableUnresp
+
+        val enableAll = Preference(ctx)
+        enableAll.title = getString(R.string.obd_check_enable_all)
+        enableAll.setOnPreferenceClickListener {
+            ObdEngine.clearDisabledPids(obdPrefs)
+            refreshDisabledState()
+            true
+        }
+        st.addPreference(enableAll)
+        enableAllPref = enableAll
+
         // --- датчики по блокам ---
         val engine = category(getString(R.string.obd_check_cat_engine))
         val trans = category(getString(R.string.obd_check_cat_trans))
@@ -111,11 +140,32 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
             val p = Preference(ctx)
             p.title = pid.name(ctx)
             p.summary = getString(R.string.obd_check_waiting)
-            p.isSelectable = false
+            p.setOnPreferenceClickListener {
+                val nowDisabled = pid.id !in ObdEngine.disabledPids(obdPrefs)
+                ObdEngine.setPidDisabled(obdPrefs, pid.id, nowDisabled)
+                refreshDisabledState()
+                true
+            }
             cat.addPreference(p)
             rows[pid.id] = p
         }
+        refreshDisabledState()
         wrapTitles(screen)
+    }
+
+    private fun refreshDisabledState() {
+        val ctx = context ?: return
+        val obdPrefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+        val disabled = ObdEngine.disabledPids(obdPrefs)
+        enableAllPref?.isVisible = disabled.isNotEmpty()
+        enableAllPref?.summary = getString(R.string.obd_check_enable_all_summary, disabled.size)
+        for ((id, pref) in rows) {
+            if (id in disabled) {
+                pref.summary = getString(R.string.obd_check_disabled)
+            } else if (pref.summary == getString(R.string.obd_check_disabled)) {
+                pref.summary = getString(R.string.obd_check_waiting)
+            }
+        }
     }
 
     private fun answer(pid: PidDef, v: Double): String {
@@ -140,14 +190,20 @@ class ObdCheckFragment : PreferenceFragmentCompat() {
                     busy = true
                     io.execute {
                         val values = MazdaPids.all.map { it.id to ObdBridgeService.peek(it.id) }
+                        lastValues = values
                         ui.post {
                             if (isAdded) {
                                 // «Нет ответа» показываем только при включённом зажигании, иначе это
                                 // просто молчащий блок и сообщение сбивает с толку.
                                 val ign = ObdBridgeService.ignitionOn() == true
+                                val obdPrefs = ctx.getSharedPreferences("obd_bridge", Context.MODE_PRIVATE)
+                                val disabled = ObdEngine.disabledPids(obdPrefs)
+                                enableAllPref?.isVisible = disabled.isNotEmpty()
+                                enableAllPref?.summary = getString(R.string.obd_check_enable_all_summary, disabled.size)
                                 values.forEach { (id, v) ->
                                     val pid = MazdaPids.byId(id) ?: return@forEach
                                     rows[id]?.summary = when {
+                                        id in disabled -> getString(R.string.obd_check_disabled)
                                         v != null -> answer(pid, v)
                                         ign -> getString(R.string.obd_check_no_answer)
                                         else -> getString(R.string.obd_check_waiting)

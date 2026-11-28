@@ -335,6 +335,11 @@
     <string name="obd_check_cat_calculated">Расчётные</string>
     <string name="obd_check_answer">Отвечает: %1$s</string>
     <string name="obd_check_no_answer">Нет ответа</string>
+    <string name="obd_check_disabled">Отключён (нажмите, чтобы включить)</string>
+    <string name="obd_check_disable_unresponsive">Отключить неотвечающие</string>
+    <string name="obd_check_disable_unresponsive_summary">Не тратить время адаптера на молчащие датчики</string>
+    <string name="obd_check_enable_all">Включить все датчики</string>
+    <string name="obd_check_enable_all_summary">Вернуть в опрос отключённые датчики (%1$d)</string>
     <string name="obd_check_waiting">Ожидание…</string>
     <string name="obd_check_ignition">Зажигание</string>
     <string name="obd_check_ignition_on">Включено — блок отвечает</string>
