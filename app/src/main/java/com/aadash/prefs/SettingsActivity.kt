@@ -381,10 +381,11 @@ class SettingsActivity : AppCompatActivity(),
                 val backup = BackupCodec.decode(text) ?: return@runCatching null
                 val prefs = UserPreference.parseFrom(backup.settings)
                 applicationContext.dataStore.updateData { prefs }
-                RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
+                val imported = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
                     .importText(backup.regenLog)
                 // layout из v2 (совместимо с NAV) пока игнорируем: в master приборы в UserPreference
                 backup.layout.takeIf { it.isNotBlank() }?.let { /* TODO: master-аналог NavLayoutStore */ }
+                imported
             }.getOrNull()
             runOnUiThread {
                 val msg = if (count == null) {
