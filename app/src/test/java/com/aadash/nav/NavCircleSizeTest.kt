@@ -37,4 +37,18 @@ class NavCircleSizeTest {
         val centeredSmall = NavItem("g2", NavItem.GAUGE, "05", "Coolant", "C", 40f, 120f, 1.0, 0, 0.4f, 0.35f, 0.2f, 0.25f, 1f)
         assertEquals(2.0f, NavLayout.maxCircleSize(centeredSmall, 2.5f), 0.001f)
     }
+
+    @Test
+    fun `layout presets stay within bounds and have valid items`() {
+        for (layout in listOf(NavLayoutStore.defaultLayout(), NavLayoutStore.presetHighway(), NavLayoutStore.presetMinimal())) {
+            val wide = layout.form(NavLayoutStore.WIDE).items
+            val narrow = layout.form(NavLayoutStore.NARROW).items
+            assertTrue(wide.isNotEmpty())
+            assertTrue(narrow.isNotEmpty())
+            for (item in wide + narrow) {
+                assertTrue(item.x >= 0f && item.y >= 0f)
+                assertTrue(item.x + item.w <= 1.001f && item.y + item.h <= 1.001f)
+            }
+        }
+    }
 }

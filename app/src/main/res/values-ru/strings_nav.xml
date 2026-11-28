@@ -152,4 +152,11 @@
     <string name="nav_align_center_h">По центру по горизонтали</string>
     <string name="nav_align_center_v">По центру по вертикали</string>
     <string name="nav_align_right">По правому краю</string>
+    <string name="nav_preset_layout">Шаблон раскладки…</string>
+    <string name="nav_preset_diesel">Дизель DPF (3 прибора + 4 плитки)</string>
+    <string name="nav_preset_universal">Универсальный OBD-II (стандартные PID)</string>
+    <string name="nav_preset_highway">Трасса (2 прибора + трек + плитки)</string>
+    <string name="nav_preset_minimal">Минимализм (скорость + ОЖ + DPF)</string>
+    <string name="nav_preset_applied">Шаблон применён к текущей форме</string>
+    <string name="profile_universal_name">Универсальный OBD-II</string>
 </resources>

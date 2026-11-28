@@ -13,9 +13,11 @@ object AppProfiles {
     private const val META_PREFS = "app_profile_meta"
     private const val KEY_PROFILES = "profiles_json"
     private const val KEY_ACTIVE = "active_id"
+    private const val KEY_UNIVERSAL_SEEDED = "universal_seeded"
 
     private const val DEFAULT_ID = "default"
-    private const val DEFAULT_NAME = "Мой автомобиль"
+    private const val DEFAULT_NAME = "Mazda Diesel"
+    private const val UNIVERSAL_ID = "universal"
 
     @Volatile private var migrated = false
     @Volatile private var cachedProfiles: List<AppProfile>? = null
@@ -24,6 +26,22 @@ object AppProfiles {
     fun meta(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(META_PREFS, Context.MODE_PRIVATE)
 
+    private fun universalName(context: Context): String = try {
+        context.getString(com.aadash.stats.R.string.profile_universal_name)
+    } catch (_: Exception) {
+        "Universal OBD-II"
+    }
+
+    private fun seedUniversalLayoutIfMissing(context: Context) {
+        try {
+            val prefs = context.applicationContext.getSharedPreferences(navPrefsName(UNIVERSAL_ID), Context.MODE_PRIVATE)
+            if (!prefs.contains("layout_json")) {
+                val json = com.aadash.nav.NavLayoutStore.toJson(com.aadash.nav.NavLayoutStore.universalLayout())
+                prefs.edit().putString("layout_json", json).apply()
+            }
+        } catch (_: Exception) { }
+    }
+
     @Synchronized
     fun migrate(context: Context) {
         if (migrated) return
@@ -31,7 +49,31 @@ object AppProfiles {
         if (!m.contains(KEY_PROFILES)) {
             val arr = JSONArray()
             arr.put(JSONObject().put("id", DEFAULT_ID).put("name", DEFAULT_NAME))
-            m.edit().putString(KEY_PROFILES, arr.toString()).putString(KEY_ACTIVE, DEFAULT_ID).apply()
+            arr.put(JSONObject().put("id", UNIVERSAL_ID).put("name", universalName(context)))
+            m.edit()
+                .putString(KEY_PROFILES, arr.toString())
+                .putString(KEY_ACTIVE, DEFAULT_ID)
+                .putBoolean(KEY_UNIVERSAL_SEEDED, true)
+                .apply()
+            seedUniversalLayoutIfMissing(context)
+        } else if (!m.getBoolean(KEY_UNIVERSAL_SEEDED, false)) {
+            // Безопасное добавление универсального профиля существующим пользователям без изменения их профилей и активного выбора
+            try {
+                val arr = JSONArray(m.getString(KEY_PROFILES, "[]"))
+                var hasUniversal = false
+                for (i in 0 until arr.length()) {
+                    if (arr.getJSONObject(i).optString("id") == UNIVERSAL_ID) {
+                        hasUniversal = true
+                        break
+                    }
+                }
+                if (!hasUniversal) {
+                    arr.put(JSONObject().put("id", UNIVERSAL_ID).put("name", universalName(context)))
+                    m.edit().putString(KEY_PROFILES, arr.toString()).apply()
+                    seedUniversalLayoutIfMissing(context)
+                }
+            } catch (_: Exception) { }
+            m.edit().putBoolean(KEY_UNIVERSAL_SEEDED, true).apply()
         }
         migrated = true
     }
@@ -164,6 +206,8 @@ object AppProfiles {
     }
 
     fun isDefault(id: String): Boolean = id == DEFAULT_ID
+
+    fun isUniversal(context: Context): Boolean = activeId(context) == UNIVERSAL_ID
 
     fun obdPrefsName(id: String): String =
         if (id == DEFAULT_ID) "obd_bridge" else "obd_bridge_$id"

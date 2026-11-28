@@ -42,6 +42,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private var loadedTheme: String? = null
     private var loadedFont: String? = null
     private var lastReportedAspect: Float = 0f
+    private var activeProfileId: String = AppProfiles.activeId(appContext)
     private var regenTracker: RegenTracker? = null
     private var prevRegenStatus = 0
     private var regenDoneUntil = 0L
@@ -100,8 +101,27 @@ class NavRenderer(context: Context) : SurfaceCallback {
             }
         }
         updateDebug()
+        activeProfileId = AppProfiles.activeId(appContext)
         NavLayoutStore.load(appContext)
+        com.aadash.obd.UserPids.load(appContext)
         start()
+    }
+
+    /** Горячая перезагрузка раскладки, пользовательских PID и журнала прожигов при смене профиля (без убийства AA-процесса). */
+    private fun reloadProfileIfChanged() {
+        val curId = AppProfiles.activeId(appContext)
+        if (curId == activeProfileId) return
+        activeProfileId = curId
+        states.clear()
+        loadedTheme = null
+        loadedFont = null
+        NavLayoutStore.load(appContext)
+        com.aadash.obd.UserPids.load(appContext)
+        regenTracker = try {
+            RegenTracker.get(appContext.getSharedPreferences(AppProfiles.obdPrefsName(appContext), Context.MODE_PRIVATE))
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override fun onSurfaceDestroyed(surfaceContainer: SurfaceContainer) {
@@ -167,6 +187,7 @@ class NavRenderer(context: Context) : SurfaceCallback {
         if (!s.isValid) return
         val c = lock(s) ?: return
         try {
+            reloadProfileIfChanged()
             val layout = NavLayoutStore.layout
             syncTheme(layout)
             fullF.set(0f, 0f, width.toFloat(), height.toFloat())
@@ -220,13 +241,19 @@ class NavRenderer(context: Context) : SurfaceCallback {
                     } else if (item.kind == NavItem.MEDIA) {
                         painter.media(c, area, item, NavData.getText(item.pid) ?: "--")
                     } else {
-                        painter.info(c, area, item, infoText(item))
+                        painter.info(c, area, item, infoText(item), isInfoWarn(item))
                     }
                 }
             } else {
                 val g = layout.graphs.getOrNull(idx - 1)
                 if (g != null) painter.graph(c, area, g)
             }
+            val linkState = if (com.aadash.stats.BuildConfig.SIMULATE_METRICS && com.aadash.obd.ObdBridgeService.linkState() == com.aadash.obd.ObdBridgeService.LINK_OFF) {
+                com.aadash.obd.ObdBridgeService.LINK_OK
+            } else {
+                com.aadash.obd.ObdBridgeService.linkState()
+            }
+            painter.linkBadge(c, area, linkState)
 
             // Статус прожига: плашка живёт в строке шапки Android Auto — там же, где «Выход»
             // и кнопки экранов, а не поверх приборов. Видна, пока блок сообщает статус 1 или 2;
@@ -307,5 +334,11 @@ class NavRenderer(context: Context) : SurfaceCallback {
     private fun infoText(item: NavItem): String {
         val v = NavData.get(item.pid) ?: return "--"
         return painter.formatValue(v * item.scale, item.decimals) + " " + item.unit
+    }
+
+    private fun isInfoWarn(item: NavItem): Boolean {
+        if (item.red <= item.min) return false
+        val v = NavData.get(item.pid) ?: return false
+        return (v * item.scale).toFloat() >= item.red
     }
 }

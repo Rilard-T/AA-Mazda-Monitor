@@ -173,7 +173,7 @@ object NavLayoutStore {
         } catch (e: Exception) { null }
         val text = try { prefs?.getString(KEY, null) } catch (e: Exception) { null }
         val parsed = if (text == null) null else parse(text)
-        val installed = parsed ?: defaultLayout()
+        val installed = parsed ?: defaultLayoutFor(context)
         install(installed)
         val wide = NavAspects.sanitize(try { prefs?.getFloat(KEY_AREA_WIDE, 0f) ?: 0f } catch (e: Exception) { 0f })
         val narrow = NavAspects.sanitize(try { prefs?.getFloat(KEY_AREA_NARROW, 0f) ?: 0f } catch (e: Exception) { 0f })
@@ -224,8 +224,11 @@ object NavLayoutStore {
             context.applicationContext.getSharedPreferences(com.aadash.prefs.AppProfiles.navPrefsName(context), Context.MODE_PRIVATE)
                 .edit().remove(KEY).apply()
         } catch (e: Exception) {}
-        install(defaultLayout())
+        install(defaultLayoutFor(context))
     }
+
+    fun defaultLayoutFor(context: Context): NavLayout =
+        if (com.aadash.prefs.AppProfiles.isUniversal(context)) universalLayout() else defaultLayout()
 
     fun toJson(l: NavLayout): String {
         val forms = JSONObject()
@@ -417,6 +420,99 @@ object NavLayoutStore {
                 narrowInfo("i4", "ff9003", "Сажа", "г/л", 2, 4),
                 narrowInfo("i5", "ff9005", "АКПП", "°C", 0, 5),
                 narrowInfo("i6", "ff9002", "После прожига", "км", 0, 6)
+            )
+        )
+        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), emptyList(), "", "")
+    }
+
+    /** Шаблон «Трасса»: два крупных прибора (обороты и скорость), трек и основные температуры/DPF. */
+    fun presetHighway(): NavLayout {
+        val footer = 0.18f
+        val gh = 1f - footer
+        fun gauge(
+            id: String, pid: String, label: String, unit: String, min: Float, max: Float, scale: Double,
+            x: Float, y: Float, w: Float, h: Float, size: Float, red: Float = 0f
+        ) = NavItem(id, NavItem.GAUGE, pid, label, unit, min, max, scale, 0, x, y, w, h, size, red, "circle")
+        fun info(id: String, pid: String, label: String, unit: String, decimals: Int, x: Float, y: Float, w: Float, h: Float, red: Float = 0f) =
+            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, 1.0, decimals, x, y, w, h, 1f, red, "square")
+
+        val wide = NavForm(
+            listOf(
+                gauge("g0", "0c", "Обороты", "x1000", 0f, 8f, 0.001, 0f, 0f, 0.5f, gh, 0.98f, 6f),
+                gauge("g1", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0.5f, 0f, 0.5f, gh, 0.98f),
+                NavItem("m0", NavItem.MEDIA, "media_title", "Трек", "", 0f, 1f, 1.0, 0, 0f, gh, 0.5f, footer, 1f, 0f, "square"),
+                info("i0", "05", "Темп. ОЖ", "°C", 0, 0.5f, gh, 0.25f, footer, 105f),
+                info("i1", "ff9010", "DPF", "%", 0, 0.75f, gh, 0.25f, footer, 95f)
+            )
+        )
+        val narrow = NavForm(
+            listOf(
+                gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, 1f, 0.52f, 0.95f),
+                NavItem("m0", NavItem.MEDIA, "media_title", "Трек", "", 0f, 1f, 1.0, 0, 0f, 0.52f, 1f, 0.16f, 1f, 0f, "square"),
+                info("i0", "05", "Темп. ОЖ", "°C", 0, 0f, 0.68f, 0.5f, 0.32f, 105f),
+                info("i1", "ff9010", "DPF", "%", 0, 0.5f, 0.68f, 0.5f, 0.32f, 95f)
+            )
+        )
+        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), emptyList(), "", "")
+    }
+
+    /** Шаблон «Минимализм»: крупный спидометр по центру и две плитки (ОЖ и DPF). */
+    fun presetMinimal(): NavLayout {
+        val wide = NavForm(
+            listOf(
+                NavItem("g0", NavItem.GAUGE, "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0, 0.2f, 0f, 0.6f, 0.80f, 1f, 0f, "circle"),
+                NavItem("i0", NavItem.INFO, "05", "Темп. ОЖ", "°C", 0f, 1f, 1.0, 0, 0f, 0.80f, 0.5f, 0.20f, 1f, 105f, "square"),
+                NavItem("i1", NavItem.INFO, "ff9010", "DPF", "%", 0f, 1f, 1.0, 0, 0.5f, 0.80f, 0.5f, 0.20f, 1f, 95f, "square")
+            )
+        )
+        val narrow = NavForm(
+            listOf(
+                NavItem("g0", NavItem.GAUGE, "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0, 0f, 0f, 1f, 0.64f, 0.95f, 0f, "circle"),
+                NavItem("i0", NavItem.INFO, "05", "Темп. ОЖ", "°C", 0f, 1f, 1.0, 0, 0f, 0.64f, 0.5f, 0.36f, 1f, 105f, "square"),
+                NavItem("i1", NavItem.INFO, "ff9010", "DPF", "%", 0f, 1f, 1.0, 0, 0.5f, 0.64f, 0.5f, 0.36f, 1f, 95f, "square")
+            )
+        )
+        return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), emptyList(), "", "")
+    }
+
+    /** Универсальный шаблон OBD-II (стандартные PID без привязки к Mazda/DPF). */
+    fun universalLayout(): NavLayout {
+        val footer = 0.16f
+        val gh = 1f - footer
+        val third = 1f / 3f
+        val fourth = 0.25f
+
+        fun gauge(
+            id: String, pid: String, label: String, unit: String, min: Float, max: Float, scale: Double,
+            x: Float, y: Float, w: Float, h: Float, size: Float, red: Float = 0f
+        ) = NavItem(id, NavItem.GAUGE, pid, label, unit, min, max, scale, 0, x, y, w, h, size, red, "circle")
+
+        fun info(id: String, pid: String, label: String, unit: String, decimals: Int, x: Float, y: Float, w: Float, h: Float, red: Float = 0f) =
+            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, 1.0, decimals, x, y, w, h, 1f, red, "square")
+
+        val wide = NavForm(
+            listOf(
+                gauge("g0", "0d", "Скорость", "км/ч", 0f, 240f, 1.0, 0f, 0f, third, gh, 0.95f),
+                gauge("g1", "0c", "Обороты", "x1000", 0f, 8f, 0.001, third, 0f, third, gh, 1.0f, 6f),
+                gauge("g2", "05", "Темп. ОЖ", "°C", 40f, 120f, 1.0, 2f * third, 0f, third, gh, 0.95f, 105f),
+                info("i0", "04", "Нагрузка", "%", 0, 0f, gh, fourth, footer),
+                info("i1", "0b", "Впуск MAP", "кПа", 0, fourth, gh, fourth, footer),
+                info("i2", "0f", "Воздух", "°C", 0, 2f * fourth, gh, fourth, footer),
+                info("i3", "42", "Бортсеть", "В", 1, 3f * fourth, gh, fourth, footer)
+            )
+        )
+        val narrowRow = 1f / 7f
+        fun narrowInfo(id: String, pid: String, label: String, unit: String, decimals: Int, row: Int, red: Float = 0f) =
+            NavItem(id, NavItem.INFO, pid, label, unit, 0f, 1f, 1.0, decimals, 0f, row * narrowRow, 1f, narrowRow, 1f, red, "square")
+        val narrow = NavForm(
+            listOf(
+                narrowInfo("i0", "0d", "Скорость", "км/ч", 0, 0),
+                narrowInfo("i1", "0c", "Обороты", "об/мин", 0, 1),
+                narrowInfo("i2", "05", "Темп. ОЖ", "°C", 0, 2, 105f),
+                narrowInfo("i3", "04", "Нагрузка", "%", 0, 3),
+                narrowInfo("i4", "0b", "Впуск MAP", "кПа", 0, 4),
+                narrowInfo("i5", "0f", "Воздух", "°C", 0, 5),
+                narrowInfo("i6", "42", "Бортсеть", "В", 1, 6)
             )
         )
         return NavLayout(1.15f, mapOf(WIDE to wide, NARROW to narrow), emptyList(), "", "")

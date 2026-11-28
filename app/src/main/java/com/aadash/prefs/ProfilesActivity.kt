@@ -61,7 +61,10 @@ class ProfilesFragment : PreferenceFragmentCompat() {
             val id = newValue.toString()
             if (id == AppProfiles.activeId(ctx)) return@setOnPreferenceChangeListener true
             AppProfiles.setActive(ctx, id)
-            promptRestart()
+            applyProfileOnTheFly(ctx)
+            active.value = id
+            active.summary = AppProfiles.activeName(ctx)
+            Toast.makeText(ctx, AppProfiles.activeName(ctx), Toast.LENGTH_SHORT).show()
             true
         }
         cat.addPreference(active)
@@ -173,23 +176,10 @@ class ProfilesFragment : PreferenceFragmentCompat() {
         active.summary = AppProfiles.activeName(ctx)
     }
 
-    private fun promptRestart() {
-        AlertDialog.Builder(requireActivity())
-            .setTitle(getString(R.string.profile_switch_restart))
-            .setPositiveButton(getString(R.string.profile_restart)) { _, _ ->
-                restartApp()
-            }
-            .setNegativeButton(getString(R.string.profile_later), null)
-            .show()
-    }
-
-    private fun restartApp() {
-        val ctx = requireContext().applicationContext
-        // остановить службу OBD
+    private fun applyProfileOnTheFly(context: Context) {
+        val ctx = context.applicationContext
         com.aadash.obd.ObdBridgeService.stop(ctx)
-        val intent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
-        intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        ctx.startActivity(intent)
-        Runtime.getRuntime().exit(0)
+        com.aadash.obd.UserPids.load(ctx)
+        com.aadash.nav.NavLayoutStore.load(ctx)
     }
 }

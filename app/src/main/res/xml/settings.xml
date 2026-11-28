@@ -58,6 +58,11 @@
         android:singleLineTitle="false"
         android:title="@string/obd_exp_journal">
         <Preference
+            android:key="regen_stats"
+            android:persistent="false"
+            android:selectable="false"
+            android:title="@string/regen_stats_title" />
+        <Preference
             android:key="export_regen_log"
             android:title="@string/export_regen_log" />
         <Preference

@@ -42,6 +42,7 @@ class NavPainter {
         }
 
     private val rectF = RectF()
+    private val graphPath = android.graphics.Path()
     private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
     private val stroke = Paint().apply { style = Paint.Style.STROKE; isAntiAlias = true }
     // Тень у текста: подписи читаются и на светлом ободе циферблата, и на фоновом рисунке
@@ -78,7 +79,7 @@ class NavPainter {
     }
 
     /** Текстовое значение: подпись сверху, готовый текст (число и единица) снизу, в своей ячейке. */
-    fun info(c: Canvas, area: RectF, item: NavItem, valueText: String) {
+    fun info(c: Canvas, area: RectF, item: NavItem, valueText: String, warn: Boolean = false) {
         val left = area.left + item.x * area.width()
         val top = area.top + item.y * area.height()
         val w = item.w * area.width()
@@ -88,7 +89,7 @@ class NavPainter {
         text.color = Color.rgb(170, 185, 220)
         text.textSize = min(h * 0.26f, w / 7f) * textScale
         c.drawText(item.label, cx, top + h * 0.40f, text)
-        text.color = Color.WHITE
+        text.color = if (warn) Color.rgb(255, 90, 70) else Color.WHITE
         text.textSize = min(h * 0.40f, w / 5f) * textScale
         c.drawText(valueText, cx, top + h * 0.86f, text)
     }
@@ -132,7 +133,8 @@ class NavPainter {
         } else {
             flatDial(c, cx, cy, r, frac, redFrac)
         }
-        gaugeTexts(c, cx, cy, r, item, valueText)
+        val warn = item.red > item.min && shown >= item.red
+        gaugeTexts(c, cx, cy, r, item, valueText, warn)
     }
 
     /** Плоский вид (без темы): тёмный круг, дуга, деления и стрелка. */
@@ -310,29 +312,38 @@ class NavPainter {
         val windowMs = g.windowMin * 60_000L
         val cutoff = now - windowMs
 
-        // собрать точки по pid
-        val series = ArrayList<Pair<String, List<Pair<Long, Double>>>>()
+        // собрать точки по pid без промежуточных списков
+        val series = ArrayList<List<Pair<Long, Double>>>(g.pids.size)
+        var yMin = Double.POSITIVE_INFINITY
+        var yMax = Double.NEGATIVE_INFINITY
+        var hasVals = false
         for (pid in g.pids) {
-            val pts = NavData.history(pid).filter { it.first >= cutoff }
-            series.add(pid to pts)
+            val pts = NavData.historySince(pid, cutoff)
+            series.add(pts)
+            for (p in pts) {
+                hasVals = true
+                if (p.second < yMin) yMin = p.second
+                if (p.second > yMax) yMax = p.second
+            }
         }
 
         // Y-диапазон
-        val allVals = series.flatMap { it.second.map { p -> p.second } }
-        var yMin: Double
-        var yMax: Double
-        if (g.autoScaleY && allVals.isNotEmpty()) {
-            yMin = allVals.minOrNull()!!
-            yMax = allVals.maxOrNull()!!
+        if (g.autoScaleY && hasVals) {
             if (yMax - yMin < 1e-6) { yMin -= 1.0; yMax += 1.0 }
             val pad = (yMax - yMin) * 0.1
             yMin -= pad; yMax += pad
         } else {
             // из PidDef
-            val defs = g.pids.mapNotNull { MazdaPids.byId(it) }
-            yMin = defs.map { it.min }.minOrNull()?.toDouble() ?: 0.0
-            yMax = defs.map { it.max }.maxOrNull()?.toDouble() ?: 100.0
-            if (yMax <= yMin) { yMin = 0.0; yMax = 100.0 }
+            yMin = Double.POSITIVE_INFINITY
+            yMax = Double.NEGATIVE_INFINITY
+            var hasDef = false
+            for (pid in g.pids) {
+                val def = MazdaPids.byId(pid) ?: continue
+                hasDef = true
+                if (def.min < yMin) yMin = def.min
+                if (def.max > yMax) yMax = def.max
+            }
+            if (!hasDef || yMax <= yMin) { yMin = 0.0; yMax = 100.0 }
         }
 
         // сетка
@@ -353,24 +364,32 @@ class NavPainter {
         stroke.color = Color.argb(120, 170, 185, 220)
         c.drawRect(left, top, right, bottom, stroke)
 
-        // линии
+        // линии через переиспользуемый Path
         for (idx in g.pids.indices) {
-            val pts = series[idx].second
+            val pts = series[idx]
             if (pts.size < 2) continue
             val color = if (idx < g.colors.size) g.colors[idx] else 0xFF3AA6FF.toInt()
             stroke.color = color
             stroke.strokeWidth = g.thickness * pxScale
             stroke.strokeCap = Paint.Cap.ROUND
-            var prevX = 0f; var prevY = 0f; var first = true
+            stroke.strokeJoin = Paint.Join.ROUND
+            graphPath.reset()
+            var first = true
             for (p in pts) {
                 val t = ((p.first - cutoff).toFloat() / windowMs).coerceIn(0f, 1f)
                 val x = left + (right - left) * t
                 val frac = ((p.second - yMin) / (yMax - yMin)).coerceIn(0.0, 1.0).toFloat()
                 val y = bottom - (bottom - top) * frac
-                if (!first) c.drawLine(prevX, prevY, x, y, stroke)
-                prevX = x; prevY = y; first = false
+                if (first) {
+                    graphPath.moveTo(x, y)
+                    first = false
+                } else {
+                    graphPath.lineTo(x, y)
+                }
             }
+            c.drawPath(graphPath, stroke)
             stroke.strokeCap = Paint.Cap.BUTT
+            stroke.strokeJoin = Paint.Join.MITER
         }
 
         // заголовок и окно времени
@@ -419,9 +438,21 @@ class NavPainter {
         }
     }
 
+    /** Индикатор связи с адаптером: маленькая точка в правом верхнем углу области. */
+    fun linkBadge(c: Canvas, area: RectF, state: Int) {
+        val r = 5f * pxScale
+        val pad = 10f * pxScale
+        fill.color = when (state) {
+            com.aadash.obd.ObdBridgeService.LINK_OK -> Color.rgb(70, 210, 110)
+            com.aadash.obd.ObdBridgeService.LINK_WAIT -> Color.rgb(255, 190, 60)
+            else -> Color.rgb(235, 75, 75)
+        }
+        c.drawCircle(area.right - pad, area.top + pad, r, fill)
+    }
+
     /** Подписи прибора: показание, единицы и название. */
-    private fun gaugeTexts(c: Canvas, cx: Float, cy: Float, r: Float, item: NavItem, valueText: String) {
-        text.color = Color.WHITE
+    private fun gaugeTexts(c: Canvas, cx: Float, cy: Float, r: Float, item: NavItem, valueText: String, warn: Boolean = false) {
+        text.color = if (warn) Color.rgb(255, 90, 70) else Color.WHITE
         text.textSize = r * 0.30f * textScale
         c.drawText(valueText, cx, cy + r * 0.11f, text)
         text.color = Color.rgb(170, 185, 220)

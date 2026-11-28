@@ -347,6 +347,9 @@
     <string name="obd_check_disable_unresponsive_summary">Не тратить время адаптера на молчащие датчики</string>
     <string name="obd_check_enable_all">Включить все датчики</string>
     <string name="obd_check_enable_all_summary">Вернуть в опрос отключённые датчики (%1$d)</string>
+    <string name="regen_stats_title">Статистика прожигов</string>
+    <string name="regen_stats_empty">Записей о прожигах пока нет</string>
+    <string name="regen_stats_fmt">Записей: %1$d · Средний интервал: %2$s · Средняя сажа: %3$s · До следующего: %4$s</string>
     <string name="obd_check_waiting">Ожидание…</string>
     <string name="obd_check_ignition">Зажигание</string>
     <string name="obd_check_ignition_on">Включено — блок отвечает</string>

@@ -33,6 +33,19 @@ object NavData {
         synchronized(buf) { return ArrayList(buf) }
     }
 
+    /** Срез истории начиная с [cutoff] без лишней промежуточной фильтрации. */
+    fun historySince(id: String, cutoff: Long): List<Pair<Long, Double>> {
+        val buf = history[id] ?: return emptyList()
+        synchronized(buf) {
+            if (buf.isEmpty()) return emptyList()
+            val out = ArrayList<Pair<Long, Double>>(buf.size)
+            for (p in buf) {
+                if (p.first >= cutoff) out.add(p)
+            }
+            return out
+        }
+    }
+
     @Synchronized
     fun start() {
         if (running) return

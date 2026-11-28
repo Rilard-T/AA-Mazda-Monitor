@@ -371,6 +371,9 @@
     <string name="obd_check_disable_unresponsive_summary">Skip sensors that did not reply to save adapter time</string>
     <string name="obd_check_enable_all">Enable all sensors</string>
     <string name="obd_check_enable_all_summary">Re-enable all disabled sensors (%1$d)</string>
+    <string name="regen_stats_title">Regeneration stats</string>
+    <string name="regen_stats_empty">No recorded regenerations yet</string>
+    <string name="regen_stats_fmt">Entries: %1$d · Avg interval: %2$s · Avg soot: %3$s · Next in: %4$s</string>
     <string name="obd_check_waiting">Waiting…</string>
     <string name="obd_check_ignition">Ignition</string>
     <string name="obd_check_ignition_on">On — the unit answers</string>

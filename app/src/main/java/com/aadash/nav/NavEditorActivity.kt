@@ -389,10 +389,12 @@ class NavEditorActivity : AppCompatActivity() {
             gridBtn?.let { stateBtn(it) { editor.gridOn } }
             snapBtn?.let { stateBtn(it) { editor.snapToGrid } }
             val copyBtn = mkBtn(getString(R.string.nav_copy)) { confirmCopySensors() }
+            val presetBtn = mkBtn(getString(R.string.nav_preset_layout)) { choosePresetLayout() }
             val resetBtn = mkBtn(getString(R.string.nav_reset)) { reset() }
             g.addView(gridBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(snapBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(copyBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            g.addView(presetBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             g.addView(resetBtn, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
 
@@ -688,6 +690,8 @@ class NavEditorActivity : AppCompatActivity() {
             actions.add { chooseCircleSize() }
             names.add(getString(R.string.nav_item_max))
             actions.add { chooseGaugeMax() }
+        }
+        if (!media) {
             names.add(getString(R.string.nav_item_red))
             actions.add { chooseRedZone() }
         }
@@ -735,10 +739,10 @@ class NavEditorActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    /** Красная зона прибора: значение, с которого шкала краснеет (0 — выключить). */
+    /** Красная зона прибора или плитки: значение, с которого подсвечивается предупреждение (0 — выключить). */
     private fun chooseRedZone() {
         val sel = editor.selectedItem() ?: return
-        if (sel.kind != NavItem.GAUGE) return
+        if (sel.kind != NavItem.GAUGE && sel.kind != NavItem.INFO) return
         val hint = TextView(this)
         hint.text = getString(R.string.nav_red_hint)
         val input = EditText(this)
@@ -1349,6 +1353,32 @@ class NavEditorActivity : AppCompatActivity() {
                 editor.replaceSelected(cur.copy(x = nx, y = ny))
                 editor.invalidate()
                 updateInfo()
+            }
+            .setNegativeButton(getString(R.string.nav_cancel), null)
+            .show()
+    }
+
+    private fun choosePresetLayout() {
+        val names = arrayOf(
+            getString(R.string.nav_preset_diesel),
+            getString(R.string.nav_preset_universal),
+            getString(R.string.nav_preset_highway),
+            getString(R.string.nav_preset_minimal)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.nav_preset_layout))
+            .setItems(names) { _, which ->
+                val layout = when (which) {
+                    1 -> NavLayoutStore.universalLayout()
+                    2 -> NavLayoutStore.presetHighway()
+                    3 -> NavLayoutStore.presetMinimal()
+                    else -> NavLayoutStore.defaultLayout()
+                }
+                forms[formKey] = ArrayList(layout.form(formKey).items)
+                editor.selectedId = null
+                editor.invalidate()
+                updateInfo()
+                Toast.makeText(this, getString(R.string.nav_preset_applied), Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton(getString(R.string.nav_cancel), null)
             .show()

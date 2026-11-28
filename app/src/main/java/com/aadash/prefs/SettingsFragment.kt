@@ -99,5 +99,21 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onStart() {
         super.onStart()
         (requireActivity() as SettingsActivity).supportActionBar!!.subtitle = null
+        updateRegenStats()
+    }
+
+    private fun updateRegenStats() {
+        val pref = findPreference<Preference>("regen_stats") ?: return
+        val ctx = requireContext()
+        val obdPrefs = ctx.getSharedPreferences(AppProfiles.obdPrefsName(ctx), android.content.Context.MODE_PRIVATE)
+        val s = com.aadash.obd.RegenTracker.get(obdPrefs).summary()
+        if (s.count == 0 && s.avgKm == null) {
+            pref.summary = getString(R.string.regen_stats_empty)
+            return
+        }
+        val avgKm = s.avgKm?.let { "${Math.round(it)} km" } ?: "—"
+        val avgSoot = s.avgSoot?.let { String.format(java.util.Locale.US, "%.2f g/l", it) } ?: "—"
+        val rem = s.remainingKm?.let { "~${Math.round(it)} km" } ?: "—"
+        pref.summary = getString(R.string.regen_stats_fmt, s.count, avgKm, avgSoot, rem)
     }
 }

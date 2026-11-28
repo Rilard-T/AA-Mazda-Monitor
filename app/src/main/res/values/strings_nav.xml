@@ -152,4 +152,11 @@
     <string name="nav_align_center_h">Center horizontally</string>
     <string name="nav_align_center_v">Center vertically</string>
     <string name="nav_align_right">Align right</string>
+    <string name="nav_preset_layout">Layout template…</string>
+    <string name="nav_preset_diesel">Diesel DPF (3 gauges + 4 tiles)</string>
+    <string name="nav_preset_universal">Universal OBD-II (standard PIDs)</string>
+    <string name="nav_preset_highway">Highway (2 gauges + media + tiles)</string>
+    <string name="nav_preset_minimal">Minimal (speed + coolant + DPF)</string>
+    <string name="nav_preset_applied">Template applied to current form</string>
+    <string name="profile_universal_name">Universal OBD-II</string>
 </resources>

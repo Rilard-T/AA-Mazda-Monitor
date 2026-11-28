@@ -357,6 +357,16 @@ class ObdBridgeService : Service() {
         /** Текущее значение параметра для экрана проверки. Вызывать только не из главного потока. */
         fun peek(id: String): Double? = current?.value(id)
 
+        const val LINK_OFF = 0
+        const val LINK_WAIT = 1
+        const val LINK_OK = 2
+
+        /** Состояние связи для индикатора на экране Android Auto. */
+        fun linkState(): Int {
+            val e = current ?: return LINK_OFF
+            return if (e.ignitionOn()) LINK_OK else LINK_WAIT
+        }
+
         /** Зажигание: true — блок отвечает, false — молчит, null — связи с адаптером нет. */
         fun ignitionOn(): Boolean? = current?.ignitionOn()
 
