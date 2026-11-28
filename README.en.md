@@ -152,7 +152,8 @@ Separate installer tools (like AAEnabler) are no longer needed — the app insta
 
 **Future updates:**
 
-- **"About" → "Install APK" → "Install from Play source"** (or **"Choose file from storage"**).
+- When a newer version is available, **"Check for updates"** (and the startup update prompt) does the same — it downloads and installs the update with the Play source.
+- Manually: **"About" → "Install APK" → "Install from Play source"** (or **"Choose file from storage"**).
 - Settings, the regeneration log and the layout are preserved; no need to uninstall the app.
 
 ---
