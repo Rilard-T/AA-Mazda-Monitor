@@ -481,7 +481,7 @@
     <string name="pid_ff9014_unit">г/л</string>
 
     <!-- Ранее отсутствовавшие переводы -->
-    <string name="download_dialog">Обновление скачано. Установите его через AAEnabler: откроется приложение, выберите скачанный APK и нажмите «Install app». Без AAEnabler новое приложение не появится в Android Auto.</string>
+    <string name="download_dialog">Обновление скачано. Установить?</string>
     <string name="download_open_enabler">Открыть AAEnabler</string>
     <string name="download_instructions">Обновление загружается</string>
     <string name="credits_basedon">На базе SDK и демо-приложения:</string>
@@ -570,4 +570,12 @@
 <string name="pid_ff901b_name">Заряд аккумулятора (оценка)</string>
 <string name="pid_ff901b_short">Заряд АКБ</string>
 <string name="pid_ff901b_unit">%</string>
+    <string name="install_apk">Установить APK</string>
+    <string name="install_play_source">Установить из Play-источника</string>
+    <string name="install_from_storage">Выбрать файл из памяти</string>
+    <string name="play_source_download_started">Загрузка обновления из Play-источника</string>
+    <string name="play_source_no_release">В выпуске нет APK</string>
+    <string name="first_run_title">Установка обновлений</string>
+    <string name="first_run_message">Обновления устанавливаются с источником Play, чтобы приложение появилось в Android Auto.</string>
+    <string name="first_run_ok">OK</string>
 </resources>

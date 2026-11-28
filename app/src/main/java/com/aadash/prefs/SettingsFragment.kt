@@ -219,6 +219,10 @@ class SettingsFragment : PreferenceFragmentCompat() {
             (requireActivity() as SettingsActivity).forceUpdate()
             true
         }
+        findPreference<Preference>("install_apk")?.setOnPreferenceClickListener {
+            (requireActivity() as SettingsActivity).installApk()
+            true
+        }
         findPreference<Preference>("exit_app")?.setOnPreferenceClickListener {
             (requireActivity() as SettingsActivity).exitApp()
             true

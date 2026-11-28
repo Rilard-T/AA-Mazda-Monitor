@@ -176,7 +176,7 @@
     <string name="pref_view">View %1$d</string>
     <string name="pref_data_element_settings">Data element settings %1$d</string>
     <string name="pref_title_performance">Title %1$d</string>
-    <string name="download_dialog">The update has been downloaded. Install it through AAEnabler: pick the downloaded APK there and tap “Install app”. Without AAEnabler the app will not appear in Android Auto.</string>
+    <string name="download_dialog">The update has been downloaded. Install it now?</string>
     <string name="download_open_enabler">Open AAEnabler</string>
     <string name="force_update">Check for updates</string>
     <string name="update_failed">Update check failed</string>
@@ -576,4 +576,12 @@
 <string name="pid_ff901b_name">Battery state of charge</string>
 <string name="pid_ff901b_short">Battery</string>
 <string name="pid_ff901b_unit">%</string>
+    <string name="install_apk">Install APK</string>
+    <string name="install_play_source">Install from Play source</string>
+    <string name="install_from_storage">Choose file from storage</string>
+    <string name="play_source_download_started">Downloading update from Play source</string>
+    <string name="play_source_no_release">No release APK found</string>
+    <string name="first_run_title">Installing updates</string>
+    <string name="first_run_message">Updates are installed with the Play source so the app appears in Android Auto.</string>
+    <string name="first_run_ok">OK</string>
 </resources>

@@ -58,6 +58,9 @@ class SettingsActivity : AppCompatActivity(),
     private var pendingTag: String? = null
     private var pendingApkName: String? = null
 
+    /** Флаг: после скачивания сразу ставить APK с Play-источником, без диалога AAEnabler. */
+    private var pendingPlaySourceInstall: Boolean = false
+
     val br: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.`package` == BuildConfig.APPLICATION_ID) {
@@ -87,11 +90,16 @@ class SettingsActivity : AppCompatActivity(),
                     Toast.makeText(this@SettingsActivity, R.string.update_corrupt, Toast.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
+                if (pendingPlaySourceInstall) {
+                    pendingPlaySourceInstall = false
+                    installPlaySource(downloadId)
+                    return@runOnUiThread
+                }
                 AlertDialog.Builder(this@SettingsActivity).setTitle(R.string.download_complete)
                     .setMessage(R.string.download_dialog)
-                    .setPositiveButton(R.string.download_open_enabler) { p0, _ ->
+                    .setPositiveButton(R.string.install_play_source) { p0, _ ->
                         p0?.dismiss()
-                        installDownloaded(downloadId)
+                        installPlaySource(downloadId)
                     }.setNegativeButton(android.R.string.cancel
                     ) { p0, _ -> p0?.dismiss() }.show()
             }
@@ -148,6 +156,80 @@ class SettingsActivity : AppCompatActivity(),
         applicationContext.startActivity(intent)
     }
 
+    /** Установка скачанного APK с источником com.android.vending (без AAEnabler). */
+    private fun installPlaySource(downloadId: Long) {
+        val uri = (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).getUriForDownloadedFile(downloadId) ?: return
+        installPlaySourceUri(uri)
+    }
+
+    /** Установка APK по URI с источником com.android.vending. */
+    private fun installPlaySourceUri(uri: Uri) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Intent(Intent.ACTION_INSTALL_PACKAGE).also {
+                it.data = uri
+                it.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+        } else {
+            Intent(Intent.ACTION_VIEW).also {
+                it.setDataAndTypeAndNormalize(uri, "application/vnd.android.package-archive")
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        }
+        intent.putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
+        intent.putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, "com.android.vending")
+        runCatching { applicationContext.startActivity(intent) }
+            .onFailure { Timber.e(it, "Play-source install failed") }
+    }
+
+    /** Диалог выбора способа установки APK из настроек. */
+    fun installApk() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.install_apk)
+            .setItems(
+                arrayOf(getString(R.string.install_play_source), getString(R.string.install_from_storage))
+            ) { _, which ->
+                if (which == 0) {
+                    installFromPlaySource()
+                } else {
+                    installApkFromStorageLauncher.launch(
+                        arrayOf(
+                            "application/vnd.android.package-archive",
+                            "*/*"
+                        )
+                    )
+                }
+            }
+            .show()
+    }
+
+    private fun showFirstRunDialog() {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        if (prefs.getBoolean("first_run_seen", false)) return
+        AlertDialog.Builder(this)
+            .setTitle(R.string.first_run_title)
+            .setMessage(R.string.first_run_message)
+            .setPositiveButton(R.string.first_run_ok) { d, _ -> d.dismiss() }
+            .show()
+        prefs.edit().putBoolean("first_run_seen", true).apply()
+    }
+
+    private fun installFromPlaySource() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!checkUpdate(installPlaySource = true)) {
+                runOnUiThread {
+                    Toast.makeText(this@SettingsActivity, R.string.play_source_no_release, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private val installApkFromStorageLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        installPlaySourceUri(uri)
+    }
+
     public override fun onCreate(savedInstanceState: Bundle?) {
         com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this)
         super.onCreate(savedInstanceState)
@@ -161,6 +243,7 @@ class SettingsActivity : AppCompatActivity(),
                 .beginTransaction()
                 .replace(R.id.settings_fragment, SettingsFragment())
                 .commit()
+            showFirstRunDialog()
         }
         lifecycleScope.launch(Dispatchers.IO) {
             checkUpdate()
@@ -273,7 +356,8 @@ class SettingsActivity : AppCompatActivity(),
             val ok = runCatching {
                 val data = applicationContext.dataStore.data.first()
                 val tracker = RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
-                val text = BackupCodec.encode(data.toByteArray(), tracker.exportText())
+                val layoutJson = "" // master: раскладка приборов пока в UserPreference (protobuf)
+                val text = BackupCodec.encode(data.toByteArray(), tracker.exportText(), layoutJson)
                 contentResolver.openOutputStream(uri)
                     ?.use { it.write(text.toByteArray(Charsets.UTF_8)) } != null
             }.getOrDefault(false)
@@ -299,6 +383,8 @@ class SettingsActivity : AppCompatActivity(),
                 applicationContext.dataStore.updateData { prefs }
                 RegenTracker.get(getSharedPreferences(OBD_PREFS, MODE_PRIVATE))
                     .importText(backup.regenLog)
+                // layout из v2 (совместимо с NAV) пока игнорируем: в master приборы в UserPreference
+                backup.layout.takeIf { it.isNotBlank() }?.let { /* TODO: master-аналог NavLayoutStore */ }
             }.getOrNull()
             runOnUiThread {
                 val msg = if (count == null) {
@@ -450,7 +536,7 @@ class SettingsActivity : AppCompatActivity(),
         }
     }
 
-    private fun checkUpdate(force: Boolean =false): Boolean {
+    private fun checkUpdate(force: Boolean = false, installPlaySource: Boolean = false): Boolean {
         Timber.i("Checking for update")
 
         var needsUpdate: Boolean? = null
@@ -507,6 +593,35 @@ class SettingsActivity : AppCompatActivity(),
             urlConnection.disconnect()
         }
 
+
+        if (installPlaySource) {
+            if (needsUpdate == true && downloadItem != null) {
+                pendingPlaySourceInstall = true
+                ContextCompat.registerReceiver(
+                    baseContext,
+                    br,
+                    IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE),
+                    ContextCompat.RECEIVER_EXPORTED
+                )
+                val downloadRequest = DownloadManager.Request(Uri.parse(downloadItem))
+                downloadRequest.setDestinationInExternalPublicDir(
+                    Environment.DIRECTORY_DOWNLOADS,
+                    "aa-mazda-monitor.apk"
+                )
+                downloadRequest.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                runCatching {
+                    java.io.File(
+                        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                        "aa-mazda-monitor.apk"
+                    ).delete()
+                }
+                val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
+                dm.enqueue(downloadRequest)
+                Toast.makeText(baseContext, R.string.play_source_download_started, Toast.LENGTH_SHORT).show()
+                return true
+            }
+            return false
+        }
 
         if (needsUpdate == true && downloadItem != null) {
             Snackbar.make(

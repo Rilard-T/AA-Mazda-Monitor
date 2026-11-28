@@ -5,6 +5,32 @@
 
 Обновление всегда ставится поверх предыдущей версии без удаления: подпись не меняется.
 
+## 0.9.1
+
+Технические подробности; для пользователя — `docs/release-notes-0.9.1.md`.
+
+- Установка обновлений по воздуху с Play-источником (EXTRA_INSTALLER_PACKAGE_NAME=com.android.vending), без AAEnabler в OTA-пути.
+- Диалог «Загрузка завершена» с кнопкой «Установить из Play-источника»; проверка SHA-256, сообщение при повреждении.
+- Пункт «Установить APK» в настройках: Play-источник или файл из памяти (OpenDocument, APK/*/*).
+- Диалог первого запуска с пояснением установки с Play-источником.
+- Бэкап профилей v2: формат AA_MONITOR_BACKUP;2 с полем layout (приборы), совместимость с v1 и NAV-файлами.
+- Экспорт/импорт бэкапа с layout; неизвестный JSON игнорируется.
+- `BackupCodec.kt`: v1/v2, чтение/запись layout; `SettingsActivity.kt`: pendingPlaySourceInstall, installPlaySource, installPlaySourceUri, installApk, installFromPlaySource, installApkFromStorageLauncher, showFirstRunDialog, verifyAndInstall, checkUpdate(force, installPlaySource).
+- Строки синхронно в `values/` и `values-ru/`; preference `install_apk` в `settings.xml`.
+
+## 0.9.0
+
+Технические подробности; для пользователя — `docs/release-notes-0.9.0.md`.
+
+- Приложение разделено на два независимых канала: AA Mazda Monitor (мониторинг) и AA Dash Nav (навигация в Android Auto). У каждого свой пакет, оба ставятся одновременно.
+- Общее ядро мониторинга вынесено в общий код, брендинг — в отдельный слой по каналу.
+- Исправлено обновление по OTA: имя APK берётся из фактического релиза.
+- После скачивания обновления диалог предлагает AAEnabler или прямую установку.
+- Двигатель OBD: потокобезопасный кэш и volatile-набор PID; в лог статуса прожига добавлены EGT и скорость.
+- Трекер прожига: новые методы regenStatus()/regenStatusAvailable().
+- Экран «О приложении» показывает версию с номером сборки; экспорт лога использует имя приложения из ресурсов.
+- Единый бэкап и проверка целостности OTA (cfd8c98).
+
 ## 0.8.9
 
 Технические подробности; для пользователя — `docs/release-notes-0.8.9.md`.

@@ -186,6 +186,9 @@
             android:key="report_error"
             android:title="@string/report_error" />
         <Preference
+            android:key="install_apk"
+            android:title="@string/install_apk" />
+        <Preference
             android:key="force_update"
             android:title="@string/force_update" />
         <Preference
