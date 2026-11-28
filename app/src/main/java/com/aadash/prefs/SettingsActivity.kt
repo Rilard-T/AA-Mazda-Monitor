@@ -524,8 +524,11 @@ class SettingsActivity : AppCompatActivity(),
         val conn = URL("${BuildConfig.REPO_URL}/releases/download/$tag/$name")
             .openConnection() as HttpsURLConnection
         return try {
-            conn.requestMethod = "HEAD"
+            // GET надёжнее HEAD: HttpURLConnection на Android не всегда следует
+            // редиректам для HEAD, а GitHub отдаёт 302 на CDN.
+            conn.requestMethod = "GET"
             conn.instanceFollowRedirects = true
+            conn.setRequestProperty("Range", "bytes=0-0")
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
             conn.responseCode == HttpURLConnection.HTTP_OK
@@ -574,7 +577,10 @@ class SettingsActivity : AppCompatActivity(),
                 // Сравниваем коды версий по той же формуле, что в build.gradle, а не строки:
                 // «0.10.0» новее «0.9.1», хотя посимвольно это не так.
                 needsUpdate = UpdateCheck.isNewer(tagName, BuildConfig.VERSION_CODE)
-                if (needsUpdate == true && !tagName.isNullOrBlank()) {
+                // При явном запросе установки из Play-источника качаем APK последнего
+                // релиза даже если версия не новее текущей (переустановка с Play-источником).
+                val shouldFetchApk = needsUpdate == true || installPlaySource
+                if (shouldFetchApk && !tagName.isNullOrBlank()) {
                     val apk = apkAssetName(tagName)
                     if (apk == null) {
                         Timber.w("Проверка обновлений: в выпуске %s нет APK", tagName)
@@ -596,7 +602,7 @@ class SettingsActivity : AppCompatActivity(),
 
 
         if (installPlaySource) {
-            if (needsUpdate == true && downloadItem != null) {
+            if (downloadItem != null) {
                 pendingPlaySourceInstall = true
                 ContextCompat.registerReceiver(
                     baseContext,
